@@ -1,40 +1,127 @@
-"use client";
+import Nav from "./components/Nav";
+import Footer from "./components/Footer";
+import Ticker from "./components/Ticker";
+import SoulCard from "./components/SoulCard";
+import { getSupply, getPricing, getFreed, getBlockTimes, ago, fmtEth, fmtDate, type Pricing } from "@/lib/chain";
 
-import { useEffect, useState } from "react";
+// Live on-chain counter + roster, regenerated at most once per minute (ISR).
+export const revalidate = 60;
 
-// Provisional home. The real design system arrives in a later wave (W-D/W1).
-// This only proves the new deployment is alive AND that the ported API responds.
-export default function Home() {
-  const [api, setApi] = useState<string>("checking /api/collection…");
+const TOTAL = 10000;
 
-  useEffect(() => {
-    fetch("/api/collection")
-      .then((r) => r.json())
-      .then((j) => setApi(`/api/collection OK — "${j.name}"`))
-      .catch(() => setApi("/api/collection FAILED"));
-  }, []);
+function pricingPill(p: Pricing | null) {
+  if (!p) return null;
+  if (p.free) {
+    const until = p.freeUntil ? ` until ${fmtDate(p.freeUntil)}` : "";
+    const then = p.firstPriceWei && p.firstPriceWei !== "0" ? ` · then Ξ${fmtEth(p.firstPriceWei)}` : "";
+    return (
+      <p className="pricing">
+        <span className="free">🎟 Free mint week</span> — free{until}. Just gas.{then}
+      </p>
+    );
+  }
+  const rises = p.nextAt && p.nextPriceWei ? ` · rises to Ξ${fmtEth(p.nextPriceWei)} on ${fmtDate(p.nextAt)}` : "";
+  return (
+    <p className="pricing">
+      <b>Ξ{fmtEth(p.priceWei)}</b> per soul{rises}
+    </p>
+  );
+}
+
+function pricingTickerLine(p: Pricing | null): string | undefined {
+  if (!p) return undefined;
+  if (p.free) {
+    const until = p.freeUntil ? ` until ${fmtDate(p.freeUntil)}` : "";
+    const then = p.firstPriceWei && p.firstPriceWei !== "0" ? ` · then Ξ${fmtEth(p.firstPriceWei)}` : "";
+    return `Free mint week — free${until}${then}`;
+  }
+  return `Ξ${fmtEth(p.priceWei)} per soul`;
+}
+
+export default async function Home() {
+  const [freedCount, pricing, freed] = await Promise.all([getSupply(), getPricing(), getFreed()]);
+
+  const freedN = freedCount ?? freed.length;
+  const dark = Math.max(0, TOTAL - freedN);
+  const pct = Math.min(100, (freedN / TOTAL) * 100);
+
+  // Recent grid ("pulled from the ash") — newest 8, with real "ago" from block times.
+  const recent = freed.slice(0, 8);
+  const times = await getBlockTimes(Array.from(new Set(recent.map((e) => e.block))));
+  const now = Math.floor(Date.now() / 1000);
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: "1.25rem",
-        background: "#2e0a10",
-        color: "#f4ece0",
-        fontFamily:
-          "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
-        textAlign: "center",
-        padding: "2rem",
-      }}
-    >
-      <h1 style={{ fontSize: "clamp(1.25rem, 4vw, 2rem)", fontWeight: 600, letterSpacing: "0.02em", margin: 0 }}>
-        CUBIST SOULS — new museum under construction
-      </h1>
-      <p style={{ opacity: 0.7, fontSize: "0.9rem", margin: 0 }}>{api}</p>
-    </main>
+    <>
+      <Ticker pricingLine={pricingTickerLine(pricing)} />
+      <Nav active="burn" />
+
+      <header className="hero">
+        <div className="hero-bg">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/assets/banner.jpg" alt="A cubist studio in flames" fetchPriority="high" />
+        </div>
+        <div className="hero-scrim" />
+        <div className="hero-in wrap">
+          <span className="eyebrow"><span className="dot" />The community is freeing them · live</span>
+          <h1 className="title">CUBIST SOULS</h1>
+          <p className="lead">You don&apos;t buy a soul. You free one — by burning the canvas that trapped it.</p>
+        </div>
+      </header>
+
+      <section className="tally">
+        <div className="wrap">
+          <div className="num hot">{freedN.toLocaleString("en-US")}</div>
+          <div className="cap">
+            <b>{freedN.toLocaleString("en-US")}</b> freed by fire · <b>{dark.toLocaleString("en-US")}</b> still in the dark
+          </div>
+          <div className="emberbar"><span style={{ width: `${pct}%` }} /></div>
+          {pricingPill(pricing)}
+          <div className="cta">
+            <button className="btn btn-primary" disabled aria-disabled="true">
+              🔥 Light the fire — free your Pikkazo
+            </button>
+            <a className="btn btn-secondary" href="https://opensea.io/collection/cubist-souls" target="_blank" rel="noopener noreferrer">
+              View on OpenSea
+            </a>
+          </div>
+          <p className="cta-note">Wallet connect — connecting soon on this preview</p>
+        </div>
+      </section>
+
+      <div className="rule"><div className="line" /></div>
+
+      <section className="section" style={{ paddingTop: 0 }}>
+        <div className="wrap">
+          <div className="decree">
+            <span className="seal">✕</span>
+            <span className="k">The rite is irreversible</span>
+            <p>
+              <strong>This is real.</strong> The fire destroys the Pikkazo forever on Ethereum mainnet — and returns its Cubist Soul,
+              same number, original art recovered. <strong>No undo, no refund, no takebacks.</strong> Free one piece at a time, or your
+              whole collection in a single signature.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {recent.length > 0 && (
+        <section className="section" style={{ paddingTop: 0 }}>
+          <div className="wrap">
+            <div className="sec-head">
+              <span className="eyebrow">Freed by fire · the ledger</span>
+              <h2>PULLED FROM <em className="hot">THE ASH</em></h2>
+            </div>
+            <div className="grid">
+              {recent.map((e, i) => {
+                const t = times[e.block];
+                return <SoulCard key={e.id} id={e.id} status={t ? ago(now - t) : "Freed"} eager={i < 4} />;
+              })}
+            </div>
+          </div>
+        </section>
+      )}
+
+      <Footer />
+    </>
   );
 }
