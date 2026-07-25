@@ -235,10 +235,15 @@ export default function MySouls() {
         ) : (
           data && (
             <>
-              {/* Recognition plaque + your collection (classic Your Souls) */}
-              <ClassicView data={data} shareRow={shareRow} address={account ?? ""} collab={collab} />
-              {/* Museum Hours — public, integrated below the collection */}
-              <MHView myMh={myMh} mhPhase={mhPhase} board={board} boardPhase={boardPhase} />
+              {/* Recognition plaque + Museum Hours + your collection. MH goes right
+                  after the plaque — below a 346-card grid nobody ever saw it. */}
+              <ClassicView
+                data={data}
+                shareRow={shareRow}
+                address={account ?? ""}
+                collab={collab}
+                mhSlot={<MHView myMh={myMh} mhPhase={mhPhase} board={board} boardPhase={boardPhase} />}
+              />
             </>
           )
         )}
@@ -268,11 +273,13 @@ function ClassicView({
   shareRow,
   address,
   collab,
+  mhSlot,
 }: {
   data: SoulsData;
   shareRow: React.ReactNode;
   address: string;
   collab: boolean;
+  mhSlot?: React.ReactNode;
 }) {
   const tier = tierOf(data.freed);
   return (
@@ -295,6 +302,8 @@ function ClassicView({
         </div>
         {shareRow}
       </div>
+
+      {mhSlot}
 
       <div className="section-label">
         Your collection · {data.owned.length} soul{data.owned.length === 1 ? "" : "s"}
