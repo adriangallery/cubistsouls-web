@@ -32,7 +32,7 @@ const mono = Space_Mono({
 // change — it's where the on-chain renderer lives).
 export const metadata: Metadata = {
   metadataBase: new URL("https://cubistsouls.com"),
-  title: "Burn Art — Pikkazo",
+  title: "Cubist Souls — freed by fire",
   description:
     "Burn a Pikkazo canvas and get its Cubist Soul — same number, original art recovered — minted to your wallet in the Cubist Souls collection.",
   icons: {
