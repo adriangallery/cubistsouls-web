@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
 import { useAccount, usePublicClient } from "wagmi";
 import { ConnectButton, useConnectModal } from "@rainbow-me/rainbowkit";
 import Nav from "../components/Nav";
@@ -27,8 +26,8 @@ function toast(msg: string, ms = 6000) {
 type Phase = "idle" | "loading" | "loaded" | "error";
 
 export default function MySouls() {
-  const params = useSearchParams();
-  const mhEnabled = params.get("mh") === "1";
+  // Museum Hours are PUBLIC now — always shown, integrated below the collection
+  // (no ?mh=1 gate; the flag survives only as a harmless no-op).
   const { address, isConnected } = useAccount();
   const client = usePublicClient();
   const { openConnectModal } = useConnectModal();
@@ -62,7 +61,9 @@ export default function MySouls() {
         const d = await loadSouls(client, acct);
         setData(d);
         setPhase("loaded");
-        if (mhEnabled) {
+        // Museum Hours always computed (public). Failure is non-fatal — the MH
+        // section renders its own "records unavailable" note.
+        if (d.freed > 0) {
           try {
             const m = await buildMH(client, acct, d.owned, d.freed);
             setMh(m);
@@ -74,7 +75,7 @@ export default function MySouls() {
         setPhase("error");
       }
     },
-    [client, mhEnabled],
+    [client],
   );
 
   useEffect(() => {
@@ -145,16 +146,13 @@ export default function MySouls() {
     <>
       <Nav active="souls" />
 
-      {/* header hidden when the page is in Museum Hours mode (mh replaces it) */}
-      {!(mhEnabled && mounted && isConnected) && (
-        <header className="ms-head wrap">
-          <div className="eyebrow">Your place in the gallery</div>
-          <h1 className="title ms-title">YOUR SOULS</h1>
-          <p className="lead">
-            Every Cubist Soul you freed, and your standing among the community that reclaimed the collection.
-          </p>
-        </header>
-      )}
+      <header className="ms-head wrap">
+        <div className="eyebrow">Your place in the gallery</div>
+        <h1 className="title ms-title">YOUR SOULS</h1>
+        <p className="lead">
+          Every Cubist Soul you freed, and your standing among the community that reclaimed the collection.
+        </p>
+      </header>
 
       <main className="wrap ms-main">
         <div className="ms-connect">
@@ -174,11 +172,7 @@ export default function MySouls() {
 
         {/* ---------- states ---------- */}
         {!mounted || phase === "idle" ? (
-          mhEnabled ? (
-            <MHIntro connected={false} />
-          ) : (
-            <EmptyState />
-          )
+          <EmptyState />
         ) : phase === "loading" ? (
           <div className="grid ms-grid">
             {Array.from({ length: 6 }).map((_, i) => (
@@ -192,10 +186,15 @@ export default function MySouls() {
             You haven&apos;t freed a soul yet — <a href="/">burn a Pikkazo</a> and its Cubist Soul comes to this
             wallet.
           </p>
-        ) : mhEnabled ? (
-          <MHView mh={mh} shareRow={shareRow} />
         ) : (
-          data && <ClassicView data={data} shareRow={shareRow} address={address ?? ""} collab={collab} />
+          data && (
+            <>
+              {/* Recognition plaque + your collection (classic Your Souls) */}
+              <ClassicView data={data} shareRow={shareRow} address={address ?? ""} collab={collab} />
+              {/* Museum Hours — public, integrated below the collection */}
+              <MHView mh={mh} shareRow={null} />
+            </>
+          )
         )}
       </main>
 

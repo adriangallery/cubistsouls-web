@@ -26,15 +26,15 @@ const mono = Space_Mono({
   display: "swap",
 });
 
-// OG/Twitter tags kept identical to prod (pikkazo-burn/index.html). The whole
-// preview stays noindex (also enforced globally in next.config.mjs headers)
-// until the final domain flip to cubistsouls.com.
+// OG/Twitter tags kept identical to prod (pikkazo-burn/index.html). The site is
+// now PUBLIC (domain flip to cubistsouls.com): canonical URLs point at the real
+// domain; og:image stays on cubistsouls.vercel.app/api/img (that host doesn't
+// change — it's where the on-chain renderer lives).
 export const metadata: Metadata = {
-  metadataBase: new URL("https://cubistsouls.vercel.app"),
+  metadataBase: new URL("https://cubistsouls.com"),
   title: "Burn Art — Pikkazo",
   description:
     "Burn a Pikkazo canvas and get its Cubist Soul — same number, original art recovered — minted to your wallet in the Cubist Souls collection.",
-  robots: { index: false, follow: false },
   icons: {
     icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>",
   },
@@ -43,7 +43,7 @@ export const metadata: Metadata = {
     title: "Burn Art — free your Cubist Soul",
     description:
       "Burn a Pikkazo canvas and you get its Cubist Soul — same number, original art recovered — minted straight to your wallet on Ethereum.",
-    url: "https://cubistsouls.vercel.app",
+    url: "https://cubistsouls.com",
     images: ["https://cubistsouls.vercel.app/api/img?id=136"],
   },
   twitter: {

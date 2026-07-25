@@ -10,15 +10,28 @@ const nextConfig = {
     config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^@x402\// }));
     return config;
   },
-  // The whole new site stays out of search indexes until the final domain flip
-  // to cubistsouls.com. X-Robots-Tag noindex is applied globally below.
+  // Clean-URL rewrites for the still-legacy HTML pages that the new Next site
+  // hasn't ported yet, so the domain flip breaks no URL. Each serves the copy
+  // in /public verbatim (they reference /assets/* and /api/* which already exist
+  // here; the builder manifest comes from GitHub raw). The-vault + govern keep
+  // their own inline <meta robots noindex>; builder is public (linked in Nav).
+  async rewrites() {
+    return [
+      { source: "/builder", destination: "/builder.html" },
+      { source: "/builder-test", destination: "/builder-test.html" },
+      { source: "/the-vault-9k2xq7", destination: "/the-vault-9k2xq7.html" },
+      { source: "/govern-x9v4k2", destination: "/govern-x9v4k2.html" },
+    ];
+  },
+  // The site is PUBLIC (domain flip to cubistsouls.com). The global noindex is
+  // gone; only the still-semi-secret legacy pages keep noindex via inline meta
+  // (builder-test, the-vault-9k2xq7, govern-x9v4k2).
   async headers() {
     return [
       {
-        // Global security + noindex on every path (pages, assets, API).
+        // Global security headers on every path (pages, assets, API).
         source: "/:path*",
         headers: [
-          { key: "X-Robots-Tag", value: "noindex, nofollow" },
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
           {
