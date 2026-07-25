@@ -8,8 +8,21 @@ import Footer from "../components/Footer";
 import CollabGrid from "./CollabGrid";
 import MobileWalletSheet, { useIsMobileNoInjected } from "../components/MobileWalletSheet";
 import { loadSouls, tierOf, type SoulsData } from "@/lib/souls";
-import { buildMH, type MHResult } from "@/lib/mh";
+import { buildMyMH, buildBoard, type MyMHResult, type MHBoardRow } from "@/lib/mh";
 import { drawCard, shareText, downloadBlob, type CardStats } from "@/lib/share-card";
+
+// DEV-ONLY read-only harness: ?as=0x… lets us render another wallet's page
+// (no signer, reads only) to reproduce/verify. Gated to NODE_ENV==="development"
+// so it is inert in every deployed build — the branch is dead code in prod.
+function useDevAs(): string | undefined {
+  const [as, setAs] = useState<string | undefined>();
+  useEffect(() => {
+    if (process.env.NODE_ENV !== "development") return;
+    const v = new URLSearchParams(window.location.search).get("as");
+    if (v && /^0x[0-9a-fA-F]{40}$/.test(v)) setAs(v.toLowerCase());
+  }, []);
+  return as;
+}
 
 const mhNum = (v: number) =>
   (v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -33,13 +46,22 @@ export default function MySouls() {
   const { openConnectModal } = useConnectModal();
   const mobileNoInjected = useIsMobileNoInjected();
   const [sheet, setSheet] = useState(false);
+  const devAs = useDevAs();
+
+  // Effective wallet: the connected one, or the dev harness address in dev.
+  const account = devAs ?? address;
+  const connected = !!devAs || isConnected;
 
   const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [data, setData] = useState<SoulsData | null>(null);
-  const [mh, setMh] = useState<MHResult | null>(null);
+  const [myMh, setMyMh] = useState<MyMHResult | null>(null);
+  const [mhPhase, setMhPhase] = useState<Phase>("idle"); // your-hours pass (cheap)
+  const [board, setBoard] = useState<MHBoardRow[] | null>(null);
+  const [boardPhase, setBoardPhase] = useState<Phase>("idle"); // leaderboard (heavy)
   const [cardBusy, setCardBusy] = useState(false);
   const [collab, setCollab] = useState(true); // WTP collab spark; fail-open
+  const reqRef = useRef(0); // guards against stale async when the wallet changes
 
   useEffect(() => setMounted(true), []);
 
@@ -54,38 +76,62 @@ export default function MySouls() {
   const load = useCallback(
     async (acct: string) => {
       if (!client) return;
+      const reqId = ++reqRef.current;
       setPhase("loading");
       setData(null);
-      setMh(null);
+      setMyMh(null);
+      setBoard(null);
+      setMhPhase("idle");
+      setBoardPhase("idle");
       try {
         const d = await loadSouls(client, acct);
+        if (reqId !== reqRef.current) return;
         setData(d);
         setPhase("loaded");
-        // Museum Hours always computed (public). Failure is non-fatal — the MH
-        // section renders its own "records unavailable" note.
         if (d.freed > 0) {
+          // Phase 1 — YOUR hours (cheap; only your souls). Shows in seconds.
+          setMhPhase("loading");
           try {
-            const m = await buildMH(client, acct, d.owned, d.freed);
-            setMh(m);
+            const my = await buildMyMH(client, acct, d.owned, d.freed, d.acq);
+            if (reqId !== reqRef.current) return;
+            setMyMh(my);
+            setMhPhase("loaded");
+            // Phase 2 — the curators' board (heavy: full collection scan). Runs
+            // in the background so a slow/failing scan never hides your numbers.
+            setBoardPhase("loading");
+            buildBoard(client, acct, d.owned, d.freed, my.me.mh)
+              .then((b) => {
+                if (reqId === reqRef.current) {
+                  setBoard(b);
+                  setBoardPhase("loaded");
+                }
+              })
+              .catch(() => {
+                if (reqId === reqRef.current) setBoardPhase("error");
+              });
           } catch {
-            setMh(null);
+            if (reqId === reqRef.current) setMhPhase("error");
           }
         }
       } catch {
-        setPhase("error");
+        if (reqId === reqRef.current) setPhase("error");
       }
     },
     [client],
   );
 
   useEffect(() => {
-    if (mounted && isConnected && address) load(address);
-    if (mounted && !isConnected) {
+    if (mounted && connected && account) load(account);
+    if (mounted && !connected) {
+      reqRef.current++;
       setPhase("idle");
       setData(null);
-      setMh(null);
+      setMyMh(null);
+      setBoard(null);
+      setMhPhase("idle");
+      setBoardPhase("idle");
     }
-  }, [mounted, isConnected, address, load]);
+  }, [mounted, connected, account, load]);
 
   const cardStats: CardStats | null =
     data && data.freed > 0
@@ -95,7 +141,7 @@ export default function MySouls() {
           total: data.totalLibs,
           held: data.owned.length,
           tier: tierOf(data.freed),
-          ...(mh ? { mh: mh.me.mh, rate: mh.me.rate } : {}),
+          ...(myMh ? { mh: myMh.me.mh, rate: myMh.me.rate } : {}),
         }
       : null;
 
@@ -156,7 +202,7 @@ export default function MySouls() {
 
       <main className="wrap ms-main">
         <div className="ms-connect">
-          {mounted && !isConnected && mobileNoInjected ? (
+          {mounted && !connected && mobileNoInjected ? (
             <button className="btn btn-primary" onClick={() => setSheet(true)}>
               🔥 Connect Wallet
             </button>
@@ -190,9 +236,9 @@ export default function MySouls() {
           data && (
             <>
               {/* Recognition plaque + your collection (classic Your Souls) */}
-              <ClassicView data={data} shareRow={shareRow} address={address ?? ""} collab={collab} />
+              <ClassicView data={data} shareRow={shareRow} address={account ?? ""} collab={collab} />
               {/* Museum Hours — public, integrated below the collection */}
-              <MHView mh={mh} shareRow={null} />
+              <MHView myMh={myMh} mhPhase={mhPhase} board={board} boardPhase={boardPhase} />
             </>
           )
         )}
@@ -272,31 +318,34 @@ function ClassicView({
   );
 }
 
-/* ---------------- Museum Hours (?mh=1) ---------------- */
-function MHIntro({ connected }: { connected: boolean }) {
+/* ---------------- Museum Hours (public) ---------------- */
+function MHHead() {
   return (
-    <section className="mh">
-      <div className="mh-head">
-        <h2 className="mh-title">🏛 Museum Hours</h2>
-        <p className="mh-sub">The museum records every hour its souls are kept. Their purpose will be revealed.</p>
-        <div className="mh-secret">Preview · the museum keeps its secrets</div>
-      </div>
-      {!connected && (
-        <p className="mh-status" style={{ paddingTop: 24 }}>
-          Connect your wallet to see the hours you&apos;ve kept.
-        </p>
-      )}
-    </section>
+    <div className="mh-head">
+      <h2 className="mh-title">🏛 Museum Hours</h2>
+      <p className="mh-sub">The museum records every hour its souls are kept. Their purpose will be revealed.</p>
+      <div className="mh-secret">Preview · the museum keeps its secrets</div>
+    </div>
   );
 }
 
-function MHView({ mh, shareRow }: { mh: MHResult | null; shareRow: React.ReactNode }) {
+function MHView({
+  myMh,
+  mhPhase,
+  board,
+  boardPhase,
+}: {
+  myMh: MyMHResult | null;
+  mhPhase: Phase;
+  board: MHBoardRow[] | null;
+  boardPhase: Phase;
+}) {
   const countRef = useRef<HTMLSpanElement>(null);
 
   // Live counter: base + rate × hoursElapsed, ticking client-side (rAF), exactly
   // like the vanilla page. Falls back to a 1s interval under reduced-motion.
   useEffect(() => {
-    if (!mh) return;
+    if (!myMh) return;
     const el = countRef.current;
     if (!el) return;
     const t0 = performance.now();
@@ -304,7 +353,7 @@ function MHView({ mh, shareRow }: { mh: MHResult | null; shareRow: React.ReactNo
     let raf = 0;
     let iv: ReturnType<typeof setInterval> | undefined;
     const frame = () => {
-      el.textContent = mhNum(mh.me.mh + mh.me.rate * ((performance.now() - t0) / 3600000));
+      el.textContent = mhNum(myMh.me.mh + myMh.me.rate * ((performance.now() - t0) / 3600000));
       if (!reduced) raf = requestAnimationFrame(frame);
     };
     frame();
@@ -313,12 +362,29 @@ function MHView({ mh, shareRow }: { mh: MHResult | null; shareRow: React.ReactNo
       if (raf) cancelAnimationFrame(raf);
       if (iv) clearInterval(iv);
     };
-  }, [mh]);
+  }, [myMh]);
 
-  if (!mh) {
+  // Still counting YOUR hours — a distinct LOADING state (not the failure note).
+  if (mhPhase === "loading" || (mhPhase === "idle" && !myMh)) {
     return (
       <section className="mh">
-        <MHIntro connected />
+        <MHHead />
+        <div className="mh-hero" aria-busy="true">
+          <div className="cap">Your Museum Hours</div>
+          <div className="mh-count">
+            <span className="spinner" aria-hidden="true" />
+          </div>
+          <div className="mh-rate">The museum is counting your hours…</div>
+        </div>
+      </section>
+    );
+  }
+
+  // The cheap pass genuinely failed — only now show the unavailable note.
+  if (!myMh) {
+    return (
+      <section className="mh">
+        <MHHead />
         <p className="mh-status">The museum&apos;s records are unavailable right now. Try again shortly.</p>
       </section>
     );
@@ -326,41 +392,36 @@ function MHView({ mh, shareRow }: { mh: MHResult | null; shareRow: React.ReactNo
 
   return (
     <section className="mh">
-      <div className="mh-head">
-        <h2 className="mh-title">🏛 Museum Hours</h2>
-        <p className="mh-sub">The museum records every hour its souls are kept. Their purpose will be revealed.</p>
-        <div className="mh-secret">Preview · the museum keeps its secrets</div>
-      </div>
+      <MHHead />
 
       <div className="mh-hero">
         <div className="cap">Your Museum Hours</div>
         <div className="mh-count">
           <span className="v" ref={countRef}>
-            {mhNum(mh.me.mh)}
+            {mhNum(myMh.me.mh)}
           </span>
           <span className="unit">MH</span>
         </div>
-        <div className="mh-rate">+{mhNum(mh.me.rate)} MH / hour</div>
+        <div className="mh-rate">+{mhNum(myMh.me.rate)} MH / hour</div>
         <div className="mh-mult">
           <span className="mh-chip">
-            Souls held <b>{mh.me.heldCount}</b>
+            Souls held <b>{myMh.me.heldCount}</b>
           </span>
           <span className="mh-chip">
-            Liberator <b>{mh.me.lib.name}</b> ×{mh.me.lib.mult}
+            Liberator <b>{myMh.me.lib.name}</b> ×{myMh.me.lib.mult}
           </span>
           <span className="mh-chip">
             Base <b>1.0</b> MH / soul / hr
           </span>
         </div>
-        {shareRow}
       </div>
 
       <div className="section-label">
-        The exhibits · {mh.ownedCount} soul{mh.ownedCount === 1 ? "" : "s"}
+        The exhibits · {myMh.ownedCount} soul{myMh.ownedCount === 1 ? "" : "s"}
       </div>
-      {mh.exhibits.length ? (
+      {myMh.exhibits.length ? (
         <div className="mh-exhibits">
-          {mh.exhibits.map((e) => (
+          {myMh.exhibits.map((e) => (
             <div className="exhibit" key={e.id}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={`/api/img?id=${e.id}`} loading="lazy" alt={`Cubist Soul #${e.id}`} />
@@ -382,34 +443,47 @@ function MHView({ mh, shareRow }: { mh: MHResult | null; shareRow: React.ReactNo
         </p>
       )}
 
-      <div className="section-label">
-        Curators&apos; board · top {Math.min(20, mh.board.filter((r) => !r.gap).length)} of{" "}
-        {mh.board.length}
-      </div>
-      <div className="mh-board">
-        {mh.board.map((r, i) =>
-          r.gap ? (
-            <div key={`g${i}`}>
-              <div className="lb-gap">···</div>
-              <div className={`lb-row me`}>
-                <span className="rk">#{r.rank}</span>
-                <span className="addr">{r.addr}</span>
-                <span className="mh">{mhNum(r.mh)} MH</span>
-              </div>
-            </div>
-          ) : (
-            <div className={`lb-row ${r.isMe ? "me" : ""}`} key={i}>
-              <span className="rk">#{r.rank}</span>
-              <span className="addr">{r.addr}</span>
-              <span className="mh">{mhNum(r.mh)} MH</span>
-            </div>
-          ),
-        )}
-      </div>
+      {/* ── Curators' board (heavy pass — fills in a moment after the hero) ── */}
+      {board ? (
+        <>
+          <div className="section-label">
+            Curators&apos; board · top {Math.min(20, board.filter((r) => !r.gap).length)} of {board.length}
+          </div>
+          <div className="mh-board">
+            {board.map((r, i) =>
+              r.gap ? (
+                <div key={`g${i}`}>
+                  <div className="lb-gap">···</div>
+                  <div className={`lb-row me`}>
+                    <span className="rk">#{r.rank}</span>
+                    <span className="addr">{r.addr}</span>
+                    <span className="mh">{mhNum(r.mh)} MH</span>
+                  </div>
+                </div>
+              ) : (
+                <div className={`lb-row ${r.isMe ? "me" : ""}`} key={i}>
+                  <span className="rk">#{r.rank}</span>
+                  <span className="addr">{r.addr}</span>
+                  <span className="mh">{mhNum(r.mh)} MH</span>
+                </div>
+              ),
+            )}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="section-label">Curators&apos; board</div>
+          <p className="mh-status">
+            {boardPhase === "error"
+              ? "The full board couldn't load right now — your hours above are current."
+              : "Tallying the curators' board…"}
+          </p>
+        </>
+      )}
 
       <div className="section-label">Your standing</div>
       <div className="mh-badges">
-        {mh.achievements.map((a, i) => (
+        {myMh.achievements.map((a, i) => (
           <div className={`ach ${a.state}`} key={i} title={a.state === "locked" ? "The museum keeps its secrets." : a.ds}>
             <div className="ico">{a.ic}</div>
             <div className="nm">{a.nm}</div>

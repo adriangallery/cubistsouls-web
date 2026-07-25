@@ -30,6 +30,7 @@ export type SoulsData = {
   rank: number; // 1-based rank among liberators by count
   totalLibs: number; // number of distinct liberators
   owned: number[]; // token ids currently held, ascending
+  acq: Record<number, number>; // owned id -> acquisition block (for the cheap MH pass)
 };
 
 // Decoded Transfer log — only the fields the page consumes (viem's full generic
@@ -115,5 +116,25 @@ export async function loadSouls(client: PublicClient, account: string): Promise<
   const owners = candidates.length ? await ownersOf(client, candidates) : new Map();
   const owned = candidates.filter((id) => owners.get(id) === acct).sort((a, b) => a - b);
 
-  return { freed, rank, totalLibs, owned };
+  // acquisition block per OWNED token = the latest Transfer(to=acct) for it. Since
+  // the wallet still holds it, that inbound transfer IS the last transfer overall,
+  // so this matches the block the heavy MH pass would derive (Δ=0). This lets the
+  // cheap "your hours" pass avoid pulling every transfer on the diamond.
+  const acqBest = new Map<number, { block: number; idx: number }>();
+  for (const l of inLogs) {
+    const id = Number(l.args.tokenId);
+    const block = Number(l.blockNumber);
+    const idx = Number(l.logIndex);
+    const prev = acqBest.get(id);
+    if (!prev || block > prev.block || (block === prev.block && idx > prev.idx)) {
+      acqBest.set(id, { block, idx });
+    }
+  }
+  const acq: Record<number, number> = {};
+  for (const id of owned) {
+    const a = acqBest.get(id);
+    if (a) acq[id] = a.block;
+  }
+
+  return { freed, rank, totalLibs, owned, acq };
 }

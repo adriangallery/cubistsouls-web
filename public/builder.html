@@ -5,8 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 
 <title>Soul Builder — Cubist Souls</title>
-<meta name="description" content="Internal test playground for the official vector (SVG) trait set." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>" />
+<meta name="description" content="Compose your own Cubist Soul from the artist's official vector trait set — 145 traits, 8 categories, shuffle and download." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Spectral:ital@1&family=Space+Mono&display=swap" rel="stylesheet" />
@@ -60,16 +60,23 @@
     font-style:italic; font-size:15px; line-height:1.65;
   }
   .sub b{color:var(--bone); font-weight:600; font-style:normal}
-  .nav{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:20px auto 0}
-  .nav a{
-    display:inline-flex; align-items:center; gap:7px;
-    background:rgba(11,9,8,.55); border:1px solid rgba(224,165,32,.35);
-    padding:9px 16px; border-radius:999px; font-size:11px; color:var(--mute);
-    font-family:"Space Mono",ui-monospace,monospace;
-    letter-spacing:.06em; text-transform:uppercase; transition:.16s;
-  }
-  .nav a:hover{border-color:var(--gild); color:var(--bone)}
-  .nav a b{color:var(--gild); font-weight:700}
+  /* — real site top-nav (replicated from the Next <Nav/> component) — */
+  .nav{position:sticky; top:0; z-index:50; background:rgba(11,9,8,.86);
+    backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid rgba(224,165,32,.4); text-align:left}
+  .nav-in{display:flex; align-items:center; justify-content:space-between; gap:1rem;
+    height:58px; max-width:1120px; margin:0 auto; padding:0 clamp(1rem,5vw,2.5rem)}
+  .brand{display:flex; align-items:center; gap:.6rem; color:var(--bone);
+    font-family:"Big Shoulders Display",Impact,sans-serif; font-weight:800;
+    font-size:1.1rem; flex:0 0 auto}
+  .brand img{width:26px; height:26px}
+  .nav-links{display:flex; gap:.35rem; font-family:"Space Mono",ui-monospace,monospace;
+    font-size:.7rem; letter-spacing:.18em; text-transform:uppercase;
+    overflow-x:auto; scrollbar-width:none; -ms-overflow-style:none; min-width:0}
+  .nav-links::-webkit-scrollbar{display:none}
+  .nav-links a{padding:.4rem .6rem; border-radius:999px; color:var(--mute); white-space:nowrap}
+  .nav-links a:hover{color:var(--bone)}
+  .nav-links a.active{background:var(--ember); color:#160500; font-weight:700}
 
   main{
     max-width:1010px; margin:0 auto; padding:30px 16px 120px;
@@ -191,16 +198,27 @@
 </head>
 <body>
 
+<nav class="nav">
+  <div class="nav-in">
+    <a class="brand" href="/">
+      <img src="assets/logo-trans.svg" alt="" width="26" height="26" />
+      CUBIST SOULS
+    </a>
+    <div class="nav-links">
+      <a href="/">Burn</a>
+      <a href="/gallery">The Freed</a>
+      <a href="/my-souls">Your Souls</a>
+      <a href="/builder" class="active">Builder</a>
+      <a href="https://opensea.io/collection/cubist-souls" target="_blank" rel="noopener noreferrer">OpenSea</a>
+    </div>
+  </div>
+</nav>
+
 <header>
-  <div class="kicker">Internal test — full vector trait set</div>
-  <h1>Vector<br />Builder</h1>
+  <div class="kicker">Cubist Souls</div>
+  <h1>Soul<br />Builder</h1>
   <hr class="rule" />
-  <p class="sub">The complete <b>official SVG trait set</b> from the artist — 145 OG traits in 8 categories plus the <b>★ Burn Cube</b> extras, hung in the true generator layer order. These exact vectors are the candidates for the fully <b>on-chain</b> renderer.</p>
-  <nav class="nav">
-    <a href="/builder">🎨 <b>Main</b> builder</a>
-    <a href="/">🔥 <b>Burn</b> page</a>
-    <a href="/gallery">🖼 <b>The Freed</b></a>
-  </nav>
+  <p class="sub">Compose with the artist's <b>official vector trait set</b> — 145 traits across 8 categories, hung in the true generator layer order. Shuffle a soul, tune each layer, and download your own.</p>
 </header>
 
 <main>
@@ -225,7 +243,7 @@
 </main>
 
 <footer>
-  Cubist Souls · vector trait test — not an official page
+  Cubist Souls · Soul Builder — the artist's official vector trait set
 </footer>
 
 <script>
