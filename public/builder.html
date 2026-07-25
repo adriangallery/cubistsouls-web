@@ -3,198 +3,246 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
+
 <title>Soul Builder — Cubist Souls</title>
-<meta name="description" content="Compose your own Cubist Soul from the recovered trait library — shuffle, tweak, download and share." />
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎨</text></svg>" />
-<!-- Open Graph / Twitter -->
-<meta property="og:type" content="website" />
-<meta property="og:title" content="Soul Builder — Cubist Souls" />
-<meta property="og:description" content="Compose your own Cubist Soul from the recovered trait library." />
-<meta property="og:image" content="https://cubistsouls.vercel.app/api/img?id=136" />
-<meta property="og:url" content="https://cubistsouls.com/builder" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta name="twitter:title" content="Soul Builder — Cubist Souls" />
-<meta name="twitter:description" content="Compose your own Cubist Soul from the recovered trait library." />
-<meta name="twitter:image" content="https://cubistsouls.vercel.app/api/img?id=136" />
+<meta name="description" content="Internal test playground for the official vector (SVG) trait set." />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧪</text></svg>" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Spectral:ital@1&family=Space+Mono&display=swap" rel="stylesheet" />
 <style>
   :root{
     --ink:#0b0908;
-    --wall:#1a0608;
     --smoke:#171311;
     --ash:#2a2320;
     --bone:#f3ece3;
-    --mute:#9c8f84;
+    --mute:#c9b8a6;
     --ember:#ff5b18;
     --flame:#ffb020;
     --blood:#c22412;
+    --gild:#e0a520;
+    --gild-2:#b8821a;
+    --oxblood:#2e0a10;
+    --wall:#7d101a;
+    --wall-2:#a0101b;
   }
   *{box-sizing:border-box}
   body{
-    margin:0; background:var(--wall); color:var(--bone);
-    font-family:"Helvetica Neue",Helvetica,Arial,sans-serif;
+    margin:0; background-color:var(--wall); color:var(--bone);
+    font-family:"Spectral",Georgia,serif;
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
     background-image:
-      radial-gradient(120% 60% at 50% 100%, rgba(255,91,24,.16), transparent 55%),
-      radial-gradient(90% 50% at 50% -8%, rgba(255,176,32,.08), transparent 60%);
-    background-attachment:fixed;
+      radial-gradient(1000px 900px at 50% 120%, var(--oxblood), transparent 60%),
+      radial-gradient(900px 500px at 50% -10%, rgba(0,0,0,.35), transparent 70%),
+      url("assets/wall-lowpoly-red.svg");
+    background-attachment:fixed; background-size:auto,auto,cover; background-position:center;
   }
-  a{color:var(--flame); text-decoration:none}
-  header{padding:30px 20px 6px; text-align:center}
+  a{color:var(--gild); text-decoration:none}
+  header{padding:38px 20px 6px; text-align:center}
   .kicker{
+    font-family:"Space Mono",ui-monospace,monospace;
     font-size:11px; letter-spacing:.42em; text-transform:uppercase;
-    color:var(--ember); font-weight:700; margin-bottom:12px;
+    color:var(--gild); font-weight:700; margin-bottom:10px;
+  }
+  .rule{
+    width:120px; height:2px; margin:16px auto 0; border:none;
+    background:linear-gradient(90deg, transparent, var(--gild), transparent);
   }
   h1{
-    margin:0; font-size:clamp(38px,9vw,84px); line-height:.86;
-    font-weight:900; letter-spacing:-.04em; text-transform:uppercase;
-    background:linear-gradient(180deg,#fff5e8 0%,var(--flame) 45%,var(--ember) 72%,var(--blood) 100%);
-    -webkit-background-clip:text; background-clip:text; color:transparent;
-    filter:drop-shadow(0 6px 30px rgba(255,91,24,.35));
+    margin:0; font-size:clamp(44px,10vw,96px); line-height:.86;
+    font-family:"Big Shoulders Display",Impact,sans-serif;
+    font-weight:800; letter-spacing:.005em; text-transform:uppercase;
+    color:var(--bone); text-shadow:0 6px 30px rgba(0,0,0,.55);
   }
-  .sub{margin:14px auto 0; max-width:520px; color:var(--mute); font-size:14px; line-height:1.6}
-  .sub b{color:var(--bone); font-weight:600}
-  .nav{
-    display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:18px auto 0;
+  .sub{
+    margin:16px auto 0; max-width:540px; color:var(--mute);
+    font-style:italic; font-size:15px; line-height:1.65;
   }
+  .sub b{color:var(--bone); font-weight:600; font-style:normal}
+  .nav{display:flex; gap:10px; justify-content:center; flex-wrap:wrap; margin:20px auto 0}
   .nav a{
     display:inline-flex; align-items:center; gap:7px;
-    background:var(--smoke); border:1px solid var(--ash);
-    padding:9px 15px; border-radius:999px; font-size:12px; color:var(--mute);
-    font-weight:700; letter-spacing:.03em; text-transform:uppercase; transition:.16s;
+    background:rgba(11,9,8,.55); border:1px solid rgba(224,165,32,.35);
+    padding:9px 16px; border-radius:999px; font-size:11px; color:var(--mute);
+    font-family:"Space Mono",ui-monospace,monospace;
+    letter-spacing:.06em; text-transform:uppercase; transition:.16s;
   }
-  .nav a:hover{border-color:#5c4a40; color:var(--bone)}
-  .nav a b{color:var(--flame)}
+  .nav a:hover{border-color:var(--gild); color:var(--bone)}
+  .nav a b{color:var(--gild); font-weight:700}
 
   main{
-    max-width:980px; margin:0 auto; padding:22px 16px 120px;
-    display:grid; gap:26px; grid-template-columns:1fr;
+    max-width:1010px; margin:0 auto; padding:30px 16px 120px;
+    display:grid; gap:30px; grid-template-columns:1fr;
   }
   @media(min-width:840px){
-    main{grid-template-columns:minmax(0,440px) minmax(0,1fr); align-items:start}
+    main{grid-template-columns:minmax(0,460px) minmax(0,1fr); align-items:start}
   }
 
   .stage{position:sticky; top:16px}
   @media(max-width:839px){.stage{position:static}}
-  .canvas-wrap{
-    position:relative; width:100%; aspect-ratio:1; border-radius:16px; overflow:hidden;
-    background:var(--smoke); border:2px solid var(--ash);
-    box-shadow:0 20px 60px rgba(0,0,0,.5);
+  /* — the gilded museum frame — */
+  .frame{
+    padding:14px; border-radius:4px;
+    background:
+      linear-gradient(145deg,#f6d879 0%,var(--gild) 22%,#8a5f10 50%,var(--gild) 74%,#f2ce62 100%);
+    box-shadow:
+      0 30px 70px rgba(10,2,4,.65),
+      0 4px 14px rgba(10,2,4,.5),
+      inset 0 1px 0 rgba(255,240,200,.65);
   }
+  .mat{
+    padding:10px; background:var(--ink); border-radius:2px;
+    box-shadow:inset 0 0 0 1px rgba(224,165,32,.4), inset 0 8px 24px rgba(0,0,0,.8);
+  }
+  .canvas-wrap{position:relative; width:100%; aspect-ratio:1; overflow:hidden; background:var(--smoke)}
   canvas{width:100%; height:100%; display:block; image-rendering:auto}
   .canvas-wrap.busy::after{
     content:""; position:absolute; inset:0;
-    background:linear-gradient(100deg,rgba(23,19,17,.0) 30%,rgba(255,176,32,.10) 50%,rgba(23,19,17,.0) 70%);
+    background:linear-gradient(100deg,rgba(23,19,17,0) 30%,rgba(224,165,32,.12) 50%,rgba(23,19,17,0) 70%);
     background-size:220% 100%; animation:sweep 1.1s infinite;
   }
   @keyframes sweep{to{background-position:-220% 0}}
 
-  .actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px}
+  .actions{display:flex; gap:10px; flex-wrap:wrap; margin-top:16px}
   button{
-    font:inherit; cursor:pointer; border:none; border-radius:999px;
-    padding:13px 20px; font-weight:800; letter-spacing:.04em;
+    font-family:"Space Mono",ui-monospace,monospace;
+    cursor:pointer; border:none; border-radius:999px;
+    padding:13px 20px; font-weight:700; letter-spacing:.08em;
     text-transform:uppercase; font-size:12px; transition:.16s ease; flex:1 1 auto;
     display:inline-flex; align-items:center; justify-content:center; gap:8px;
   }
-  .btn-shuffle{background:linear-gradient(180deg,var(--flame),var(--ember) 60%,var(--blood)); color:#fff; box-shadow:0 8px 22px rgba(255,91,24,.34); flex-basis:100%}
-  .btn-shuffle:hover{filter:brightness(1.08); transform:translateY(-1px)}
-  .btn-ghost{background:var(--smoke); border:1px solid var(--ash); color:var(--bone)}
-  .btn-ghost:hover{border-color:#5c4a40; transform:translateY(-1px)}
-  .traitline{
-    margin-top:12px; font-size:12px; color:var(--mute); line-height:1.7;
-    background:var(--smoke); border:1px solid var(--ash); border-radius:12px; padding:12px 14px;
+  .btn-shuffle{
+    background:linear-gradient(180deg,#f2ce62,var(--gild) 55%,var(--gild-2));
+    color:var(--oxblood); box-shadow:0 8px 22px rgba(224,165,32,.3); flex-basis:100%;
   }
-  .traitline .combo{color:var(--flame); font-family:ui-monospace,Menlo,monospace; font-size:11px; word-break:break-all}
+  .btn-shuffle:hover{filter:brightness(1.07); transform:translateY(-1px)}
+  .btn-ghost{background:rgba(11,9,8,.55); border:1px solid rgba(224,165,32,.35); color:var(--bone)}
+  .btn-ghost:hover{border-color:var(--gild); transform:translateY(-1px)}
+
+  /* — the plaque (cartela) under the frame — */
+  .traitline{
+    margin-top:16px; font-size:13px; color:var(--mute); line-height:1.8;
+    background:linear-gradient(180deg,#1d1512,var(--ink));
+    border:1px solid rgba(224,165,32,.4); border-radius:6px; padding:14px 16px;
+    box-shadow:0 12px 30px rgba(10,2,4,.45), inset 0 1px 0 rgba(224,165,32,.15);
+  }
+  .traitline b{color:var(--bone); font-weight:600}
+  .traitline .combo{
+    color:var(--gild); font-family:"Space Mono",ui-monospace,monospace;
+    font-size:11px; word-break:break-all; letter-spacing:.04em;
+  }
 
   .panel{min-width:0}
-  .acc{border:1px solid var(--ash); border-radius:14px; overflow:hidden; margin-bottom:10px; background:var(--smoke)}
+  .acc{
+    border:1px solid rgba(224,165,32,.28); border-radius:8px; overflow:hidden;
+    margin-bottom:10px; background:rgba(11,9,8,.62); backdrop-filter:blur(2px);
+  }
   .acc-head{
     display:flex; align-items:center; justify-content:space-between; gap:10px;
     padding:14px 16px; cursor:pointer; user-select:none;
   }
-  .acc-head:hover{background:#1d1815}
-  .acc-title{font-size:13px; font-weight:800; letter-spacing:.05em; text-transform:uppercase}
-  .acc-val{font-size:12px; color:var(--mute); font-weight:600; text-align:right; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+  .acc-head:hover{background:rgba(224,165,32,.06)}
+  .acc-title{
+    font-family:"Big Shoulders Display",Impact,sans-serif;
+    font-size:16px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+  }
+  .acc-val{
+    font-family:"Space Mono",ui-monospace,monospace;
+    font-size:11px; color:var(--mute); text-align:right; min-width:0;
+    overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+  }
   .acc-chev{color:var(--mute); transition:.2s; flex:0 0 auto}
-  .acc.open .acc-chev{transform:rotate(90deg); color:var(--flame)}
+  .acc.open{border-color:var(--gild)}
+  .acc.open .acc-chev{transform:rotate(90deg); color:var(--gild)}
+  .acc.open .acc-val{color:var(--gild)}
   .acc-body{display:none; padding:4px 12px 14px}
   .acc.open .acc-body{display:block}
-  .thumbs{
-    display:grid; gap:8px;
-    grid-template-columns:repeat(auto-fill,minmax(74px,1fr));
-  }
+  .thumbs{display:grid; gap:8px; grid-template-columns:repeat(auto-fill,minmax(74px,1fr))}
   .thumb{
-    position:relative; border-radius:10px; overflow:hidden; cursor:pointer;
+    position:relative; border-radius:6px; overflow:hidden; cursor:pointer;
     background:var(--ink); border:2px solid var(--ash); aspect-ratio:1; transition:.15s;
   }
   .thumb img{position:absolute; display:block; background:var(--ink); image-rendering:auto}
-  .thumb:hover{border-color:#5c4a40; transform:translateY(-2px)}
-  .thumb.sel{border-color:var(--ember); box-shadow:0 0 0 3px rgba(255,91,24,.2)}
+  .thumb:hover{border-color:rgba(224,165,32,.6); transform:translateY(-2px)}
+  .thumb.sel{border-color:var(--gild); box-shadow:0 0 0 3px rgba(224,165,32,.25)}
   .thumb .tl{
     position:absolute; left:0; right:0; bottom:0; padding:12px 6px 4px;
-    background:linear-gradient(transparent,rgba(0,0,0,.82)); font-size:9px; font-weight:700;
-    line-height:1.1; letter-spacing:.02em;
+    background:linear-gradient(transparent,rgba(0,0,0,.85));
+    font-family:"Space Mono",ui-monospace,monospace;
+    font-size:8px; font-weight:700; line-height:1.15; letter-spacing:.02em;
   }
-  .loaderr{padding:40px 16px; text-align:center; color:var(--mute); font-size:14px}
-  footer{text-align:center; color:#5f544c; font-size:12px; padding:10px 20px 40px; line-height:1.8}
+  .thumb .none{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    color:var(--mute); font-size:22px; font-weight:800;
+  }
+  footer{
+    text-align:center; color:rgba(243,236,227,.55); font-size:12px;
+    font-style:italic; padding:10px 20px 46px; line-height:1.8;
+  }
   .toast{
     position:fixed; top:18px; left:50%; transform:translateX(-50%);
-    background:var(--smoke); border:1px solid var(--ash); color:var(--bone);
-    padding:12px 18px; border-radius:12px; font-size:13px; z-index:40;
+    background:var(--ink); border:1px solid rgba(224,165,32,.5); color:var(--bone);
+    padding:12px 18px; border-radius:8px; font-size:13px; z-index:40;
     box-shadow:0 16px 44px rgba(0,0,0,.55); max-width:calc(100vw - 32px);
   }
-  .toast a{color:var(--flame)}
+  .toast a{color:var(--gild)}
 </style>
 </head>
 <body>
 
 <header>
-  <div class="kicker">Recovered from 10,000 burned canvases</div>
-  <h1>Soul<br />Builder</h1>
-  <p class="sub">Compose a <b>Cubist Soul</b> from the recovered trait library. Shuffle, tweak, <b>download</b> and share. A free playground — the real Souls only come from <a href="/">burning a Pikkazo</a>.</p>
+  <div class="kicker">Internal test — full vector trait set</div>
+  <h1>Vector<br />Builder</h1>
+  <hr class="rule" />
+  <p class="sub">The complete <b>official SVG trait set</b> from the artist — 145 OG traits in 8 categories plus the <b>★ Burn Cube</b> extras, hung in the true generator layer order. These exact vectors are the candidates for the fully <b>on-chain</b> renderer.</p>
   <nav class="nav">
+    <a href="/builder">🎨 <b>Main</b> builder</a>
     <a href="/">🔥 <b>Burn</b> page</a>
     <a href="/gallery">🖼 <b>The Freed</b></a>
-    <a href="https://opensea.io/collection/cubist-souls" target="_blank" rel="noopener">◆ <b>OpenSea</b></a>
   </nav>
 </header>
 
 <main>
   <section class="stage">
-    <div class="canvas-wrap busy" id="canvasWrap">
-      <canvas id="canvas" width="768" height="768"></canvas>
+    <div class="frame">
+      <div class="mat">
+        <div class="canvas-wrap busy" id="canvasWrap">
+          <canvas id="canvas" width="1536" height="1536"></canvas>
+        </div>
+      </div>
     </div>
     <div class="actions">
       <button class="btn-shuffle" id="shuffle">🎲 Shuffle</button>
       <button class="btn-ghost" id="download">⬇ Download</button>
-      <button class="btn-ghost" id="share">𝕏 Share</button>
     </div>
-    <div class="traitline" id="traitline">Loading trait library…</div>
+    <div class="traitline" id="traitline">Loading trait set…</div>
   </section>
 
   <section class="panel" id="panel">
-    <div class="loaderr" id="panelLoad">Loading trait library…</div>
+    <div class="loaderr" id="panelLoad"></div>
   </section>
 </main>
 
 <footer>
-  Cubist Souls · trait library recovered by variance-differencing 10,000 flattened canvases · <a href="https://opensea.io/collection/cubist-souls" target="_blank" rel="noopener">OpenSea</a>
+  Cubist Souls · vector trait test — not an official page
 </footer>
 
 <script>
-const RAW = "https://raw.githubusercontent.com/adriangallery/cubist-souls-assets/main";
-const MANIFEST_URL = RAW + "/manifest.json";
-const OPENSEA = "https://opensea.io/collection/cubist-souls";
-const SHARE_BASE = "https://cubistsouls.vercel.app";
+const BASE = "assets/traits-svg";
+
+// Manifest generado desde cubist-souls-assets/svg (set oficial completo).
+// Orden de categorías = orden de bytes del combo = orden de dibujo (abajo → arriba),
+// que es el Z-ORDER REAL del generador: AB, Base, Clothes, Head, Mouth, LEye, Nose, REye (+ Burn FX).
+let MANIFEST = { categories: [] };
 
 const $ = s => document.querySelector(s);
 const canvas = $("#canvas"), ctx = canvas.getContext("2d");
 const canvasWrap = $("#canvasWrap");
+const SIZE = 1536; // 2x the 768 viewBox — vectors scale for free
 
-let manifest = null;
-let categories = [];      // manifest.categories, order = combo byte order
-let zOrder = [];          // draw order (category ids)
-let state = [];           // selected option index per category (categories order)
+let categories = [];
+let state = [];
 const imgCache = new Map(); // url -> HTMLImageElement (loaded)
 
 function toast(html, ms = 4500){
@@ -205,7 +253,7 @@ function toast(html, ms = 4500){
   if (ms) setTimeout(() => t.remove(), ms);
 }
 
-// mulberry32 — deterministic PRNG, ported from tigerbuilder / WTP random.ts
+// mulberry32 — deterministic PRNG (same as main builder)
 function mulberry32(a){
   return function(){
     a |= 0; a = a + 0x6D2B79F5 | 0;
@@ -215,39 +263,31 @@ function mulberry32(a){
   };
 }
 
-// combo = 16 hex chars, 1 byte per category in manifest.categories order,
-// value = option index within that category.
+// combo = 1 byte per category (hex), same scheme as the main builder but
+// sized to this manifest (categories.length * 2 hex chars).
 function stateToHex(st){
   return st.map(v => (v & 0xff).toString(16).padStart(2, "0")).join("");
 }
 function hexToState(hex){
   if (typeof hex !== "string") return null;
   hex = hex.trim().toLowerCase();
-  if (!/^[0-9a-f]{16}$/.test(hex)) return null;
+  if (!new RegExp(`^[0-9a-f]{${categories.length * 2}}$`).test(hex)) return null;
   const out = [];
   for (let i = 0; i < categories.length; i++){
     const b = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
     const n = categories[i].options.length;
-    out.push(b < n ? b : 0); // clamp out-of-bounds to first option
+    out.push(b < n ? b : 0);
   }
   return out;
 }
 
-function optUrl(catIdx){
-  const cat = categories[catIdx];
-  return `${RAW}/${cat.dir}/${cat.options[state[catIdx]].file}`;
-}
-
-// Zoomed-thumbnail style: crop the 768x768 plate to the option's content bbox
-// (manifest bbox = [x0,y0,x1,y1], square) so tiny traits (eyes/nose/mouth) fill
-// the thumb instead of reading as a lost dot. The .thumb is overflow:hidden, so we
-// scale the img up and offset it. No bbox -> show the whole plate (fallback).
+// Zoomed-thumbnail crop (same trick as the main builder).
 function thumbStyle(o){
   const b = o.bbox;
   if (!Array.isArray(b) || b.length !== 4) return "width:100%;height:100%;left:0;top:0";
   const side = (b[2] - b[0]) || 768;
-  const s = 768 / side * 100;      // img size as % of the (square) thumb
-  const l = -b[0] / side * 100;    // offset so bbox top-left lands at thumb 0,0
+  const s = 768 / side * 100;
+  const l = -b[0] / side * 100;
   const t = -b[1] / side * 100;
   return `width:${s}%;height:${s}%;left:${l}%;top:${t}%`;
 }
@@ -256,7 +296,6 @@ function loadImage(url){
   if (imgCache.has(url)) return Promise.resolve(imgCache.get(url));
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.crossOrigin = "anonymous"; // needed so toBlob() isn't tainted
     img.onload = () => { imgCache.set(url, img); resolve(img); };
     img.onerror = () => reject(new Error("failed " + url));
     img.src = url;
@@ -267,18 +306,17 @@ let drawToken = 0;
 async function render(){
   const my = ++drawToken;
   canvasWrap.classList.add("busy");
-  // Build the ordered list of urls following zOrder.
-  const jobs = zOrder.map(id => {
-    const catIdx = categories.findIndex(c => c.id === id);
-    return { catIdx, url: optUrl(catIdx) };
-  });
+  const jobs = categories
+    .map((c, ci) => ({ file: c.options[state[ci]].file }))
+    .filter(j => j.file)
+    .map(j => `${BASE}/${j.file}`);
   try {
-    const imgs = await Promise.all(jobs.map(j => loadImage(j.url)));
-    if (my !== drawToken) return; // superseded by a newer render
-    ctx.clearRect(0, 0, 768, 768);
-    ctx.fillStyle = "#0b0908"; // ink — opaque backdrop behind any layer gaps
-    ctx.fillRect(0, 0, 768, 768);
-    imgs.forEach(img => ctx.drawImage(img, 0, 0, 768, 768));
+    const imgs = await Promise.all(jobs.map(loadImage));
+    if (my !== drawToken) return;
+    ctx.clearRect(0, 0, SIZE, SIZE);
+    ctx.fillStyle = "#0b0908";
+    ctx.fillRect(0, 0, SIZE, SIZE);
+    imgs.forEach(img => ctx.drawImage(img, 0, 0, SIZE, SIZE));
     canvasWrap.classList.remove("busy");
   } catch (e){
     if (my !== drawToken) return;
@@ -292,23 +330,19 @@ async function render(){
 
 function updateTraitline(){
   const hex = stateToHex(state);
-  const parts = categories.map(c => {
-    const o = c.options[state[categories.indexOf(c)]];
-    return `<b style="color:var(--bone)">${c.label}:</b> ${o.label}`;
-  });
+  const parts = categories.map((c, ci) =>
+    `<b>${c.label}:</b> ${c.options[state[ci]].label}`);
   $("#traitline").innerHTML =
     parts.join(" &nbsp;·&nbsp; ") +
     `<div class="combo" style="margin-top:8px">combo ${hex}</div>`;
 }
 
 function syncUrl(){
-  const hex = stateToHex(state);
   const url = new URL(location.href);
-  url.searchParams.set("combo", hex);
+  url.searchParams.set("combo", stateToHex(state));
   history.replaceState(null, "", url);
 }
 
-// Reflect current state into any rendered thumbnails / accordion values.
 function syncSelections(){
   categories.forEach((c, ci) => {
     const sec = document.querySelector(`.acc[data-cat="${ci}"]`);
@@ -323,11 +357,18 @@ function syncSelections(){
 
 function shuffle(seed){
   const rnd = mulberry32(seed >>> 0);
-  state = categories.map(c => Math.floor(rnd() * c.options.length));
+  // Shuffle draws from the OG pool: ★ Burn Cube extras and empty layers only appear
+  // ~10% of the time, so random souls look like authentic collection souls.
+  state = categories.map(c => {
+    const special = c.options.map((o, i) => (!o.file || o.label.startsWith("★")) ? i : -1).filter(i => i >= 0);
+    const normal = c.options.map((o, i) => special.includes(i) ? -1 : i).filter(i => i >= 0);
+    if (!normal.length) return rnd() < 0.9 ? 0 : Math.floor(rnd() * c.options.length);
+    if (special.length && rnd() < 0.1) return special[Math.floor(rnd() * special.length)];
+    return normal[Math.floor(rnd() * normal.length)];
+  });
   render();
 }
 
-// Lazily populate thumbnails when a section opens (avoids loading all 145 at once).
 function populateThumbs(sec, ci){
   const grid = sec.querySelector(".thumbs");
   if (grid.dataset.filled) return;
@@ -335,8 +376,9 @@ function populateThumbs(sec, ci){
   const cat = categories[ci];
   grid.innerHTML = cat.options.map((o, oi) => `
     <div class="thumb${state[ci] === oi ? " sel" : ""}" data-opt="${oi}" title="${o.label}">
-      <img loading="lazy" alt="${o.label}" style="${thumbStyle(o)}"
-           src="${RAW}/${cat.dir}/${o.file}" />
+      ${o.file
+        ? `<img loading="lazy" alt="${o.label}" style="${thumbStyle(o)}" src="${BASE}/${o.file}" />`
+        : `<div class="none">∅</div>`}
       <div class="tl">${o.label}</div>
     </div>`).join("");
   grid.querySelectorAll(".thumb").forEach(t => {
@@ -363,35 +405,26 @@ function buildAccordion(){
     const ci = Number(sec.dataset.cat);
     sec.querySelector(".acc-head").onclick = () => {
       const wasOpen = sec.classList.contains("open");
-      // single-open accordion
       panel.querySelectorAll(".acc.open").forEach(o => o.classList.remove("open"));
       if (!wasOpen){ sec.classList.add("open"); populateThumbs(sec, ci); }
     };
   });
-  // open the first section by default
   const first = panel.querySelector(".acc");
   if (first){ first.classList.add("open"); populateThumbs(first, 0); }
 }
 
 async function init(){
   try {
-    const r = await fetch(MANIFEST_URL);
-    if (!r.ok) throw new Error("manifest " + r.status);
-    manifest = await r.json();
+    const res = await fetch(`${BASE}/manifest.json`);
+    MANIFEST = await res.json();
   } catch (e){
-    $("#panelLoad").textContent = "Couldn't load the trait library. Refresh to retry.";
-    $("#traitline").textContent = "Trait library unavailable.";
+    $("#traitline").textContent = "Couldn't load the trait manifest.";
     return;
   }
-  categories = manifest.categories;
-  zOrder = manifest.zOrder;
-
-  // Preload from ?combo=, else random.
+  categories = MANIFEST.categories;
   const params = new URLSearchParams(location.search);
   const pre = hexToState(params.get("combo"));
-  if (pre){ state = pre; }
-  else { state = categories.map(() => 0); }
-
+  state = pre || categories.map(() => 0);
   buildAccordion();
   if (pre) render();
   else shuffle((Date.now() ^ (Math.random() * 1e9)) | 0);
@@ -405,18 +438,10 @@ $("#download").onclick = () => {
     if (!blob) return toast("Couldn't export — try again.");
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `cubist-soul-${hex}.png`;
+    a.download = `vector-soul-${hex}.png`;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(a.href), 4000);
   }, "image/png");
-};
-
-$("#share").onclick = () => {
-  const hex = stateToHex(state);
-  const text = "I built a Cubist Soul 🎨🔥 Compose your own from the recovered trait library.";
-  const url = `${SHARE_BASE}/api/share?combo=${hex}`;
-  const intent = `https://x.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`;
-  window.open(intent, "_blank", "noopener");
 };
 
 init();
