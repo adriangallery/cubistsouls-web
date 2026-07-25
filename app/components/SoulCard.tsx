@@ -10,6 +10,15 @@ const SOULS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 //   • "gallery" — /gallery. Keeps foreign/recent cards on-site.
 //   • "none"    — informative, not clickable. Default: never send a curious
 //     visitor off-site from a soul that isn't theirs.
+// Museum data shown on the cartela, when the caller has it (/my-souls merges the
+// old "exhibits" grid into these cards instead of repeating the gallery twice).
+export type SoulCardStats = {
+  rate?: number; // MH / hour for this soul
+  cohortName?: string; // OG · Era I…IV
+  raritySeal?: string; // 🏺 Masterpiece …
+  rankTxt?: string; // Rank #123
+};
+
 export default function SoulCard({
   id,
   status = "Freed",
@@ -17,6 +26,7 @@ export default function SoulCard({
   badge,
   link = "none",
   stamp = true,
+  stats,
 }: {
   id: number;
   status?: string;
@@ -24,8 +34,13 @@ export default function SoulCard({
   badge?: string; // optional trait/cohort label pinned bottom-left
   link?: "opensea" | "gallery" | "none";
   stamp?: boolean;
+  stats?: SoulCardStats;
 }) {
   const num = String(id).padStart(4, "0");
+  const rate =
+    stats?.rate != null
+      ? `+${stats.rate.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} MH/h`
+      : null;
 
   const inner = (
     <>
@@ -42,8 +57,15 @@ export default function SoulCard({
       </div>
       <div className="card-meta">
         <span className="id">№{num}</span>
-        <span className="st">{status}</span>
+        <span className="st">{rate ?? status}</span>
       </div>
+      {stats && (stats.cohortName || stats.raritySeal || stats.rankTxt) ? (
+        <div className="card-seals">
+          {stats.cohortName ? <span className="tag cohort">{stats.cohortName}</span> : null}
+          {stats.raritySeal ? <span className="tag">{stats.raritySeal}</span> : null}
+          {stats.rankTxt ? <span className="tag rank">{stats.rankTxt}</span> : null}
+        </div>
+      ) : null}
     </>
   );
 

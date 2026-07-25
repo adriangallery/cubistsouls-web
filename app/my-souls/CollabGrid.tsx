@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSignMessage } from "wagmi";
 import SoulCard from "../components/SoulCard";
+import type { MHExhibit } from "@/lib/mh";
 import {
   collabMessage,
   collabStatus,
@@ -36,22 +37,52 @@ type Modal =
   | { kind: "error"; id: number; msg: string }
   | null;
 
+type Sort = "id" | "rate" | "rarity";
+
 // Every owned soul: OpenSea link stays (these are the holder's OWN souls — Adrian
 // 25-jul), plus the WTP "Fire is fine" spark. `collab` flag gates the spark; when
 // off (or WTP unreachable) the grid is just OpenSea-linked soul cards.
+//
+// The card is now ALSO the museum cartela: rate/h, cohort seal, rarity seal and
+// rank ride on it (`exhibits`), so the old duplicate "exhibits" grid stays gone
+// but its data doesn't (Adrian, 25-jul). Sorting works off the same data.
 export default function CollabGrid({
   owned,
   address,
   collabEnabled,
+  exhibits,
 }: {
   owned: number[];
   address: string;
   collabEnabled: boolean;
+  exhibits?: MHExhibit[] | null;
 }) {
   const { signMessageAsync } = useSignMessage();
   const [fired, setFired] = useState<FiredMap>({});
   const [modal, setModal] = useState<Modal>(null);
   const [signing, setSigning] = useState(false);
+  const [sort, setSort] = useState<Sort>("id");
+
+  const stats = useMemo(() => {
+    const m = new Map<number, MHExhibit>();
+    (exhibits || []).forEach((e) => m.set(e.id, e));
+    return m;
+  }, [exhibits]);
+
+  const hasRates = stats.size > 0;
+  const hasRarity = useMemo(() => (exhibits || []).some((e) => e.rank != null), [exhibits]);
+
+  const ordered = useMemo(() => {
+    const list = owned.slice();
+    if (sort === "rate" && hasRates) {
+      return list.sort((a, b) => (stats.get(b)?.rate ?? 0) - (stats.get(a)?.rate ?? 0) || a - b);
+    }
+    if (sort === "rarity" && hasRarity) {
+      const rank = (id: number) => stats.get(id)?.rank ?? Number.MAX_SAFE_INTEGER;
+      return list.sort((a, b) => rank(a) - rank(b) || a - b);
+    }
+    return list.sort((a, b) => a - b);
+  }, [owned, sort, stats, hasRates, hasRarity]);
 
   // Lazy status hydration for the visible owned souls. Silent on failure (CORS /
   // endpoint warming up) — the default "create" spark stays.
@@ -133,22 +164,66 @@ export default function CollabGrid({
 
   return (
     <>
-      {collabEnabled && (
-        <div className="collab-plaque">
-          <div className="cx-h">{SPARK} Cubist Souls × WTP! — every soul gets one free “Fire is fine”</div>
-          <div className="cx-p">
-            Tap the spark on a soul and WTP! paints a brand-new artwork from it. Your Soul itself is never touched,
-            burned or moved — this only creates an image. Made with WTP! technology · one free creation per soul.
-          </div>
+      <div className="grid-tools">
+        <div className="sortset" role="group" aria-label="Sort your souls">
+          <span className="lbl">Sort</span>
+          <button className={sort === "id" ? "on" : ""} onClick={() => setSort("id")}>
+            № Number
+          </button>
+          <button
+            className={sort === "rate" ? "on" : ""}
+            onClick={() => setSort("rate")}
+            disabled={!hasRates}
+            title={hasRates ? "Highest Museum Hours rate first" : "Counting the museum's hours…"}
+          >
+            MH / hour
+          </button>
+          <button
+            className={sort === "rarity" ? "on" : ""}
+            onClick={() => setSort("rarity")}
+            disabled={!hasRarity}
+            title={hasRarity ? "Rarest first" : "The museum's rarity ledger is unavailable"}
+          >
+            Rarity
+          </button>
         </div>
-      )}
+
+        {collabEnabled && (
+          <details className="cx-strip">
+            <summary>
+              {SPARK} One free WTP! artwork per soul — tap the spark
+            </summary>
+            <p>
+              WTP! paints a brand-new artwork from your soul with the prompt “Fire is fine”. Your Soul itself is never
+              touched, burned or moved — this only creates an image. Made with WTP! technology · one free creation per
+              soul.
+            </p>
+          </details>
+        )}
+      </div>
 
       <div className="grid ms-grid">
-        {owned.map((id) => {
+        {ordered.map((id) => {
           const st = fired[id];
+          const ex = stats.get(id);
           return (
             <div className="soul-cell" key={id}>
-              <SoulCard id={id} status="Held" link="opensea" stamp={false} />
+              <SoulCard
+                id={id}
+                status="Held"
+                link="opensea"
+                stamp={false}
+                stats={
+                  ex
+                    ? {
+                        rate: ex.rate,
+                        cohortName: ex.cohortName,
+                        raritySeal: ex.raritySeal,
+                        rankTxt: ex.rankTxt,
+                      }
+                    : undefined
+                }
+              />
               {collabEnabled && (
                 <button
                   className={`fire-btn${st?.used ? " fired" : ""}`}

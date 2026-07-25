@@ -46,7 +46,10 @@ type Rarity = {
 export type MHExhibit = {
   id: number;
   cohortName: string;
+  cohort: number; // 0..4 (OG … Era IV) — for sorting/filtering on the cards
   rate: number;
+  tier?: number; // rarity tier 0..4 when rarity.json is reachable
+  rank?: number; // rarity rank (1 = rarest) — numeric, for sorting
   raritySeal?: string;
   rankTxt?: string;
 };
@@ -173,14 +176,24 @@ export async function buildMyMH(
   const exhibits: MHExhibit[] = owned.map((id) => {
     const co = cohorts.get(id) ?? 3;
     const tier = tierOfId(id);
-    const rankTxt =
+    const rank =
       rarity && Array.isArray(rarity.ranks) && rarity.ranks[id - 1] != null
-        ? `Rarity rank #${Number(rarity.ranks[id - 1]).toLocaleString("en-US")} of 10,000`
+        ? Number(rarity.ranks[id - 1])
         : undefined;
+    const rankTxt = rank != null ? `Rank #${rank.toLocaleString("en-US")}` : undefined;
     const raritySeal = rarity
       ? `${rarity.tierEmoji?.[tier] || ""} ${rarity.tierNames?.[tier] || "Tier " + tier}`.trim()
       : undefined;
-    return { id, cohortName: MH_COHORT_NAME[co], rate: tokenRate(id), raritySeal, rankTxt };
+    return {
+      id,
+      cohortName: MH_COHORT_NAME[co],
+      cohort: co,
+      rate: tokenRate(id),
+      ...(rarity ? { tier } : {}),
+      ...(rank != null ? { rank } : {}),
+      raritySeal,
+      rankTxt,
+    };
   });
 
   const ownsOG = owned.some((id) => (cohorts.get(id) ?? 3) === 0);

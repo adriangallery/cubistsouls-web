@@ -6,6 +6,7 @@ import { ConnectButton, useConnectModal } from "@rainbow-me/rainbowkit";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 import CollabGrid from "./CollabGrid";
+import Panel from "../components/Panel";
 import MobileWalletSheet, { useIsMobileNoInjected } from "../components/MobileWalletSheet";
 import { loadSouls, tierOf, type SoulsData } from "@/lib/souls";
 import { buildMyMH, buildBoard, type MyMHResult, type MHBoardRow } from "@/lib/mh";
@@ -234,17 +235,16 @@ export default function MySouls() {
           </p>
         ) : (
           data && (
-            <>
-              {/* Recognition plaque + Museum Hours + your collection. MH goes right
-                  after the plaque — below a 346-card grid nobody ever saw it. */}
-              <ClassicView
-                data={data}
-                shareRow={shareRow}
-                address={account ?? ""}
-                collab={collab}
-                mhSlot={<MHView myMh={myMh} mhPhase={mhPhase} board={board} boardPhase={boardPhase} />}
-              />
-            </>
+            <Dashboard
+              data={data}
+              shareRow={shareRow}
+              address={account ?? ""}
+              collab={collab}
+              myMh={myMh}
+              mhPhase={mhPhase}
+              board={board}
+              boardPhase={boardPhase}
+            />
           )
         )}
       </main>
@@ -267,88 +267,140 @@ function EmptyState() {
   );
 }
 
-/* ---------------- classic "Your Souls" view ---------------- */
-function ClassicView({
+
+/* ================= dashboard (the control room) =================
+   One deck bar on top, then a two-column grid of collapsible panels:
+   Museum Hours + Curators' board side by side, standing under the hours,
+   and the collection across the full width. Stacked cards wasted the screen
+   and buried MH under 346 souls (Adrian, 25-jul).
+   ================================================================ */
+function Dashboard({
   data,
   shareRow,
   address,
   collab,
-  mhSlot,
+  myMh,
+  mhPhase,
+  board,
+  boardPhase,
 }: {
   data: SoulsData;
   shareRow: React.ReactNode;
   address: string;
   collab: boolean;
-  mhSlot?: React.ReactNode;
+  myMh: MyMHResult | null;
+  mhPhase: Phase;
+  board: MHBoardRow[] | null;
+  boardPhase: Phase;
 }) {
   const tier = tierOf(data.freed);
+  const earned = myMh ? myMh.achievements.filter((a) => a.state === "earned").length : 0;
+  const openSeats = myMh ? myMh.achievements.length : 0;
+  const boardTop = board ? Math.min(20, board.filter((r) => !r.gap).length) : 0;
+
   return (
     <>
-      <div className="plaque">
-        <div className="pl-tier">Founding Liberator · {tier}</div>
-        <div className="pl-headline">
-          You freed <b>{data.freed}</b> soul{data.freed === 1 ? "" : "s"}
-        </div>
-        <div className="pl-stats">
-          <div className="pl-stat">
-            <b>#{data.rank}</b>of {data.totalLibs} liberators
-          </div>
-          <div className="pl-stat">
-            <b>{data.freed}</b>souls freed
-          </div>
-          <div className="pl-stat">
-            <b>{data.owned.length}</b>held now
+      {/* ---- deck: the recognition plaque, laid out as a status bar ---- */}
+      <div className="deck">
+        <div className="dk-id">
+          <div className="dk-tier">Founding Liberator · {tier}</div>
+          <div className="dk-headline">
+            You freed <b>{data.freed}</b> soul{data.freed === 1 ? "" : "s"}
           </div>
         </div>
-        {shareRow}
+        <div className="dk-stats">
+          <div className="dk-stat">
+            <b>#{data.rank}</b>
+            <span>of {data.totalLibs} liberators</span>
+          </div>
+          <div className="dk-stat">
+            <b>{data.freed}</b>
+            <span>souls freed</span>
+          </div>
+          <div className="dk-stat">
+            <b>{data.owned.length}</b>
+            <span>held now</span>
+          </div>
+        </div>
+        <div className="dk-actions">{shareRow}</div>
       </div>
 
-      {mhSlot}
+      <div className="dash">
+        <Panel
+          id="mh"
+          title="🏛 Museum Hours"
+          meta={myMh ? `${mhNum(myMh.me.mh)} MH` : mhPhase === "error" ? "unavailable" : "counting…"}
+        >
+          <MHHero myMh={myMh} mhPhase={mhPhase} heldNone={!data.owned.length} />
+        </Panel>
 
-      <div className="section-label">
-        Your collection · {data.owned.length} soul{data.owned.length === 1 ? "" : "s"}
+        <Panel
+          id="board"
+          title="Curators' board"
+          meta={board ? `top ${boardTop} of ${board.length}` : boardPhase === "error" ? "unavailable" : "tallying…"}
+          tall
+        >
+          <BoardBody board={board} boardPhase={boardPhase} />
+        </Panel>
+
+        <Panel id="standing" title="Your standing" meta={myMh ? `${earned} of ${openSeats}` : undefined}>
+          {myMh ? (
+            <div className="mh-badges">
+              {myMh.achievements.map((a, i) => (
+                <div
+                  className={`ach ${a.state}`}
+                  key={i}
+                  title={a.state === "locked" ? "The museum keeps its secrets." : a.ds}
+                >
+                  <div className="ico">{a.ic}</div>
+                  <div className="nm">{a.nm}</div>
+                  <div className="ds">{a.ds}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="mh-status">
+              {mhPhase === "error"
+                ? "The museum's records are unavailable right now."
+                : "The museum is checking your standing…"}
+            </p>
+          )}
+        </Panel>
+
+        <Panel
+          id="collection"
+          title="Your collection"
+          meta={`${data.owned.length} soul${data.owned.length === 1 ? "" : "s"}`}
+          wide
+        >
+          {data.owned.length ? (
+            <CollabGrid
+              owned={data.owned}
+              address={address}
+              collabEnabled={collab}
+              exhibits={myMh?.exhibits ?? null}
+            />
+          ) : (
+            <p className="mh-status">
+              You&apos;ve freed souls but hold none right now — the clock only runs on souls you keep.
+            </p>
+          )}
+        </Panel>
       </div>
-      {data.owned.length ? (
-        <CollabGrid owned={data.owned} address={address} collabEnabled={collab} />
-      ) : (
-        <p className="note" style={{ padding: "24px 0" }}>
-          You&apos;ve freed souls but hold none right now.
-        </p>
-      )}
 
       <div className="rewards">
         <h3>You were early</h3>
         <p>
-          You reclaimed the collection when it mattered. Founding Liberators won&apos;t be forgotten — more on
-          that soon.
+          You reclaimed the collection when it mattered. Founding Liberators won&apos;t be forgotten — more on that
+          soon.
         </p>
       </div>
     </>
   );
 }
 
-/* ---------------- Museum Hours (public) ---------------- */
-function MHHead() {
-  return (
-    <div className="mh-head">
-      <h2 className="mh-title">🏛 Museum Hours</h2>
-      <p className="mh-sub">The museum records every hour its souls are kept. Their purpose will be revealed.</p>
-      <div className="mh-secret">Preview · the museum keeps its secrets</div>
-    </div>
-  );
-}
-
-function MHView({
-  myMh,
-  mhPhase,
-  board,
-  boardPhase,
-}: {
-  myMh: MyMHResult | null;
-  mhPhase: Phase;
-  board: MHBoardRow[] | null;
-  boardPhase: Phase;
-}) {
+/* ---------------- Museum Hours hero (live counter) ---------------- */
+function MHHero({ myMh, mhPhase, heldNone }: { myMh: MyMHResult | null; mhPhase: Phase; heldNone: boolean }) {
   const countRef = useRef<HTMLSpanElement>(null);
 
   // Live counter: base + rate × hoursElapsed, ticking client-side (rAF), exactly
@@ -374,35 +426,25 @@ function MHView({
   }, [myMh]);
 
   // Still counting YOUR hours — a distinct LOADING state (not the failure note).
-  if (mhPhase === "loading" || (mhPhase === "idle" && !myMh)) {
+  if (!myMh && (mhPhase === "loading" || mhPhase === "idle")) {
     return (
-      <section className="mh">
-        <MHHead />
-        <div className="mh-hero" aria-busy="true">
-          <div className="cap">Your Museum Hours</div>
-          <div className="mh-count">
-            <span className="spinner" aria-hidden="true" />
-          </div>
-          <div className="mh-rate">The museum is counting your hours…</div>
+      <div className="mh-hero" aria-busy="true">
+        <div className="cap">Your Museum Hours</div>
+        <div className="mh-count">
+          <span className="spinner" aria-hidden="true" />
         </div>
-      </section>
+        <div className="mh-rate">The museum is counting your hours…</div>
+      </div>
     );
   }
 
   // The cheap pass genuinely failed — only now show the unavailable note.
   if (!myMh) {
-    return (
-      <section className="mh">
-        <MHHead />
-        <p className="mh-status">The museum&apos;s records are unavailable right now. Try again shortly.</p>
-      </section>
-    );
+    return <p className="mh-status">The museum&apos;s records are unavailable right now. Try again shortly.</p>;
   }
 
   return (
-    <section className="mh">
-      <MHHead />
-
+    <>
       <div className="mh-hero">
         <div className="cap">Your Museum Hours</div>
         <div className="mh-count">
@@ -425,67 +467,50 @@ function MHView({
         </div>
       </div>
 
-      {/* Exhibits grid removed — it duplicated "Your collection" card-for-card once
-          MH went public on this page (Adrian, 25-jul). The collection below is the
-          single gallery; MH keeps counter, board and badges. */}
-      {!myMh.exhibits.length && (
+      {heldNone ? (
         <p className="mh-status">
           You hold no souls in this wallet right now — the clock only runs on souls you keep.
         </p>
-      )}
+      ) : null}
 
-      {/* ── Curators' board (heavy pass — fills in a moment after the hero) ── */}
-      {board ? (
-        <>
-          <div className="section-label">
-            Curators&apos; board · top {Math.min(20, board.filter((r) => !r.gap).length)} of {board.length}
-          </div>
-          <div className="mh-board">
-            {board.map((r, i) =>
-              r.gap ? (
-                <div key={`g${i}`}>
-                  <div className="lb-gap">···</div>
-                  <div className={`lb-row me`}>
-                    <span className="rk">#{r.rank}</span>
-                    <span className="addr">{r.addr}</span>
-                    <span className="mh">{mhNum(r.mh)} MH</span>
-                  </div>
-                </div>
-              ) : (
-                <div className={`lb-row ${r.isMe ? "me" : ""}`} key={i}>
-                  <span className="rk">#{r.rank}</span>
-                  <span className="addr">{r.addr}</span>
-                  <span className="mh">{mhNum(r.mh)} MH</span>
-                </div>
-              ),
-            )}
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="section-label">Curators&apos; board</div>
-          <p className="mh-status">
-            {boardPhase === "error"
-              ? "The full board couldn't load right now — your hours above are current."
-              : "Tallying the curators' board…"}
-          </p>
-        </>
-      )}
-
-      <div className="section-label">Your standing</div>
-      <div className="mh-badges">
-        {myMh.achievements.map((a, i) => (
-          <div className={`ach ${a.state}`} key={i} title={a.state === "locked" ? "The museum keeps its secrets." : a.ds}>
-            <div className="ico">{a.ic}</div>
-            <div className="nm">{a.nm}</div>
-            <div className="ds">{a.ds}</div>
-          </div>
-        ))}
-      </div>
-
-      <p className="mh-status" style={{ paddingTop: 34 }}>
-        The museum records every hour. Their purpose will be revealed.
+      <p className="mh-foot">
+        The museum records every hour its souls are kept. Preview · their purpose will be revealed.
       </p>
-    </section>
+    </>
+  );
+}
+
+/* ---------------- Curators' board ---------------- */
+function BoardBody({ board, boardPhase }: { board: MHBoardRow[] | null; boardPhase: Phase }) {
+  if (!board) {
+    return (
+      <p className="mh-status">
+        {boardPhase === "error"
+          ? "The full board couldn't load right now — your hours are current."
+          : "Tallying the curators' board…"}
+      </p>
+    );
+  }
+  return (
+    <div className="mh-board">
+      {board.map((r, i) =>
+        r.gap ? (
+          <div key={`g${i}`}>
+            <div className="lb-gap">···</div>
+            <div className="lb-row me">
+              <span className="rk">#{r.rank}</span>
+              <span className="addr">{r.addr}</span>
+              <span className="mh">{mhNum(r.mh)} MH</span>
+            </div>
+          </div>
+        ) : (
+          <div className={`lb-row ${r.isMe ? "me" : ""}`} key={i}>
+            <span className="rk">#{r.rank}</span>
+            <span className="addr">{r.addr}</span>
+            <span className="mh">{mhNum(r.mh)} MH</span>
+          </div>
+        ),
+      )}
+    </div>
   );
 }
