@@ -735,6 +735,43 @@ button{font:inherit}
 .tryon-hint{margin-top:.6rem;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;
   color:var(--ash-grey);text-align:center}
 
+/* identity plate — renamed "Soul Reaper #N" at 30 consumed */
+.soul-plate{margin-top:.7rem;text-align:center;font-family:var(--disp);font-weight:800;text-transform:uppercase;
+  font-size:clamp(1.05rem,4vw,1.45rem);letter-spacing:.01em;color:var(--bone);line-height:1;
+  background:linear-gradient(180deg,rgba(244,237,225,.06),rgba(244,237,225,.02));
+  border:1px solid rgba(224,165,32,.35);border-radius:6px;padding:.6rem .6rem}
+.soul-plate .pnum{color:var(--mute);font-weight:700}
+.soul-plate .plate-mark{margin-right:.3rem}
+.soul-plate.ascended{color:var(--reaper-lite);border-color:var(--reaper-lite);
+  background:linear-gradient(180deg,rgba(167,101,209,.22),rgba(122,63,160,.08));
+  box-shadow:0 0 26px -6px rgba(167,101,209,.8);animation:renameFlash .75s ease}
+.soul-plate.ascended .pnum{color:var(--reaper-lite)}
+@keyframes renameFlash{
+  0%{transform:scale(.95);box-shadow:0 0 0 rgba(167,101,209,0)}
+  45%{transform:scale(1.05);box-shadow:0 0 42px -4px rgba(167,101,209,.95)}
+  100%{transform:scale(1);box-shadow:0 0 26px -6px rgba(167,101,209,.8)}}
+
+/* souls-consumed counter (progress to the 30 rename) */
+.consumed{margin-top:1rem}
+.consumed-top{display:flex;justify-content:space-between;align-items:baseline;font-family:var(--mono);
+  font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;color:var(--mute)}
+.consumed-top b{color:var(--reaper-lite);font-size:.9rem;letter-spacing:0}
+.consumed-bar{height:7px;border-radius:999px;background:#2a1420;overflow:hidden;margin:.42rem 0 .35rem}
+.consumed-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--reaper-deep),var(--reaper-lite));
+  box-shadow:0 0 14px rgba(167,101,209,.6);transition:width .5s ease}
+.consumed-note{font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--ash-grey)}
+.consumed-note.up{color:var(--reaper-lite)}
+
+/* metadata preview — what OpenSea will show */
+.meta-preview{margin-top:1rem;background:var(--wall-deep);border:1px solid rgba(224,165,32,.28);border-radius:8px;padding:.7rem .85rem}
+.mp-head{font-family:var(--mono);font-size:.56rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gild);margin-bottom:.5rem}
+.mp-row{display:flex;justify-content:space-between;gap:.8rem;font-family:var(--mono);font-size:.74rem;
+  padding:.32rem 0;border-top:1px solid rgba(224,165,32,.12)}
+.mp-row:first-of-type{border-top:0}
+.mp-row span{color:var(--mute)}
+.mp-row b{color:var(--bone);text-align:right;word-break:break-word}
+.mp-row b.up{color:var(--reaper-lite)}
+
 /* cost line under the (still disabled) CTA */
 .cost-line{font-family:var(--mono);font-weight:700;font-size:.86rem;letter-spacing:.05em;text-transform:uppercase;
   color:var(--reaper-lite);margin-top:.8rem}

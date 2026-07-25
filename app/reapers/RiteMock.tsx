@@ -6,11 +6,11 @@ import { useState } from "react";
 // tap any Reaper mark, and the preview composes the REAL soul art with the
 // trait SVG stacked on top (like the Soul Builder).
 //
-// Mechanic (Adrian, in-file edit): NO soul is ever sacrificed. You bring
-// Pikkazos and burn them for the marks; a Pikkazo burned in the rite gives the
-// MARK instead of a soul, and the museum takes no toll — the fire is free (you
-// only bring the fuel). Each mark has its own Pikkazo price; the top costs the
-// most. Numbers ILLUSTRATIVE — final TBD.
+// Canonical mechanic (Adrian, ratified 25-jul): offerings are PIKKAZOS BURNED.
+// The fire takes no already-freed soul — it feeds on canvases: the souls trapped
+// in the offered Pikkazos are CONSUMED by the reaper (they never get minted).
+// Each mark costs Pikkazos (= souls consumed). At 30 consumed the museum RENAMES
+// the piece "Soul Reaper #N". Numbers ILLUSTRATIVE — final TBD.
 
 // Real soul art via the on-chain renderer host (unchanged by the domain flip).
 const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
@@ -23,7 +23,7 @@ const ASPIRANTS = [
 ];
 
 // The Reaper trait set = the NEW builder marks (the ★ / bc-* set) from /public.
-// `cost` is in Pikkazos burned. `blend` composes each mark believably over the
+// `cost` = Pikkazos burned = souls consumed. `blend` composes each mark over the
 // flat soul art: the crown sits on top; fire/aura glow.
 const T = "/assets/traits-svg";
 const REAPER_TRAITS = [
@@ -33,11 +33,17 @@ const REAPER_TRAITS = [
   { id: "phoenix", file: `${T}/burn-fx/phoenix.svg`, name: "★ Phoenix", kind: "Burn FX", cost: 30, blend: "screen", mult: "2.0", mh: 10, rank: "Ash Warden" },
 ] as const;
 
+const ASCEND_AT = 30; // souls consumed to be renamed a Soul Reaper
+
 export default function RiteMock() {
   const [aspirant, setAspirant] = useState(136);
   const [traitId, setTraitId] = useState<string>("crown");
 
   const trait = REAPER_TRAITS.find((t) => t.id === traitId)!;
+  const consumed = trait.cost; // Pikkazos burned = souls consumed
+  const ascended = consumed >= ASCEND_AT;
+  const pct = Math.min(100, (consumed / ASCEND_AT) * 100);
+  const displayName = ascended ? "Soul Reaper" : "Cubist Soul";
 
   return (
     <div className="rite">
@@ -63,7 +69,7 @@ export default function RiteMock() {
 
       {/* STEP 2 — try on a mark */}
       <div className="rite-step">
-        <div className="rite-lab"><span className="n">2</span>Try on a Reaper mark</div>
+        <div className="rite-lab"><span className="n">2</span>Offer Pikkazos for a mark</div>
         <div className="rtraits">
           {REAPER_TRAITS.map((t) => (
             <button
@@ -87,7 +93,7 @@ export default function RiteMock() {
         </div>
       </div>
 
-      {/* STEP 3 — live preview + cost */}
+      {/* STEP 3 — live preview, consumption, rename */}
       <div className="rite-step">
         <div className="rite-lab"><span className="n">3</span>The Reaper rises</div>
         <div className="rite-preview">
@@ -98,6 +104,11 @@ export default function RiteMock() {
               <img className="base" src={IMG(aspirant)} alt={`Aspirant soul №${String(aspirant).padStart(4, "0")}`} />
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img className="layer" src={trait.file} alt={trait.name} style={{ mixBlendMode: trait.blend as React.CSSProperties["mixBlendMode"] }} />
+            </div>
+            {/* identity plate — renamed at 30 consumed */}
+            <div className={`soul-plate${ascended ? " ascended" : ""}`} key={ascended ? "reaper" : "soul"}>
+              {ascended && <span className="plate-mark">🜃</span>}
+              {displayName} <span className="pnum">#{aspirant}</span>
             </div>
             <div className="tryon-hint">Swap soul or mark freely · try before the fire</div>
           </div>
@@ -110,6 +121,23 @@ export default function RiteMock() {
               <span className="rk-chip"><span className="ico">✦</span><b>+{trait.mh}</b> MH/hr</span>
               <span className="rk-chip"><span className="ico">🜂</span>{trait.rank}</span>
             </div>
+
+            {/* souls consumed → rename at 30 */}
+            <div className="consumed">
+              <div className="consumed-top"><span>Souls consumed</span><b>{consumed} / {ASCEND_AT}</b></div>
+              <div className="consumed-bar"><span style={{ width: `${pct}%` }} /></div>
+              <div className={`consumed-note${ascended ? " up" : ""}`}>
+                {ascended ? "★ 30 reached — renamed by the museum" : `${ASCEND_AT - consumed} more to ascend`}
+              </div>
+            </div>
+
+            {/* what OpenSea will show */}
+            <div className="meta-preview">
+              <div className="mp-head">Metadata preview · as on OpenSea</div>
+              <div className="mp-row"><span>Name</span><b className={ascended ? "up" : ""}>{displayName} #{aspirant}</b></div>
+              <div className="mp-row"><span>Souls Consumed</span><b>{consumed}</b></div>
+            </div>
+
             <div className="perk-ill">Offerings and rewards may shift before the fire is lit</div>
           </div>
         </div>

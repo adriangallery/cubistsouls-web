@@ -46,11 +46,10 @@ export default function ReapersPage() {
           <h1 className="rp-title">SOUL <em>REAPERS</em></h1>
           <p className="rp-tagline">Some freed souls take up the scythe.</p>
           <p className="rp-mech">
-            Feed the second fire: bring <b>Pikkazos</b> and burn them for the marks — no soul is ever sacrificed.
+            Feed the second fire: burn <b>Pikkazos</b> for the marks.
           </p>
           <p className="rp-mech rp-mech-2">
-            A Pikkazo burned in the rite gives <b>no soul</b> — it gives the mark. And the museum takes{" "}
-            <b>no toll</b> for it: the reaper&apos;s fire is free.
+            The fire takes <b>no freed soul</b> — it feeds on canvases. Their souls are <b>consumed</b> by your reaper.
           </p>
         </div>
       </header>
