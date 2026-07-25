@@ -425,28 +425,10 @@ function MHView({
         </div>
       </div>
 
-      <div className="section-label">
-        The exhibits · {myMh.ownedCount} soul{myMh.ownedCount === 1 ? "" : "s"}
-      </div>
-      {myMh.exhibits.length ? (
-        <div className="mh-exhibits">
-          {myMh.exhibits.map((e) => (
-            <div className="exhibit" key={e.id}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`/api/img?id=${e.id}`} loading="lazy" alt={`Cubist Soul #${e.id}`} />
-              <div className="plaque-in">
-                <div className="pl-id">Soul #{e.id}</div>
-                <div className="pl-rate">+{mhNum(e.rate)} MH / hour</div>
-                <div className="seals">
-                  <span className="seal cohort">{e.cohortName}</span>
-                  {e.raritySeal ? <span className="seal">{e.raritySeal}</span> : null}
-                </div>
-                {e.rankTxt ? <div className="pl-rank">{e.rankTxt}</div> : null}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
+      {/* Exhibits grid removed — it duplicated "Your collection" card-for-card once
+          MH went public on this page (Adrian, 25-jul). The collection below is the
+          single gallery; MH keeps counter, board and badges. */}
+      {!myMh.exhibits.length && (
         <p className="mh-status">
           You hold no souls in this wallet right now — the clock only runs on souls you keep.
         </p>
