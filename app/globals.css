@@ -232,4 +232,123 @@ button{font:inherit}
 .foot .fine b{color:var(--flame)}
 .foot .fine code{color:var(--gild)}
 
+/* ==========================================================================
+   YOUR SOULS (/my-souls) — Direction B skin. Recognition plaque, share card
+   controls, collection grid, empty state, and the hidden Museum Hours (?mh=1).
+   ========================================================================== */
+.ms-head{text-align:center;padding:clamp(2.4rem,7vw,3.6rem) 0 clamp(.5rem,2vw,1rem)}
+.ms-head .eyebrow{display:block;color:var(--gild);margin-bottom:.6rem}
+.ms-title{font-size:var(--fs-h1)}
+.ms-head .lead{margin-top:.7rem}
+.ms-main{padding-bottom:clamp(4rem,10vw,6rem)}
+.ms-connect{display:flex;justify-content:center;margin:clamp(1.4rem,4vw,2rem) 0 .4rem}
+
+/* connected-wallet plaque */
+.plaque{position:relative;max-width:640px;margin:1.4rem auto .4rem;text-align:center;
+  background:linear-gradient(180deg,rgba(224,165,32,.16),rgba(224,165,32,.05));
+  border:1px solid rgba(224,165,32,.45);border-radius:12px;padding:clamp(1.6rem,5vw,2rem) 1.6rem;
+  box-shadow:var(--sh-plaque)}
+.plaque .pl-tier{font-family:var(--mono);font-size:.72rem;letter-spacing:.26em;text-transform:uppercase;color:var(--gild)}
+.plaque .pl-headline{font-family:var(--disp);font-weight:800;text-transform:uppercase;
+  font-size:clamp(1.9rem,5vw,2.9rem);color:var(--bone);line-height:.95;margin:.4rem 0 .2rem}
+.plaque .pl-headline b{color:var(--flame)}
+.plaque .pl-stats{display:flex;gap:1.6rem;justify-content:center;flex-wrap:wrap;margin-top:.9rem}
+.plaque .pl-stat{font-family:var(--mono);color:var(--mute);font-size:.72rem;letter-spacing:.08em;text-transform:uppercase}
+.plaque .pl-stat b{display:block;font-family:var(--disp);font-weight:800;font-size:2rem;color:var(--gild);letter-spacing:0}
+
+.share-row{display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;margin-top:1.3rem}
+.btn-share{font-family:var(--mono);font-weight:700;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;
+  padding:.75rem 1.2rem;border-radius:6px;cursor:pointer;border:1px solid transparent;
+  background:linear-gradient(180deg,var(--flame),var(--ember));color:#1a0500;transition:transform .15s ease,box-shadow .15s}
+.btn-share:hover:not(:disabled){transform:translateY(-1px);box-shadow:var(--glow-ember)}
+.btn-share:disabled{opacity:.7;cursor:progress}
+.btn-share.ghost{background:transparent;border-color:rgba(224,165,32,.45);color:var(--bone)}
+.btn-share.ghost:hover{border-color:var(--flame);color:var(--flame)}
+
+.section-label{text-align:center;font-family:var(--mono);font-size:.72rem;letter-spacing:.26em;
+  text-transform:uppercase;color:var(--gild);margin:clamp(2rem,5vw,2.8rem) 0 1.1rem}
+
+.note{text-align:center;color:var(--bone-2);font-size:1.02rem;line-height:1.7;padding:2.4rem 1rem;font-family:var(--serif)}
+.note a{color:var(--flame);text-decoration:underline}
+
+.ms-grid{margin-top:.2rem}
+.soul .st.card-meta,.card-meta .st{color:var(--flame)}
+.skeleton{aspect-ratio:1;border-radius:4px;border:2px solid rgba(224,165,32,.2);
+  background:linear-gradient(100deg,rgba(255,255,255,.04) 30%,rgba(255,91,24,.10) 50%,rgba(255,255,255,.04) 70%);
+  background-size:220% 100%;animation:sweep 1.3s infinite}
+@keyframes sweep{to{background-position:-220% 0}}
+
+.ms-empty{text-align:center;padding:clamp(2rem,6vw,3.4rem) 1rem}
+.ms-empty-mark{font-size:clamp(3rem,10vw,4.4rem);filter:drop-shadow(0 6px 24px rgba(255,91,24,.4));opacity:.9}
+.ms-empty-lead{font-family:var(--disp);font-weight:800;text-transform:uppercase;
+  font-size:clamp(1.5rem,4vw,2.2rem);color:var(--bone);margin-top:.6rem}
+
+.rewards{max-width:760px;margin:clamp(2.6rem,6vw,3.4rem) auto 0;background:rgba(20,4,8,.4);
+  border:1px solid rgba(224,165,32,.3);border-radius:12px;padding:clamp(1.6rem,4vw,2rem);text-align:center}
+.rewards h3{font-family:var(--disp);font-weight:800;text-transform:uppercase;font-size:clamp(1.5rem,4vw,2.1rem);color:var(--bone);margin-bottom:.4rem}
+.rewards p{color:var(--mute);margin:0 auto;max-width:540px;font-size:1rem;line-height:1.6;font-family:var(--serif)}
+
+.toast{position:fixed;top:64px;left:50%;transform:translateX(-50%);background:var(--wall-deep);
+  border:1px solid rgba(224,165,32,.4);color:var(--bone);padding:.8rem 1.25rem;border-radius:10px;
+  font-family:var(--mono);font-size:.8rem;z-index:90;max-width:calc(100vw - 32px)}
+
+/* ---------- Museum Hours (?mh=1) ---------- */
+.mh{max-width:var(--maxw);margin:0 auto}
+.mh-head{text-align:center;margin:clamp(2rem,6vw,3rem) 0 .4rem}
+.mh-title{font-family:var(--disp);font-weight:800;text-transform:uppercase;font-size:clamp(1.9rem,7vw,3.4rem);
+  color:var(--bone);line-height:.92;text-shadow:0 4px 20px rgba(0,0,0,.4)}
+.mh-sub{font-family:var(--serif);font-style:italic;color:var(--bone-2);font-size:clamp(.95rem,2.1vw,1.1rem);max-width:520px;margin:.6rem auto 0}
+.mh-secret{font-family:var(--mono);font-size:.68rem;letter-spacing:.2em;text-transform:uppercase;color:var(--gild);opacity:.8;margin-top:.7rem}
+.mh-status{text-align:center;color:var(--bone-2);font-size:1rem;line-height:1.7;padding:1.9rem 1rem;font-style:italic;font-family:var(--serif)}
+
+.mh-hero{position:relative;margin:1.6rem auto 0;max-width:680px;text-align:center;
+  background:linear-gradient(180deg,rgba(224,165,32,.16),rgba(224,165,32,.04));
+  border:1px solid rgba(224,165,32,.45);border-radius:14px;padding:clamp(1.8rem,5vw,2.2rem) 1.6rem;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.mh-hero .cap{font-family:var(--mono);font-size:.68rem;letter-spacing:.3em;text-transform:uppercase;color:var(--gild)}
+.mh-count{font-family:var(--disp);font-weight:900;color:var(--bone);font-size:clamp(3.2rem,15vw,7rem);line-height:.92;
+  margin:.3rem 0 0;text-shadow:0 4px 24px rgba(0,0,0,.45);font-variant-numeric:tabular-nums}
+.mh-count .unit{font-size:.32em;color:var(--gild);letter-spacing:.12em;margin-left:.18em;vertical-align:.28em}
+.mh-rate{font-family:var(--mono);font-size:.9rem;color:var(--flame);margin-top:.25rem;font-weight:700}
+.mh-mult{display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap;margin-top:1rem}
+.mh-chip{font-family:var(--mono);font-size:.68rem;color:var(--bone);background:rgba(0,0,0,.28);
+  border:1px solid rgba(224,165,32,.3);padding:.45rem .75rem;border-radius:999px;letter-spacing:.02em}
+.mh-chip b{color:var(--gild)}
+.mh-hero .share-row{margin-top:1.6rem}
+
+.mh-exhibits{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(clamp(160px,44vw,220px),1fr))}
+.exhibit{background:var(--wall-deep);border:1px solid rgba(224,165,32,.4);border-radius:12px;overflow:hidden;
+  box-shadow:0 10px 26px rgba(0,0,0,.4);display:flex;flex-direction:column;transition:transform .18s ease,border-color .18s}
+.exhibit:hover{transform:translateY(-3px);border-color:var(--flame)}
+.exhibit img{width:100%;aspect-ratio:1;object-fit:cover;background:var(--char)}
+.exhibit .plaque-in{padding:.75rem .8rem .85rem;border-top:1px solid rgba(224,165,32,.22)}
+.exhibit .pl-id{font-family:var(--disp);font-weight:800;text-transform:uppercase;font-size:1.25rem;color:var(--bone);line-height:1}
+.exhibit .pl-rate{font-family:var(--mono);font-size:.75rem;color:var(--flame);margin-top:.2rem;font-weight:700}
+.exhibit .seals{display:flex;gap:.35rem;flex-wrap:wrap;margin-top:.6rem}
+.exhibit .seal{font-family:var(--mono);font-size:.6rem;letter-spacing:.04em;padding:.25rem .5rem;border-radius:5px;
+  background:rgba(224,165,32,.1);border:1px solid rgba(224,165,32,.3);color:var(--bone)}
+.exhibit .seal.cohort{background:rgba(194,36,18,.16);border-color:rgba(194,36,18,.4)}
+.exhibit .pl-rank{font-family:var(--mono);font-size:.62rem;color:var(--mute);margin-top:.5rem;letter-spacing:.03em}
+
+.mh-board{max-width:680px;margin:0 auto;background:rgba(20,4,8,.4);border:1px solid rgba(224,165,32,.3);border-radius:12px;overflow:hidden}
+.lb-row{display:grid;grid-template-columns:44px 1fr auto;align-items:center;gap:.6rem;padding:.7rem 1rem;
+  border-bottom:1px solid rgba(224,165,32,.12);font-family:var(--mono);font-size:.82rem}
+.lb-row:last-child{border-bottom:none}
+.lb-row .rk{color:var(--gild);font-weight:700}
+.lb-row .addr{color:var(--mute);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.lb-row .mh{color:var(--bone);font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.lb-row.me{background:linear-gradient(90deg,rgba(224,165,32,.18),rgba(224,165,32,.05));border-top:1px solid var(--gild);border-bottom:1px solid var(--gild)}
+.lb-row.me .addr{color:var(--bone)}
+.lb-row.me .addr::after{content:" · you";color:var(--gild)}
+.lb-gap{text-align:center;color:var(--mute);font-family:var(--mono);font-size:.9rem;padding:.4rem 0;letter-spacing:.3em}
+
+.mh-badges{display:grid;gap:.75rem;grid-template-columns:repeat(auto-fill,minmax(min(100%,180px),1fr))}
+.ach{position:relative;background:rgba(20,4,8,.4);border:1px solid rgba(224,165,32,.28);border-radius:10px;padding:1rem .9rem;text-align:center}
+.ach.earned{background:linear-gradient(180deg,rgba(224,165,32,.14),rgba(224,165,32,.04));border-color:rgba(224,165,32,.5)}
+.ach.locked{opacity:.55;filter:grayscale(.4)}
+.ach .ico{font-size:1.9rem;line-height:1}
+.ach .nm{font-family:var(--disp);font-weight:800;text-transform:uppercase;font-size:1rem;color:var(--bone);margin-top:.5rem;line-height:1}
+.ach.earned .nm{color:var(--gild)}
+.ach .ds{font-family:var(--mono);font-size:.66rem;color:var(--mute);margin-top:.35rem;line-height:1.4}
+@media(max-width:560px){.lb-row{grid-template-columns:36px 1fr auto;font-size:.75rem;padding:.6rem .75rem}}
+
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

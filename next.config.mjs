@@ -1,5 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // wagmi v2.19 pulls the Base Account connector, whose @coinbase/cdp-sdk has
+  // optional x402 (Solana/EVM payment) sub-imports we never reach. They aren't
+  // installed and would fail the build — alias them (and the usual web3 noise)
+  // to empty so webpack stops trying to resolve them.
+  webpack: (config, { webpack }) => {
+    config.externals.push("pino-pretty", "lokijs", "encoding");
+    // Ignore every @x402/* optional payment sub-import from @coinbase/cdp-sdk.
+    config.plugins.push(new webpack.IgnorePlugin({ resourceRegExp: /^@x402\// }));
+    return config;
+  },
   // The whole new site stays out of search indexes until the final domain flip
   // to cubistsouls.com. X-Robots-Tag noindex is applied globally below.
   async headers() {

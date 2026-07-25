@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Big_Shoulders_Display, Spectral, Space_Mono } from "next/font/google";
 import "./globals.css";
+import { Providers } from "./components/Providers";
 
 // Three brand families, one role each (DESIGN_SYSTEM §2). Loaded via next/font
 // (no <link>) so the CSS variables below map to --disp / --serif / --mono.
@@ -57,7 +58,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className={`${disp.variable} ${serif.variable} ${mono.variable}`}>
-      <body>{children}</body>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

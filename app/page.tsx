@@ -2,6 +2,7 @@ import Nav from "./components/Nav";
 import Footer from "./components/Footer";
 import Ticker from "./components/Ticker";
 import SoulCard from "./components/SoulCard";
+import HomeCta from "./components/HomeCta";
 import { getSupply, getPricing, getFreed, getBlockTimes, ago, fmtEth, fmtDate, type Pricing } from "@/lib/chain";
 
 // Live on-chain counter + roster, regenerated at most once per minute (ISR).
@@ -77,14 +78,9 @@ export default async function Home() {
           <div className="emberbar"><span style={{ width: `${pct}%` }} /></div>
           {pricingPill(pricing)}
           <div className="cta">
-            <button className="btn btn-primary" disabled aria-disabled="true">
-              🔥 Light the fire — free your Pikkazo
-            </button>
-            <a className="btn btn-secondary" href="https://opensea.io/collection/cubist-souls" target="_blank" rel="noopener noreferrer">
-              View on OpenSea
-            </a>
+            <HomeCta />
           </div>
-          <p className="cta-note">Wallet connect — connecting soon on this preview</p>
+          <p className="cta-note">Ethereum mainnet · connect to free your Pikkazo</p>
         </div>
       </section>
 
