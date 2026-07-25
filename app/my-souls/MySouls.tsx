@@ -3,10 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAccount, usePublicClient } from "wagmi";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
+import { ConnectButton, useConnectModal } from "@rainbow-me/rainbowkit";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
-import SoulCard from "../components/SoulCard";
+import CollabGrid from "./CollabGrid";
+import MobileWalletSheet, { useIsMobileNoInjected } from "../components/MobileWalletSheet";
 import { loadSouls, tierOf, type SoulsData } from "@/lib/souls";
 import { buildMH, type MHResult } from "@/lib/mh";
 import { drawCard, shareText, downloadBlob, type CardStats } from "@/lib/share-card";
@@ -30,14 +31,26 @@ export default function MySouls() {
   const mhEnabled = params.get("mh") === "1";
   const { address, isConnected } = useAccount();
   const client = usePublicClient();
+  const { openConnectModal } = useConnectModal();
+  const mobileNoInjected = useIsMobileNoInjected();
+  const [sheet, setSheet] = useState(false);
 
   const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [data, setData] = useState<SoulsData | null>(null);
   const [mh, setMh] = useState<MHResult | null>(null);
   const [cardBusy, setCardBusy] = useState(false);
+  const [collab, setCollab] = useState(true); // WTP collab spark; fail-open
 
   useEffect(() => setMounted(true), []);
+
+  // Kill-switch for the WTP collab (flags.wc/collab pattern). Fail-open.
+  useEffect(() => {
+    fetch("/flags.json", { cache: "no-cache" })
+      .then((r) => r.json())
+      .then((f) => { if (f && f.collab === false) setCollab(false); })
+      .catch(() => {});
+  }, []);
 
   const load = useCallback(
     async (acct: string) => {
@@ -145,8 +158,19 @@ export default function MySouls() {
 
       <main className="wrap ms-main">
         <div className="ms-connect">
-          <ConnectButton chainStatus="none" showBalance={false} accountStatus="address" />
+          {mounted && !isConnected && mobileNoInjected ? (
+            <button className="btn btn-primary" onClick={() => setSheet(true)}>
+              🔥 Connect Wallet
+            </button>
+          ) : (
+            <ConnectButton chainStatus="none" showBalance={false} accountStatus="address" />
+          )}
         </div>
+        <MobileWalletSheet
+          open={sheet}
+          onClose={() => setSheet(false)}
+          onWalletConnect={() => openConnectModal?.()}
+        />
 
         {/* ---------- states ---------- */}
         {!mounted || phase === "idle" ? (
@@ -171,7 +195,7 @@ export default function MySouls() {
         ) : mhEnabled ? (
           <MHView mh={mh} shareRow={shareRow} />
         ) : (
-          data && <ClassicView data={data} shareRow={shareRow} />
+          data && <ClassicView data={data} shareRow={shareRow} address={address ?? ""} collab={collab} />
         )}
       </main>
 
@@ -194,7 +218,17 @@ function EmptyState() {
 }
 
 /* ---------------- classic "Your Souls" view ---------------- */
-function ClassicView({ data, shareRow }: { data: SoulsData; shareRow: React.ReactNode }) {
+function ClassicView({
+  data,
+  shareRow,
+  address,
+  collab,
+}: {
+  data: SoulsData;
+  shareRow: React.ReactNode;
+  address: string;
+  collab: boolean;
+}) {
   const tier = tierOf(data.freed);
   return (
     <>
@@ -221,11 +255,7 @@ function ClassicView({ data, shareRow }: { data: SoulsData; shareRow: React.Reac
         Your collection · {data.owned.length} soul{data.owned.length === 1 ? "" : "s"}
       </div>
       {data.owned.length ? (
-        <div className="grid ms-grid">
-          {data.owned.map((id) => (
-            <SoulCard key={id} id={id} status="Held" />
-          ))}
-        </div>
+        <CollabGrid owned={data.owned} address={address} collabEnabled={collab} />
       ) : (
         <p className="note" style={{ padding: "24px 0" }}>
           You&apos;ve freed souls but hold none right now.

@@ -2,7 +2,7 @@ import Nav from "./components/Nav";
 import Footer from "./components/Footer";
 import Ticker from "./components/Ticker";
 import SoulCard from "./components/SoulCard";
-import HomeCta from "./components/HomeCta";
+import BurnFlow from "./components/BurnFlow";
 import { getSupply, getPricing, getFreed, getBlockTimes, ago, fmtEth, fmtDate, type Pricing } from "@/lib/chain";
 
 // Live on-chain counter + roster, regenerated at most once per minute (ISR).
@@ -77,10 +77,7 @@ export default async function Home() {
           </div>
           <div className="emberbar"><span style={{ width: `${pct}%` }} /></div>
           {pricingPill(pricing)}
-          <div className="cta">
-            <HomeCta />
-          </div>
-          <p className="cta-note">Ethereum mainnet · connect to free your Pikkazo</p>
+          <BurnFlow priceWei={pricing && !pricing.free ? pricing.priceWei : "0"} />
         </div>
       </section>
 
@@ -110,7 +107,7 @@ export default async function Home() {
             <div className="grid">
               {recent.map((e, i) => {
                 const t = times[e.block];
-                return <SoulCard key={e.id} id={e.id} status={t ? ago(now - t) : "Freed"} eager={i < 4} />;
+                return <SoulCard key={e.id} id={e.id} status={t ? ago(now - t) : "Freed"} eager={i < 4} link="gallery" />;
               })}
             </div>
           </div>

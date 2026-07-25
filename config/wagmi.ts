@@ -26,12 +26,35 @@ const mainnetTransport = fallback(
 // domain to the WalletConnect Cloud allowlist if the modal ever complains.
 const WC_PROJECT_ID = "21fef48091f12692cad574a6f7753643";
 
+// The WalletConnect dapp metadata.url MUST match the real origin the page is
+// served from, or some mobile wallets silently DISCARD the session proposal
+// (the reported iOS "MetaMask opens but nothing happens" glitch). On the client
+// use the live origin; on the server (ssr) RainbowKit swaps in a mock connector
+// anyway, so the fallback string is never actually used to pair.
+const APP_URL =
+  typeof window !== "undefined" ? window.location.origin : "https://cubistsouls-web.vercel.app";
+
 export const config = getDefaultConfig({
   appName: "Cubist Souls",
+  appDescription: "Burn a Pikkazo, free its Cubist Soul.",
+  appUrl: APP_URL,
+  appIcon: `${APP_URL}/assets/logo.svg`,
   projectId: WC_PROJECT_ID,
   chains: [mainnet],
   ssr: true,
   transports: {
     [mainnet.id]: mainnetTransport,
+  },
+  // wagmi v2's walletConnect connector already requests mainnet as an OPTIONAL
+  // namespace (not required) — the historical "chains:[1] required → wallet
+  // rejects" bug does not recur here. We only pin the metadata so the proposal
+  // carries the correct origin.
+  walletConnectParameters: {
+    metadata: {
+      name: "Cubist Souls",
+      description: "Burn a Pikkazo, free its Cubist Soul.",
+      url: APP_URL,
+      icons: [`${APP_URL}/assets/logo.svg`],
+    },
   },
 });
