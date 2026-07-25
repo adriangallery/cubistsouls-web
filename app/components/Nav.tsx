@@ -2,7 +2,7 @@ import Link from "next/link";
 
 // Sticky top bar. Active item shows the ember pill (DESIGN_SYSTEM §4 / dir. B).
 // Nav collapses to a horizontally-scrollable link row on mobile (never clipped).
-export default function Nav({ active }: { active?: "burn" | "freed" | "souls" | "builder" }) {
+export default function Nav({ active }: { active?: "burn" | "freed" | "souls" | "builder" | "reapers" }) {
   return (
     <nav className="nav">
       <div className="nav-in">
@@ -16,6 +16,7 @@ export default function Nav({ active }: { active?: "burn" | "freed" | "souls" | 
           <Link href="/gallery" className={active === "freed" ? "active" : undefined}>The Freed</Link>
           <Link href="/my-souls" className={active === "souls" ? "active" : undefined}>Your Souls</Link>
           <a href="/builder" className={active === "builder" ? "active" : undefined}>Builder</a>
+          <Link href="/reapers" className={active === "reapers" ? "active" : undefined}>Reapers</Link>
           <a href="https://opensea.io/collection/cubist-souls" target="_blank" rel="noopener noreferrer">OpenSea</a>
         </div>
       </div>

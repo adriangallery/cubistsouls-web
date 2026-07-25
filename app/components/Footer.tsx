@@ -19,6 +19,7 @@ export default function Footer() {
           <Link href="/gallery">The Freed</Link>
           <Link href="/my-souls">Your Souls</Link>
           <a href="/builder">Builder</a>
+          <Link href="/reapers">Reapers</Link>
           <a href="https://opensea.io/collection/cubist-souls" target="_blank" rel="noopener noreferrer">OpenSea</a>
         </div>
         <div className="fine">

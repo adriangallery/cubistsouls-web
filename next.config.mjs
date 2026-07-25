@@ -23,6 +23,13 @@ const nextConfig = {
       { source: "/govern-x9v4k2", destination: "/govern-x9v4k2.html" },
     ];
   },
+  // Soul Reapers went public at the clean /reapers URL; the old secret slug
+  // stays valid as a redirect so nothing that ever pointed at it breaks.
+  async redirects() {
+    return [
+      { source: "/reapers-k7x2m9", destination: "/reapers", permanent: false },
+    ];
+  },
   // The site is PUBLIC (domain flip to cubistsouls.com). The global noindex is
   // gone; only the still-semi-secret legacy pages keep noindex via inline meta
   // (builder-test, the-vault-9k2xq7, govern-x9v4k2).
