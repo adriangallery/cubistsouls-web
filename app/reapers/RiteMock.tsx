@@ -69,6 +69,16 @@ const DEMO_PIKKAZOS = [7, 42, 88, 136, 210, 271, 314, 420, 512, 636, 777, 900, 1
 type Aspirant = { id: number; name: string; base: BaseMap; state?: ReaperState };
 
 export default function RiteMock({ live = false }: { live?: boolean }) {
+  // Secret pre-launch override: ?reaper=1 enables the live panel on prod while
+  // flags.reaperLive stays false for everyone else (same pattern as the old
+  // ?mh=1 gate). REMOVE at public launch, when the flag flips to true. The
+  // on-chain facet stays paused, so this exposes UI only — no rite can run
+  // until unpause; and only a soul's owner can forge anyway.
+  const [urlOverride, setUrlOverride] = useState(false);
+  useEffect(() => {
+    setUrlOverride(new URLSearchParams(window.location.search).get("reaper") === "1");
+  }, []);
+  live = live || urlOverride;
   const { openConnectModal } = useConnectModal();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
