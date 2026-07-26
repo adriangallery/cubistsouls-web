@@ -233,6 +233,34 @@
   .proposal { grid-template-columns: minmax(0, 210px) 1fr; }
 }
 .propArt { min-width: 0; }
+
+/* preview cue: a mark is being TRIED ON (not yet earned) — subtle shimmer border +
+   caption, so a previewed mark reads differently from a permanently unlocked one. */
+.tryonPreview {
+  border-color: var(--reaper-lite) !important;
+  box-shadow: 0 0 0 2px rgba(167, 101, 209, 0.35), 0 0 30px -4px rgba(167, 101, 209, 0.75) !important;
+  animation: tryonShimmer 1.8s ease-in-out infinite;
+}
+@keyframes tryonShimmer {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(167, 101, 209, 0.3), 0 0 22px -6px rgba(167, 101, 209, 0.6); }
+  50% { box-shadow: 0 0 0 2px rgba(167, 101, 209, 0.55), 0 0 34px -2px rgba(167, 101, 209, 0.95); }
+}
+.tryonChip {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+  background: rgba(167, 101, 209, 0.12);
+  border: 1px solid rgba(167, 101, 209, 0.4);
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tryonPreview { animation: none; }
+}
 .propInfo { min-width: 0; display: flex; flex-direction: column; gap: 0.9rem; }
 .propHead {
   display: flex;

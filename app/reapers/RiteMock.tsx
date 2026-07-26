@@ -8,7 +8,6 @@ import MobileWalletSheet, { useIsMobileNoInjected } from "../components/MobileWa
 import { loadSouls } from "@/lib/souls";
 import { loadPikkazos, approvalsNeeded, PIKKAZO_ABI } from "@/lib/pikkazo";
 import {
-  REAPER_MARKS,
   REAPER_ABI,
   SOULS,
   PIKKAZO,
@@ -22,7 +21,9 @@ import {
   baseLayersOf,
   composeFromBase,
   getReaperState,
-  getMarkPrices,
+  marksFromConsumed,
+  MARK_THRESHOLDS,
+  MARK_BY_ID,
   loadCohorts,
   isOG,
   OPENSEA_OG_URL,
@@ -35,23 +36,25 @@ import {
 import styles from "./reapers.module.css";
 
 // THE RITE — "ONE BAR" redesign (Adrian 26-jul). The whole rite is one mental model:
-//   every Pikkazo burned = +1 · reach 30 = SOUL REAPER · burn an exact batch of
-//   6/12/18/30 and that batch ALSO forges its mark.
+//   every Pikkazo burned = +1 to your soul's consumed count. Marks are MILESTONES of
+//   that running total — Orange at 6, Flame Crown at 12, Phoenix at 18, and at 30 the
+//   final prize: the Burning Soul skin AND the SOUL REAPER name. 30 Pikkazos = all.
 //
 // The panel proposes a SINGLE aspirant (your OG with the most souls already
 // consumed — keep feeding the one that is progressing), a big N/30 progress bar,
-// ONE slider (1..min(balance,50)) with stops at the mark prices, and ONE button.
-// Landing exactly on a forgeable, affordable stop forges that mark automatically;
-// any other number is a pure feed. The concrete Pikkazo picking (auto least-rare +
+// ONE slider (1..min(balance,50)) with milestone stops on the TOTAL, and ONE button.
+// The batch just adds to the total; every milestone the total crosses unlocks its
+// mark(s). Marks are derived CLIENT-SIDE from the consumed count (marksFromConsumed),
+// unioned with legacy on-chain bits. The concrete Pikkazo picking (auto least-rare +
 // editable grid) and the full soul picker are collapsed behind discreet links.
 //
 //   demo (no wallet / flag off): the aspirant + offering wallet run on demo data so
 //     the slider is fully playable; the CTA becomes "Connect wallet to burn".
 //   live + connected: the aspirant is YOUR OG soul, the wallet is YOUR Pikkazos, and
-//     the button runs approvals + forgeMark()/offer() against the diamond.
+//     the button runs approvals + offer() against the diamond.
 //
-// The contract fits 1:1 — offer() for a feed, forgeMark() for a batch-forge. Nothing
-// on-chain changes.
+// The tx is ALWAYS offer() — forgeMark is never called (the milestone marks are
+// display-derived; the V3 cut that aligns marksOf on-chain ships in parallel).
 
 const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
 
@@ -204,17 +207,15 @@ function BurnSlider({
                 if (reach) onChange(s.value);
               }}
               aria-label={
-                s.forged
-                  ? `${s.name} — already forged`
-                  : reach
-                    ? `Burn ${s.value} — forge ${s.name}`
-                    : `${s.name} — need ${s.value - sliderMax} more Pikkazos`
+                reach
+                  ? `Burn ${s.value} — unlock ${s.name}`
+                  : `${s.name} — need ${s.value - sliderMax} more Pikkazos`
               }
             >
               <span className={styles.stopTick} />
               <span className={styles.stopLabel}>
                 <b>{s.value}</b>
-                <em>{s.forged ? "✓" : reach ? s.short : `need ${s.value - sliderMax}`}</em>
+                <em>{reach ? s.short : `need ${s.value - sliderMax}`}</em>
               </span>
             </button>
           );
@@ -236,7 +237,7 @@ function BurnSlider({
       </div>
       <div className={styles.sliderScale}>
         <span>1</span>
-        <span>drag to choose · stops forge marks</span>
+        <span>drag to choose · stops = milestones</span>
         <span>{sliderMax}</span>
       </div>
     </div>
@@ -260,7 +261,6 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   // shared data
   const [rarity, setRarity] = useState<Rarity | null>(null);
   const [layerData, setLayerData] = useState<LayerData | null>(null);
-  const [prices, setPrices] = useState<Record<number, number> | null>(null);
 
   // live wallet data
   const [phase, setPhase] = useState<"idle" | "loading" | "loaded" | "error">("idle");
@@ -297,17 +297,6 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     loadRarity().then(setRarity).catch(() => {});
     loadLayerData().then(setLayerData).catch(() => {});
   }, []);
-
-  // live: read the current mark prices from the facet (fallback to ratified defaults)
-  useEffect(() => {
-    if (!live || !mounted || !publicClient) return;
-    getMarkPrices(publicClient).then(setPrices).catch(() => {});
-  }, [live, mounted, publicClient]);
-
-  const costOf = useCallback(
-    (markId: number, fallback: number) => (live && prices ? prices[markId] ?? fallback : fallback),
-    [live, prices],
-  );
 
   // live: load the connected wallet's souls + pikkazos + reaper states
   const loadWallet = useCallback(
@@ -382,63 +371,76 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     setPickerOpen(false);
   };
 
-  // marks ALREADY forged on the picked soul (live only): the contract reverts
-  // MarkAlreadyForged, so such a stop only ever feeds. Demo has no chain → none.
-  const forgedMarkIds = useMemo(
-    () => new Set<number>(!demo ? aspirant?.state?.marks ?? [] : []),
-    [demo, aspirant],
-  );
+  // souls already consumed on the picked soul + legacy on-chain mark bits (live).
+  const already = !demo ? aspirant?.state?.consumed ?? 0 : 0;
+  const legacyBits = useMemo(() => (!demo ? aspirant?.state?.marks ?? [] : []), [demo, aspirant]);
+
+  // marks ALREADY unlocked (permanent) — derived from the consumed total, unioned
+  // with legacy forge bits. These are worn no matter where the slider sits.
+  const unlockedNow = useMemo(() => marksFromConsumed(already, legacyBits), [already, legacyBits]);
+  const unlockedNowSet = useMemo(() => new Set(unlockedNow), [unlockedNow]);
 
   // the offering wallet (demo · live real) + balance
   const wallet = demo ? DEMO_PIKKAZOS : ownedPikkazos;
   const balance = wallet.length;
   const gateReady = !demo && phase === "loaded";
   const sliderMax = clamp(Math.min(balance, 50), 1, 50);
-  const trackMax = Math.max(ASCEND_AT, sliderMax); // always show every stop (6/12/18/30)
 
-  // the four stops, priced live (markPrice) or by ratified defaults
+  // slider stops = milestones STILL AHEAD, expressed as the batch that reaches them
+  // (value = threshold − already). Milestones already behind you get no stop.
   const stops: SliderStop[] = useMemo(
     () =>
-      REAPER_MARKS.map((m) => {
-        const value = costOf(m.markId, m.cost);
-        return {
-          markId: m.markId,
-          value,
-          name: m.name,
-          short: m.name.replace("★ ", ""),
-          file: m.file,
-          forged: forgedMarkIds.has(m.markId),
-          affordable: value <= sliderMax,
-        };
-      }),
-    [costOf, forgedMarkIds, sliderMax],
+      MARK_THRESHOLDS.filter((t) => t.at > already && !unlockedNowSet.has(t.markId))
+        .map((t) => {
+          const m = MARK_BY_ID.get(t.markId)!;
+          return {
+            markId: t.markId,
+            value: t.at - already, // batch that lands the TOTAL exactly on this milestone
+            name: m.name,
+            short: m.name.replace("★ ", ""),
+            file: m.file,
+            forged: false,
+            affordable: t.at - already <= sliderMax,
+          };
+        }),
+    [already, unlockedNowSet, sliderMax],
   );
+  // the track always spans up to the final (30-total) milestone so every stop shows,
+  // even the ones the current balance can't reach yet (greyed lock zone past sliderMax).
+  const maxStop = stops.length ? Math.max(...stops.map((s) => s.value)) : sliderMax;
+  const trackMax = Math.max(maxStop, sliderMax, ASCEND_AT - already);
 
   // keep the slider inside [1..sliderMax]
   useEffect(() => {
     setBurnN((n) => clamp(n, 1, sliderMax));
   }, [sliderMax]);
 
-  // does the current batch land exactly on a forgeable, affordable stop?
-  const markHere = useMemo(() => {
-    const m = REAPER_MARKS.find((mk) => costOf(mk.markId, mk.cost) === burnN && !forgedMarkIds.has(mk.markId));
-    return m ? { ...m, cost: costOf(m.markId, m.cost) } : null;
-  }, [burnN, costOf, forgedMarkIds]);
-  const forgesNow = !!markHere && burnN <= balance;
-  // a stop that IS at burnN but is already forged → messaging only (still a feed)
-  const forgedHere = useMemo(
-    () => REAPER_MARKS.find((mk) => costOf(mk.markId, mk.cost) === burnN && forgedMarkIds.has(mk.markId)) ?? null,
-    [burnN, costOf, forgedMarkIds],
-  );
-
   const required = burnN;
-  const already = !demo ? aspirant?.state?.consumed ?? 0 : 0;
   const consumedAfter = already + required;
   const ascended = consumedAfter >= ASCEND_AT;
   const alreadyReaper = already >= ASCEND_AT;
   const displayName = ascended ? "Soul Reaper" : "Cubist Soul";
-  const mhBonus = forgesNow ? markHere!.mh : 0;
-  const mult = forgesNow ? markHere!.mult : 0;
+
+  // marks worn AFTER this batch = milestones the new total crosses (+ legacy bits).
+  const unlockedAfter = useMemo(
+    () => marksFromConsumed(consumedAfter, legacyBits),
+    [consumedAfter, legacyBits],
+  );
+  // marks this batch NEWLY unlocks (for the verdict + celebration).
+  const newlyUnlocked = useMemo(
+    () => unlockedAfter.filter((id) => !unlockedNowSet.has(id)),
+    [unlockedAfter, unlockedNowSet],
+  );
+  const unlocksNow = newlyUnlocked.length > 0;
+  // the next milestone still ahead after this batch (for the "next at N" hint).
+  const nextAhead = MARK_THRESHOLDS.find((t) => t.at > consumedAfter && !unlockedNowSet.has(t.markId)) ?? null;
+  // the immediate next milestone from where the soul stands now (for the "⟶ next" card).
+  const nextFromNow = MARK_THRESHOLDS.find((t) => t.at > already && !unlockedNowSet.has(t.markId)) ?? null;
+
+  // perks reflect the resulting reaper (best multiplier + total +MH/hr of worn marks).
+  const afterMarks = unlockedAfter.map((id) => MARK_BY_ID.get(id)!).filter(Boolean);
+  const mhBonus = afterMarks.reduce((s, m) => s + m.mh, 0);
+  const mult = afterMarks.reduce((mx, m) => Math.max(mx, m.mult), 0);
 
   // progress-bar geometry (over-30 keeps counting; the bar celebrates and stays full)
   const basePct = Math.min(100, (already / ASCEND_AT) * 100);
@@ -468,11 +470,12 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     setChosen(new Set(suggestLeastRare(wallet, required, rarity)));
   };
 
-  // try-on: compose the soul from its base layers, drawing forged marks + (when the
-  // batch forges) the mark this batch would grant.
+  // try-on: compose the soul from its base layers, drawing EVERY mark that would be
+  // unlocked at the total after this batch (permanent + newly unlocked). At the 30
+  // milestone this is all four — skin + everything — which is the whole point.
   const stack = useMemo(
-    () => composeFromBase(aspirant?.base ?? {}, forgesNow ? [...forgedMarkIds, markHere!.id] : [...forgedMarkIds]),
-    [aspirant, forgesNow, markHere, forgedMarkIds],
+    () => composeFromBase(aspirant?.base ?? {}, unlockedAfter),
+    [aspirant, unlockedAfter],
   );
 
   const chosenIds = useMemo(() => [...chosen].sort((a, b) => a - b), [chosen]);
@@ -530,28 +533,19 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
 
       const reaperId = BigInt(aspirant.id);
       const argIds = ids.map((n) => BigInt(n));
-      let lastHash: `0x${string}`;
 
-      if (forgesNow && markHere) {
-        // exact batch → forge the mark at this stop (len == markPrice)
-        setBusyLabel(`Forge ${markHere.name}…`);
-        lastHash = await walletClient.writeContract({
-          address: SOULS, abi: REAPER_ABI, functionName: "forgeMark",
-          args: [reaperId, markHere.markId, argIds],
-        });
-      } else {
-        // any other number → pure feed
-        setBusyLabel("Confirm burn…");
-        lastHash = await walletClient.writeContract({
-          address: SOULS, abi: REAPER_ABI, functionName: "offer",
-          args: [reaperId, argIds],
-        });
-      }
+      // ALWAYS offer() — marks are milestones of the consumed total, unlocked as it
+      // crosses each threshold. No forgeMark call (works with the current facet).
+      setBusyLabel("Confirm burn…");
+      const lastHash = await walletClient.writeContract({
+        address: SOULS, abi: REAPER_ABI, functionName: "offer",
+        args: [reaperId, argIds],
+      });
       await publicClient.waitForTransactionReceipt({ hash: lastHash });
 
       toast(
         `🜃 The fire is fed — <b>${ascended ? "Soul Reaper" : "Cubist Soul"} #${aspirant.id}</b> consumed ${ids.length} soul${ids.length === 1 ? "" : "s"}.` +
-          (forgesNow && markHere ? ` <b>${markHere.name}</b> forged.` : "") +
+          (unlocksNow ? ` Unlocked <b>${newlyUnlocked.map((id) => MARK_BY_ID.get(id)!.name).join(" ")}</b>.` : "") +
           ` <a href="https://etherscan.io/tx/${lastHash}" target="_blank" rel="noopener">Etherscan</a>`,
         0,
       );
@@ -562,16 +556,13 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
       const msg = e?.shortMessage || e?.message || "Transaction failed";
       const raw = msg + String(e?.cause?.data ?? "");
       if (/NotOGSoul/i.test(raw)) toast("This soul isn't OG — only OGs can take the scythe.");
-      else if (/MarkAlreadyForged/i.test(raw)) {
-        toast("That mark is already forged on this soul.");
-        await loadWallet(address);
-      } else if (/reject|denied|user rejected/i.test(msg)) toast("Stepped back from the fire.");
+      else if (/reject|denied|user rejected/i.test(msg)) toast("Stepped back from the fire.");
       else toast(`Failed: ${msg}`);
     } finally {
       setBusy(false);
       setBusyLabel(null);
     }
-  }, [demo, walletClient, publicClient, address, aspirant, chosenIds, required, forgesNow, markHere, ensureMainnet, ascended, loadWallet]);
+  }, [demo, walletClient, publicClient, address, aspirant, chosenIds, required, unlocksNow, newlyUnlocked, ensureMainnet, ascended, loadWallet]);
 
   const startConnect = () => {
     if (mobileNoInjected) setSheet(true);
@@ -627,7 +618,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
           {/* ---------- PROPOSED SOUL — one card, art + name + the N/30 bar ---------- */}
           <div className={styles.proposal}>
             <div className={styles.propArt}>
-              <div className="tryon-stack">
+              <div className={`tryon-stack${unlocksNow ? " " + styles.tryonPreview : ""}`}>
                 <span className="rp-stamp">Try-on</span>
                 {stack.length ? (
                   stack.map((src, i) => (
@@ -639,6 +630,12 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                   <img className="lyr" src={IMG(aspirant.id)} alt="" />
                 )}
               </div>
+              {/* subtle cue that a mark is being TRIED ON, not yet earned */}
+              {unlocksNow && (
+                <div className={styles.tryonChip}>
+                  Trying on {newlyUnlocked.map((id) => MARK_BY_ID.get(id)!.name).join(" ")}
+                </div>
+              )}
               <div className={`soul-plate${ascended ? " ascended" : ""}`} key={ascended ? "reaper" : "soul"}>
                 {ascended && <span className="plate-mark">🜃</span>}
                 {displayName} <span className="pnum">#{aspirant.id}</span>
@@ -672,7 +669,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                   {alreadyReaper
                     ? `★ SOUL REAPER · ${consumedAfter} consumed`
                     : ascended
-                      ? "★ 30 reached — the museum renames it Soul Reaper"
+                      ? "★ 30 — the final prize: the Burning Soul skin and the SOUL REAPER name"
                       : `${ASCEND_AT - consumedAfter} more to become a Soul Reaper`}
                   {!demo && already > 0 && !alreadyReaper ? ` · ${already} already` : ""}
                 </div>
@@ -718,7 +715,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
         </div>
       ) : (
         <>
-          {/* ---------- THE SLIDER — how many to burn (stops forge marks) ---------- */}
+          {/* ---------- THE SLIDER — how many to burn (stops = milestones) ---------- */}
           <div className={styles.burnBox}>
             <div className={styles.burnHead}>
               <span className={styles.burnLead}>How many Pikkazos to burn</span>
@@ -729,27 +726,31 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
 
             <BurnSlider value={burnN} onChange={setBurnN} sliderMax={sliderMax} trackMax={trackMax} stops={stops} />
 
-            {/* the verdict — forge or feed, in one line */}
-            <div className={`${styles.verdict}${forgesNow ? " " + styles.verdictForge : ""}`}>
-              {forgesNow && markHere ? (
+            {/* the verdict — where this batch takes your total, and what it unlocks */}
+            <div className={`${styles.verdict}${unlocksNow ? " " + styles.verdictForge : ""}`}>
+              {unlocksNow ? (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img className={styles.verdictThumb} src={markHere.file} alt="" />
+                  <img className={styles.verdictThumb} src={MARK_BY_ID.get(newlyUnlocked[newlyUnlocked.length - 1])!.file} alt="" />
                   <span>
-                    This batch forges <b>{markHere.name}</b> — and +{burnN} to your count.
+                    Takes you to <b>{consumedAfter}/{ASCEND_AT}</b> —{" "}
+                    {ascended ? (
+                      <>unlocks <b>EVERYTHING</b>: ★★★★ + SOUL REAPER</>
+                    ) : (
+                      <>unlocks <b>{newlyUnlocked.map((id) => MARK_BY_ID.get(id)!.name).join(" ")}</b></>
+                    )}
                   </span>
                 </>
-              ) : forgedHere ? (
-                <span>
-                  <b>{forgedHere.name}</b> already forged · +{burnN} to your count. No new mark.
-                </span>
               ) : (
-                <span>+{burnN} to your count. No mark.</span>
+                <span>
+                  Takes you to <b>{consumedAfter}/{ASCEND_AT}</b> —{" "}
+                  {nextAhead ? `no new mark yet · next at ${nextAhead.at}` : "already a Soul Reaper"}
+                </span>
               )}
             </div>
 
-            {/* perks earned by this batch (only when it forges) */}
-            {forgesNow && (
+            {/* perks of the resulting reaper (shown when this batch unlocks a mark) */}
+            {unlocksNow && (
               <div className="perk-chips" style={{ marginTop: ".7rem" }}>
                 <span className="rk-chip"><span className="ico">⏳</span>MH <b>×{mult.toFixed(1)}</b></span>
                 <span className="rk-chip"><span className="ico">✦</span><b>+{mhBonus}</b> MH/hr</span>
@@ -758,33 +759,45 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
             )}
           </div>
 
-          {/* ---------- MARKS — rewards of the path (informative) ---------- */}
+          {/* ---------- MARKS — milestones of the path (unlock at 6/12/18/30) ---------- */}
           <div className={styles.markCards}>
-            {stops.map((s) => {
-              const reach = s.value <= sliderMax;
-              const active = burnN === s.value && reach && !s.forged;
+            {MARK_THRESHOLDS.map((t) => {
+              const m = MARK_BY_ID.get(t.markId)!;
+              const batchTo = t.at - already; // batch that reaches this milestone
+              const unlocked = unlockedNowSet.has(t.markId);
+              const willUnlock = !unlocked && unlockedAfter.includes(t.markId);
+              const reach = batchTo >= 1 && batchTo <= sliderMax;
+              const isNext = !unlocked && !willUnlock && nextFromNow?.markId === t.markId;
               const cls = [
                 styles.markCard,
-                s.forged ? styles.mcForged : !reach ? styles.mcLocked : active ? styles.mcActive : "",
+                unlocked ? styles.mcForged : willUnlock ? styles.mcActive : !reach ? styles.mcLocked : "",
               ]
                 .filter(Boolean)
                 .join(" ");
               return (
                 <button
-                  key={s.markId}
+                  key={t.markId}
                   type="button"
                   className={cls}
-                  disabled={s.forged || !reach}
-                  onClick={() => reach && !s.forged && setBurnN(s.value)}
-                  aria-label={s.forged ? `${s.name} forged` : reach ? `Set batch to ${s.value} to forge ${s.name}` : `${s.name} locked`}
+                  disabled={unlocked || !reach}
+                  onClick={() => !unlocked && reach && setBurnN(batchTo)}
+                  aria-label={unlocked ? `${m.name} unlocked` : `${m.name} unlocks at ${t.at} consumed`}
                 >
                   <span className={styles.mcThumb}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={s.file} alt="" loading="lazy" />
+                    <img src={m.file} alt="" loading="lazy" />
                   </span>
-                  <span className={styles.mcName}>{s.short}</span>
+                  <span className={styles.mcName}>{m.name.replace("★ ", "")}</span>
                   <span className={styles.mcState}>
-                    {s.forged ? "✓ Forged" : !reach ? `need ${s.value - sliderMax} 🔥` : active ? "this batch" : `${s.value} 🔥`}
+                    {unlocked
+                      ? "✓ unlocked"
+                      : willUnlock
+                        ? "this batch"
+                        : isNext
+                          ? "⟶ next"
+                          : !reach
+                            ? `need ${batchTo - sliderMax} 🔥`
+                            : `unlocks at ${t.at}`}
                   </span>
                 </button>
               );
@@ -873,8 +886,8 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                 {!aspirant?.og
                   ? "OG Souls only"
                   : busyLabel ??
-                    (forgesNow && markHere
-                      ? `🔥 Burn ${burnN} — forge ${markHere.name}`
+                    (unlocksNow
+                      ? `🔥 Burn ${burnN} — reach ${consumedAfter}/${ASCEND_AT}`
                       : `🔥 Burn ${burnN} Pikkazo${burnN === 1 ? "" : "s"}`)}
               </button>
             )}

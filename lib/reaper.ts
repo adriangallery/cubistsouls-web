@@ -96,6 +96,26 @@ export const REAPER_MARKS: Mark[] = [
 
 export const MARK_BY_ID = new Map(REAPER_MARKS.map((m) => [m.markId, m]));
 
+// MARKS ARE MILESTONES OF CUMULATIVE CONSUMPTION (Adrian 26-jul). A mark is NOT
+// bought by an exact batch — it unlocks the moment the soul's total consumed count
+// crosses its threshold: Orange 6 · Flame Crown 12 · Phoenix 18 · Burning Soul 30
+// (30 = the final prize: the skin AND the SOUL REAPER name). The `cost` field IS
+// that threshold. Sorted ascending so "next milestone" reads left→right.
+export const MARK_THRESHOLDS: { markId: number; at: number }[] = REAPER_MARKS.map((m) => ({
+  markId: m.markId,
+  at: m.cost,
+})).sort((a, b) => a.at - b.at);
+
+// The set of unlocked markIds for a given consumed total, unioned with any legacy
+// on-chain bits (V2 forgeMark bitmask from marksOf) so nothing already forged is
+// ever dropped while the V3 cut that aligns marksOf to the thresholds ships in
+// parallel. The tx path stays offer()-only; this derives the display client-side.
+export function marksFromConsumed(consumed: number, legacyBits: number[] = []): number[] {
+  const set = new Set<number>(legacyBits);
+  for (const { markId, at } of MARK_THRESHOLDS) if (consumed >= at) set.add(markId);
+  return [...set].sort((a, b) => a - b);
+}
+
 export function rankName(consumed: number): string {
   if (consumed >= 30) return "Soul Reaper";
   if (consumed >= 18) return "Ember Reaper";
