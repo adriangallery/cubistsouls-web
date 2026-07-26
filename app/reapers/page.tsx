@@ -4,7 +4,7 @@ import Footer from "../components/Footer";
 import RiteMock from "./RiteMock";
 import TheOrder from "./TheOrder";
 import TheConsumed from "./TheConsumed";
-import { getReapers, getConsumed } from "@/lib/chain";
+import { getReapers, getRising, getConsumed } from "@/lib/chain";
 import flags from "@/public/flags.json";
 import styles from "./reapers.module.css";
 
@@ -37,15 +37,22 @@ export const metadata: Metadata = {
   },
 };
 
-// Real soul art via the on-chain renderer host (unchanged by the domain flip).
-const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
+// Tight vertical rhythm (Adrian 26-jul — "demasiados espacios muertos"): sections
+// hug their content and the reaper dividers are discreet. Applied inline so the
+// shared global `.section`/`.rp-rule` rules (used by other pages) are untouched.
+const SEC_PB = "clamp(1.2rem, 3.5vw, 1.8rem)";
+const HEAD_MB = { marginBottom: "clamp(0.7rem, 2.5vw, 1.1rem)" };
+const RULE_M = { margin: "clamp(0.7rem, 2vw, 1.1rem) auto" };
 
 export default async function ReapersPage() {
   // Only touch the chain when the facet is live; otherwise The Order is preview-only.
   // THE CONSUMED, in contrast, is a memorial of what has actually burned — always
   // real on-chain history (last-good cached, own empty state), regardless of the flag.
-  const [reapers, consumed] = await Promise.all([
+  // RISING (aspirants, 0<consumed<30) is real on-chain activity like THE CONSUMED
+  // — always read, independent of the flag (today: #8777 at 18/30).
+  const [reapers, rising, consumed] = await Promise.all([
     REAPER_LIVE ? getReapers() : Promise.resolve([]),
+    getRising(),
     getConsumed(),
   ]);
 
@@ -76,9 +83,9 @@ export default async function ReapersPage() {
           says it all; straight to the panel.) */}
 
       {/* ---------- THE RITE — the panel is the center of the page ---------- */}
-      <section id="rite" className="section" style={{ paddingTop: 0, scrollMarginTop: "80px" }}>
+      <section id="rite" className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB, scrollMarginTop: "80px" }}>
         <div className="wrap">
-          <div className="sec-head">
+          <div className="sec-head" style={HEAD_MB}>
             <span className="eyebrow">Do it here</span>
             <h2>FEED <span className="rp-hot">THE FIRE</span></h2>
           </div>
@@ -86,25 +93,25 @@ export default async function ReapersPage() {
         </div>
       </section>
 
-      <div className="rp-rule"><div className="line" /></div>
+      <div className="rp-rule" style={RULE_M}><div className="line" /></div>
 
-      {/* ---------- THE ORDER — souls that hit 30 ---------- */}
-      <section className="section" style={{ paddingTop: 0 }}>
+      {/* ---------- THE ORDER — ascended reapers + rising aspirants ---------- */}
+      <section className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB }}>
         <div className="wrap">
-          <div className="sec-head">
+          <div className="sec-head" style={HEAD_MB}>
             <span className="eyebrow">Souls that hit 30</span>
             <h2>THE <span className="rp-hot">ORDER</span></h2>
           </div>
-          <TheOrder live={REAPER_LIVE} reapers={reapers} />
+          <TheOrder live={REAPER_LIVE} reapers={reapers} rising={rising} />
         </div>
       </section>
 
-      <div className="rp-rule"><div className="line" /></div>
+      <div className="rp-rule" style={RULE_M}><div className="line" /></div>
 
       {/* ---------- THE CONSUMED — memorial of the canvases the fire ate ---------- */}
-      <section className="section" style={{ paddingTop: 0 }}>
+      <section className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB }}>
         <div className="wrap">
-          <div className="sec-head">
+          <div className="sec-head" style={HEAD_MB}>
             <span className="eyebrow">Ash of the offering</span>
             <h2>THE <span className="rp-hot">CONSUMED</span></h2>
           </div>
@@ -112,82 +119,8 @@ export default async function ReapersPage() {
         </div>
       </section>
 
-      <div className="rp-rule"><div className="line" /></div>
-
-      {/* ---------- DOUBLE RARITY — 3 cards + 2 one-line pills ---------- */}
-      <section className="section" style={{ paddingTop: 0 }}>
-        <div className="wrap">
-          <div className="sec-head">
-            <span className="eyebrow">Two rarities</span>
-            <h2>BORN <span className="rp-hot">&amp; BECOMING</span></h2>
-          </div>
-
-          {/* one line per pill */}
-          <div className="rr-legend">
-            <div className="rr-leg">
-              <span className="pill pill-prov">Born 🏺</span>
-              what you were born as — frozen forever.
-            </div>
-            <div className="rr-leg">
-              <span className="pill pill-museum">Museum ✦</span>
-              the living rank — perks read this one.
-            </div>
-          </div>
-
-          <div className="rarity-cards">
-            {/* honorary — born Masterpiece, stays high */}
-            <div className="rr-card">
-              <div className="rr-art">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={IMG(90)} alt="Cubist Soul №0090" loading="lazy" />
-              </div>
-              <div className="rr-body">
-                <span className="rr-id">№0090</span>
-                <div className="rr-pills">
-                  <span className="pill pill-prov">Born 🏺 Masterpiece</span>
-                  <span className="pill pill-museum">Museum ✦ Rank 6</span>
-                </div>
-                <span className="rr-tag">Never devalued</span>
-              </div>
-            </div>
-
-            {/* mid — ascends after the rite */}
-            <div className="rr-card ascend">
-              <div className="rr-art">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={IMG(512)} alt="Cubist Soul №0512" loading="lazy" />
-              </div>
-              <div className="rr-body">
-                <span className="rr-id">№0512</span>
-                <div className="rr-pills">
-                  <span className="pill pill-prov">Born 🏺 Rare</span>
-                  <span className="pill pill-museum up">Museum ▲ Ascendant</span>
-                </div>
-                <span className="rr-tag up">Ascended by the fire ▲</span>
-              </div>
-            </div>
-
-            {/* common */}
-            <div className="rr-card">
-              <div className="rr-art">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={IMG(314)} alt="Cubist Soul №0314" loading="lazy" />
-              </div>
-              <div className="rr-body">
-                <span className="rr-id">№0314</span>
-                <div className="rr-pills">
-                  <span className="pill pill-prov">Born 🏺 Common</span>
-                  <span className="pill pill-museum">Museum ✦ Rank 4,120</span>
-                </div>
-                <span className="rr-tag">Open to all</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
       {/* ---------- FINE PRINT — details for who wants them ---------- */}
-      <section className="section" style={{ paddingTop: 0 }}>
+      <section className="section" style={{ paddingTop: SEC_PB, paddingBottom: SEC_PB }}>
         <div className="wrap">
           <details className={styles.fine}>
             <summary className={styles.fineSummary}>How it works — the fine print</summary>

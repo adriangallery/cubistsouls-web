@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   loadLayerData,
   composeStack,
@@ -15,52 +15,98 @@ import styles from "./reapers.module.css";
 // handed down; the art is composed HERE with the vector engine so each reaper shows
 // its marks (never a blend over the flat PNG).
 //
-// live=false → an elegant empty state + 2-3 clearly-marked preview reapers, so the
-// section reads as intended before the fire is lit.
+// The prominent spot is RESERVED for real ascended reapers. No placeholders: while
+// none have crossed 30 the section shows a single "awaits its first reaper" plate.
+// Beneath it, RISING — real souls already burning canvases (0<consumed<30) but not
+// yet renamed — appear as a compact, less-prominent row of aspirants.
 
 export type OrderEntry = { id: number; consumed: number; marks: number[]; holder: string };
+export type RisingEntry = { id: number; consumed: number; marks: number[] };
 
 const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
 const SOULS_OS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 
-// preview reapers (illustrative) — real art via the vector engine, fake consumption
-const PREVIEW: OrderEntry[] = [
-  { id: 136, consumed: 41, marks: [3, 1, 2], holder: "0x4943a1b0c7f2e5d9a8b3c4d5e6f70819a2b3c4d5" },
-  { id: 777, consumed: 34, marks: [3, 1], holder: "0xc6d4e2f0a1b2c3d4e5f60718293a4b5c6d7e8f90" },
-  { id: 42, consumed: 30, marks: [3], holder: "0xa41d3e2b1c0f9e8d7c6b5a4938271605f4e3d2c1" },
-];
-
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
 
-export default function TheOrder({ live = false, reapers = [] }: { live?: boolean; reapers?: OrderEntry[] }) {
+export default function TheOrder({
+  live = false,
+  reapers = [],
+  rising = [],
+}: {
+  live?: boolean;
+  reapers?: OrderEntry[];
+  rising?: RisingEntry[];
+}) {
   const [layerData, setLayerData] = useState<LayerData | null>(null);
   useEffect(() => {
     loadLayerData().then(setLayerData).catch(() => {});
   }, []);
 
-  const isPreview = !live || reapers.length === 0;
-  const list = useMemo(() => (isPreview ? PREVIEW : reapers), [isPreview, reapers]);
+  const ascended = live ? reapers : [];
 
-  // Preview (flag off, or live-but-no-reapers-yet): the elegant empty state +
-  // 2-3 illustrative reapers, clearly tagged. The real leaderboard replaces this
-  // the moment the first soul crosses thirty.
-  if (isPreview) {
-    return (
-      <div className={styles.orderEmpty}>
-        <span className={styles.orderScythe}>🜃</span>
-        <p className={styles.orderEmptyLead}>No reapers yet.</p>
-        <p className={styles.orderEmptySub}>
-          Hit 30 burned and your Soul becomes a Reaper — right here. Preview below.
-        </p>
-        <OrderGrid list={PREVIEW} layerData={layerData} preview />
-      </div>
-    );
-  }
+  return (
+    <>
+      {/* THE prominent spot — real ascended reapers, or the reserved plate. */}
+      {ascended.length > 0 ? (
+        <OrderGrid list={ascended} layerData={layerData} />
+      ) : (
+        <div className={styles.orderEmpty}>
+          <span className={styles.orderScythe}>🜃</span>
+          <p className={styles.orderEmptyLead}>The order awaits its first reaper.</p>
+          <p className={styles.orderEmptySub}>
+            Hit 30 burned and your Soul is renamed a Reaper — its place is here.
+          </p>
+        </div>
+      )}
 
-  return <OrderGrid list={list} layerData={layerData} preview={false} />;
+      {/* RISING — real aspirants already feeding the fire, compact + secondary. */}
+      {rising.length > 0 && (
+        <div className={styles.rising}>
+          <div className={styles.risingHead}>
+            <span className={styles.risingKick}>Rising</span>
+            <span className={styles.risingSub}>burning now · not yet ascended</span>
+          </div>
+          <ul className={styles.risingList}>
+            {rising.map((r) => {
+              const pct = Math.min(100, (r.consumed / 30) * 100);
+              const marks = r.marks.map((m) => MARK_BY_ID.get(m)).filter(Boolean);
+              return (
+                <li className={styles.risingRow} key={r.id}>
+                  <span className={styles.risingArt}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={IMG(r.id)} alt={`Soul #${r.id}`} loading="lazy" />
+                  </span>
+                  <a
+                    className={styles.risingId}
+                    href={`https://opensea.io/item/ethereum/${SOULS_OS}/${r.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    #{r.id}
+                  </a>
+                  <span className={styles.risingBar}>
+                    <span className={styles.risingBarFill} style={{ width: `${pct}%` }} />
+                  </span>
+                  <span className={styles.risingCount}>
+                    <b>{r.consumed}</b>
+                    <i>/30</i>
+                  </span>
+                  {marks.length > 0 && (
+                    <span className={styles.risingMarks}>
+                      {marks.map((m) => m!.name).join(" · ")}
+                    </span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
+    </>
+  );
 }
 
-function OrderGrid({ list, layerData, preview }: { list: OrderEntry[]; layerData: LayerData | null; preview: boolean }) {
+function OrderGrid({ list, layerData }: { list: OrderEntry[]; layerData: LayerData | null }) {
   return (
     <div className={styles.orderGrid}>
       {list.map((r, i) => {
@@ -70,7 +116,6 @@ function OrderGrid({ list, layerData, preview }: { list: OrderEntry[]; layerData
           <article className={styles.orderCard} key={`${r.id}-${i}`}>
             <div className="tryon-stack">
               <span className={styles.orderRank}>#{i + 1}</span>
-              {preview && <span className={styles.orderPreviewTag}>preview</span>}
               {stack.length ? (
                 stack.map((src, j) => (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -97,11 +142,9 @@ function OrderGrid({ list, layerData, preview }: { list: OrderEntry[]; layerData
               )}
               <a
                 className={styles.orderHolder}
-                href={preview ? undefined : `https://opensea.io/item/ethereum/${SOULS_OS}/${r.id}`}
-                target={preview ? undefined : "_blank"}
+                href={`https://opensea.io/item/ethereum/${SOULS_OS}/${r.id}`}
+                target="_blank"
                 rel="noopener noreferrer"
-                aria-disabled={preview}
-                onClick={(e) => preview && e.preventDefault()}
               >
                 held by {short(r.holder)}
               </a>

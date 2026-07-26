@@ -130,10 +130,13 @@ export default function GalleryGrid({ freed }: { freed: number[] }) {
 
   return (
     <>
-      <div className="freed-count">
-        <b>{shown.length.toLocaleString("en-US")}</b> of {(10000).toLocaleString("en-US")} souls freed
-        {active.length ? ` · filtered` : ""}
-      </div>
+      {/* The prominent count lives in the page-level tally now; here we only surface
+          the filtered subset so the two numbers never compete. */}
+      {active.length > 0 && (
+        <div className="freed-count">
+          <b>{shown.length.toLocaleString("en-US")}</b> souls match · filtered
+        </div>
+      )}
 
       <div className="filterbar">
         <button className="fpill" type="button" aria-expanded={open} onClick={toggle}>

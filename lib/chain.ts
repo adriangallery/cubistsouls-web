@@ -63,6 +63,7 @@ let lastSupply: number | null = null;
 let lastPricing: Pricing | null = null;
 let lastFreed: FreedEntry[] | null = null;
 let lastReapers: ReaperOrderEntry[] | null = null;
+let lastRising: RisingEntry[] | null = null;
 let lastConsumed: ConsumedData | null = null;
 
 export type Pricing = {
@@ -79,6 +80,11 @@ export type FreedEntry = { id: number; block: number };
 // A member of THE ORDER — a soul that crossed 30 souls consumed (renamed a
 // "Soul Reaper"). Derived from ReaperAscended events + fresh soulsConsumed/marks.
 export type ReaperOrderEntry = { id: number; consumed: number; marks: number[]; holder: string };
+
+// A RISING soul — one already burning canvases (0 < soulsConsumed < 30) but not
+// yet ascended (no rename). The aspirants of THE ORDER. Derived from the same
+// on-chain activity as THE CONSUMED, so it's real regardless of the reaper flag.
+export type RisingEntry = { id: number; consumed: number; marks: number[] };
 
 // THE CONSUMED — the memorial of canvases the fire ate. `total` is the on-chain
 // truth (Σ soulsConsumed over every reaper with activity, read fresh), NOT an
@@ -214,6 +220,52 @@ export async function getReapers(): Promise<ReaperOrderEntry[]> {
     return out;
   } catch {
     return lastReapers ?? [];
+  }
+}
+
+/**
+ * RISING — the aspirants of THE ORDER: souls already burning canvases but not yet
+ * ascended (0 < soulsConsumed < 30). Derived from the SAME activity events as THE
+ * CONSUMED (SoulsOffered + MarkForged carry the reaper id in topic[1]); for each id
+ * we read soulsConsumed() FRESH and keep only the ones climbing toward 30. Real
+ * on-chain data regardless of the reaper flag (today: #8777 at 18/30). Ranked by
+ * consumption desc, server-only (Tenderly), last-good cached.
+ */
+export async function getRising(): Promise<RisingEntry[]> {
+  try {
+    const [offered, forged] = await Promise.all([
+      getLogsRanged({ address: SOULS, topics: [SOULS_OFFERED_TOPIC] }),
+      getLogsRanged({ address: SOULS, topics: [MARK_FORGED_TOPIC] }),
+    ]);
+    const ids = new Set<number>();
+    for (const l of [...offered, ...forged]) {
+      const id = Number(BigInt(l.topics[1]));
+      if (id >= 1 && id <= 10000) ids.add(id);
+    }
+    if (!ids.size) { lastRising = []; return []; }
+
+    const pad = (id: number) => id.toString(16).padStart(64, "0");
+    const entries = await Promise.all(
+      [...ids].map(async (id) => {
+        try {
+          const [cRes, mRes] = await Promise.all([
+            rpc("eth_call", [{ to: SOULS, data: SEL_SOULS_CONSUMED + pad(id) }, "latest"]),
+            rpc("eth_call", [{ to: SOULS, data: SEL_MARKS_OF + pad(id) }, "latest"]),
+          ]);
+          return { id, consumed: parseInt(cRes, 16) || 0, marks: decodeMarksBitmask(mRes) };
+        } catch {
+          return { id, consumed: 0, marks: [] as number[] };
+        }
+      }),
+    );
+    // aspirants only: has burned something, hasn't crossed 30 yet.
+    const out = entries
+      .filter((e) => e.consumed > 0 && e.consumed < 30)
+      .sort((a, b) => b.consumed - a.consumed || a.id - b.id);
+    lastRising = out;
+    return out;
+  } catch {
+    return lastRising ?? [];
   }
 }
 

@@ -1165,7 +1165,7 @@
   font-size: clamp(0.95rem, 2vw, 1.1rem);
   line-height: 1.6;
   max-width: 48ch;
-  margin: 0.7rem auto clamp(1.6rem, 5vw, 2.4rem);
+  margin: 0.7rem auto clamp(0.8rem, 2.5vw, 1.2rem);
 }
 
 .orderGrid {
@@ -1271,6 +1271,108 @@
 }
 .orderHolder:not([aria-disabled="true"]):hover { color: var(--reaper-lite); }
 .orderHolder[aria-disabled="true"] { cursor: default; }
+
+/* ---------- RISING — compact row of aspirants (0<consumed<30), secondary ---------- */
+.rising {
+  margin-top: clamp(1.1rem, 3.5vw, 1.6rem);
+  padding-top: clamp(1rem, 3vw, 1.3rem);
+  border-top: 1px solid rgba(224, 165, 32, 0.14);
+}
+.risingHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+.risingKick {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+}
+.risingSub {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+}
+.risingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.risingRow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.4rem 0.55rem;
+  background: rgba(20, 4, 8, 0.35);
+  border: 1px solid rgba(167, 101, 209, 0.22);
+  border-radius: 8px;
+}
+.risingArt {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--wall-deep);
+  border: 1px solid rgba(167, 101, 209, 0.4);
+  display: flex;
+}
+.risingArt img { width: 100%; height: 100%; object-fit: cover; }
+.risingId {
+  flex: 0 0 auto;
+  min-width: 3.4rem;
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--bone);
+  text-decoration: none;
+}
+.risingId:hover { color: var(--reaper-lite); }
+.risingBar {
+  flex: 1 1 auto;
+  min-width: 40px;
+  height: 8px;
+  border-radius: 999px;
+  background: #2a1420;
+  border: 1px solid rgba(224, 165, 32, 0.14);
+  overflow: hidden;
+}
+.risingBarFill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--reaper-deep), var(--reaper-lite));
+}
+.risingCount {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--mute);
+}
+.risingCount b { font-family: var(--disp); font-weight: 900; font-size: 0.95rem; color: var(--flame); }
+.risingCount i { font-style: normal; }
+.risingMarks {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+}
+/* narrow: drop the mark names, keep art/id/bar/count in one line */
+@media (max-width: 480px) {
+  .risingMarks { display: none; }
+  .risingRow { gap: 0.5rem; }
+}
 
 /* ---------- THE CONSUMED — memorial counter + fallen canvases in ash ---------- */
 .consumedPlaque {
