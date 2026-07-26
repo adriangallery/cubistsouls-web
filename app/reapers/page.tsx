@@ -66,35 +66,8 @@ export default async function ReapersPage() {
         </div>
       </header>
 
-      {/* ---------- 3 STEPS — pictographic, numbered ---------- */}
-      <section className="section" style={{ paddingTop: 0 }}>
-        <div className="wrap">
-          <ol className={styles.steps}>
-            <li className={styles.step}>
-              <span className={styles.stepNum}>1</span>
-              <span className={styles.stepIco}>🖼️</span>
-              <span className={styles.stepTitle}>Pick a Soul</span>
-            </li>
-            <li className={styles.step}>
-              <span className={styles.stepNum}>2</span>
-              <span className={styles.stepIco}>🔥</span>
-              <span className={styles.stepTitle}>Burn Pikkazos</span>
-            </li>
-            <li className={styles.step}>
-              <span className={styles.stepNum}>3</span>
-              <span className={styles.stepIco}>🜃</span>
-              <span className={styles.stepTitle}>Batches earn marks</span>
-            </li>
-          </ol>
-          <a href="#rite" className={styles.milestone}>
-            <span className={styles.milestoneMark}>🜃</span>
-            <span className={styles.milestoneNum}>30</span>
-            <span className={styles.milestoneText}>burned = <b>SOUL REAPER</b></span>
-          </a>
-        </div>
-      </section>
-
-      <div className="rp-rule"><div className="line" /></div>
+      {/* (3-steps + milestone section removed 26-jul per Adrian — the hero already
+          says it all; straight to the panel.) */}
 
       {/* ---------- THE RITE — the panel is the center of the page ---------- */}
       <section id="rite" className="section" style={{ paddingTop: 0, scrollMarginTop: "80px" }}>
