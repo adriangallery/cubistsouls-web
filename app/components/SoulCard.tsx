@@ -27,6 +27,7 @@ export default function SoulCard({
   link = "none",
   stamp = true,
   stats,
+  imgSrc,
 }: {
   id: number;
   status?: string;
@@ -35,6 +36,10 @@ export default function SoulCard({
   link?: "opensea" | "gallery" | "none";
   stamp?: boolean;
   stats?: SoulCardStats;
+  // Override the art URL. Souls with reaper marks pass the composed
+  // /api/reaper-img so the grid shows the same marked art as YOUR REAPERS
+  // (Adrian 26-jul). Defaults to the plain /api/img.
+  imgSrc?: string;
 }) {
   const num = String(id).padStart(4, "0");
   const rate =
@@ -48,7 +53,7 @@ export default function SoulCard({
         {stamp ? <span className="stamp">Freed</span> : null}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`/api/img?id=${id}`}
+          src={imgSrc ?? `/api/img?id=${id}`}
           alt={`Cubist Soul ${num}`}
           loading={eager ? "eager" : "lazy"}
           decoding="async"

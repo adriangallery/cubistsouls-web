@@ -25,13 +25,15 @@ const MH_RARITY_FALLBACK_MULT = [1.0, 1.15, 1.3, 1.5, 2.0];
 // formula; NEVER replace cohortMult/rarityMult. Applied per soul, CONSISTENTLY in
 // buildMyMH (hero) and buildBoard (leaderboard) so a wallet's number matches (Δ=0).
 //
-//  Reaper multiplier by that soul's OWN souls-consumed: ≥6 ×1.2 · ≥18 ×1.5 · ≥30 ×2.0.
+//  Reaper multiplier by that soul's OWN souls-consumed: ≥6 ×1.5 · ≥18 ×2.0 · ≥30 ×4.0.
+//  (Raised by Adrian 26-jul noche — "más bestia": the old 1.2/1.5/2.0 left a full Soul
+//   Reaper below a passive Masterpiece. With ×4 a #8777 full = 9.66 MH/h/soul, dominant.)
 //  (Consumed souls "pay" the wallet's contribution via THIS multiplier — MH does not
 //   also count them in the liberator tier, which stays on freed. No double-count.)
 const MH_REAPER_TIERS = [
-  { min: 30, mult: 2.0 },
-  { min: 18, mult: 1.5 },
-  { min: 6, mult: 1.2 },
+  { min: 30, mult: 4.0 },
+  { min: 18, mult: 2.0 },
+  { min: 6, mult: 1.5 },
 ];
 export function reaperMultOf(consumed: number): number {
   for (const t of MH_REAPER_TIERS) if (consumed >= t.min) return t.mult;

@@ -46,16 +46,28 @@ type Sort = "id" | "rate" | "rarity";
 // The card is now ALSO the museum cartela: rate/h, cohort seal, rarity seal and
 // rank ride on it (`exhibits`), so the old duplicate "exhibits" grid stays gone
 // but its data doesn't (Adrian, 25-jul). Sorting works off the same data.
+// First reaper mark (Orange) unlocks at 6 consumed — at/above this a soul has
+// composed art (marks) worth showing in the grid; below it /api/reaper-img would
+// just 307 back to the flat art, so we don't pay that redirect for the other souls.
+const REAPER_ART_MIN = 6;
+// Absolute prod endpoint (Adrian 26-jul): composes the soul with its milestone
+// marks server-side; s-maxage 300.
+const REAPER_IMG = (id: number) => `https://cubistsouls.com/api/reaper-img?id=${id}`;
+
 export default function CollabGrid({
   owned,
   address,
   collabEnabled,
   exhibits,
+  consumedById,
 }: {
   owned: number[];
   address: string;
   collabEnabled: boolean;
   exhibits?: MHExhibit[] | null;
+  // per-soul souls-consumed (from the page's ReaperState). Souls with marks
+  // (consumed ≥ 6) render composed art in the grid.
+  consumedById?: Map<number, number>;
 }) {
   const { signMessageAsync } = useSignMessage();
   const [fired, setFired] = useState<FiredMap>({});
@@ -206,6 +218,7 @@ export default function CollabGrid({
         {ordered.map((id) => {
           const st = fired[id];
           const ex = stats.get(id);
+          const marked = (consumedById?.get(id) ?? 0) >= REAPER_ART_MIN;
           return (
             <div className="soul-cell" key={id}>
               <SoulCard
@@ -213,6 +226,7 @@ export default function CollabGrid({
                 status="Held"
                 link="opensea"
                 stamp={false}
+                imgSrc={marked ? REAPER_IMG(id) : undefined}
                 stats={
                   ex
                     ? {

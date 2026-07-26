@@ -309,9 +309,14 @@ function EmptyState() {
 
 /* ================= dashboard (the control room) =================
    One deck bar on top, then a two-column grid of collapsible panels:
-   Museum Hours + Curators' board side by side, standing under the hours,
-   and the collection across the full width. Stacked cards wasted the screen
-   and buried MH under 346 souls (Adrian, 25-jul).
+   Museum Hours + Curators' board on top (the upper zone is for the MH now),
+   YOUR REAPERS in the low-left slot where "Your standing" used to sit, and
+   the collection across the full width. Stacked cards wasted the screen and
+   buried MH under 346 souls (Adrian, 25-jul).
+
+   Layout re-ordered 26-jul (Adrian: "quita Your standing de momento, ahí pones
+   los reapers, la parte superior para las MH"): the standing/badges panel is
+   retired (see below), REAPERS moved down out of its oversized band over MH.
    ================================================================ */
 function Dashboard({
   data,
@@ -344,9 +349,12 @@ function Dashboard({
 }) {
   // Tier by TOTAL contribution (freed + consumed) — offerings never cost you rank.
   const tier = tierOf(contribution);
-  const earned = myMh ? myMh.achievements.filter((a) => a.state === "earned").length : 0;
-  const openSeats = myMh ? myMh.achievements.length : 0;
+  // NOTE: `earned`/`openSeats` (the "Your standing" badge counts) were removed with
+  // that panel (retired 26-jul, see below). myMh.achievements still exists in lib/mh.
   const boardTop = board ? Math.min(20, board.rows.filter((r) => !r.gap).length) : 0;
+  // per-soul consumed → the collection grid shows composed (marked) art for souls
+  // that carry the fire. `mine` only holds souls with consumed > 0 (all we need).
+  const consumedById = new Map(mine.map((e) => [e.id, e.consumed]));
 
   return (
     <>
@@ -381,9 +389,6 @@ function Dashboard({
         <div className="dk-actions">{shareRow}</div>
       </div>
 
-      {/* ---- YOUR REAPERS — the prominent block, right under the plaque ---- */}
-      {REAPER_LIVE ? <MyReapers mine={mine} /> : null}
-
       <div className="dash">
         <Panel
           id="mh"
@@ -402,6 +407,14 @@ function Dashboard({
           <BoardBody board={board?.rows ?? null} boardPhase={boardPhase} />
         </Panel>
 
+        {/* ---- YOUR REAPERS — moved here (low-left slot, where "Your standing"
+             used to sit) per Adrian 26-jul. As a grid item it sizes to its
+             content instead of floating one card in an oversized band over MH. ---- */}
+        {REAPER_LIVE ? <MyReapers mine={mine} /> : null}
+
+        {/* "Your standing" (the MH achievement badges) — RETIRADO 26-jul por
+            Adrian ("quita Your standing de momento"), PUEDE VOLVER. The badge
+            engine (myMh.achievements) stays in lib/mh, only this render is off.
         <Panel id="standing" title="Your standing" meta={myMh ? `${earned} of ${openSeats}` : undefined}>
           {myMh ? (
             <div className="mh-badges">
@@ -425,6 +438,7 @@ function Dashboard({
             </p>
           )}
         </Panel>
+        */}
 
         <Panel
           id="collection"
@@ -438,6 +452,7 @@ function Dashboard({
               address={address}
               collabEnabled={collab}
               exhibits={myMh?.exhibits ?? null}
+              consumedById={consumedById}
             />
           ) : (
             <p className="mh-status">
