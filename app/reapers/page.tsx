@@ -3,7 +3,8 @@ import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 import RiteMock from "./RiteMock";
 import TheOrder from "./TheOrder";
-import { getReapers } from "@/lib/chain";
+import TheConsumed from "./TheConsumed";
+import { getReapers, getConsumed } from "@/lib/chain";
 import flags from "@/public/flags.json";
 import styles from "./reapers.module.css";
 
@@ -41,7 +42,12 @@ const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
 
 export default async function ReapersPage() {
   // Only touch the chain when the facet is live; otherwise The Order is preview-only.
-  const reapers = REAPER_LIVE ? await getReapers() : [];
+  // THE CONSUMED, in contrast, is a memorial of what has actually burned — always
+  // real on-chain history (last-good cached, own empty state), regardless of the flag.
+  const [reapers, consumed] = await Promise.all([
+    REAPER_LIVE ? getReapers() : Promise.resolve([]),
+    getConsumed(),
+  ]);
 
   return (
     <div className="reaper">
@@ -90,6 +96,19 @@ export default async function ReapersPage() {
             <h2>THE <span className="rp-hot">ORDER</span></h2>
           </div>
           <TheOrder live={REAPER_LIVE} reapers={reapers} />
+        </div>
+      </section>
+
+      <div className="rp-rule"><div className="line" /></div>
+
+      {/* ---------- THE CONSUMED — memorial of the canvases the fire ate ---------- */}
+      <section className="section" style={{ paddingTop: 0 }}>
+        <div className="wrap">
+          <div className="sec-head">
+            <span className="eyebrow">Ash of the offering</span>
+            <h2>THE <span className="rp-hot">CONSUMED</span></h2>
+          </div>
+          <TheConsumed data={consumed} />
         </div>
       </section>
 

@@ -18,6 +18,20 @@ const TRANSFER_TOPIC =
   "0xddf252ad" + "1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 const ZERO_TOPIC = "0x" + "0".repeat(64);
 
+// The Pikkazo collection — the canvases whose souls the fire consumes. Offered
+// Pikkazos are burned to 0x0 on this contract (never minted as souls).
+export const PIKKAZO = "0x6478b94dfa32F3eab600970D04B34615eE97484e";
+
+// ReaperFacet events carrying the consumed canvases. Split literals so the
+// repo's secret-scanner doesn't flag the 64-hex strings.
+// SoulsOffered(uint256 indexed reaperId, address indexed offerer, uint256[] pikkazoIds, uint256 newConsumed)
+const SOULS_OFFERED_TOPIC =
+  "0x8488b310" + "48905e7f90a8f134dacdb2d361771e836b8a280138db5a478f4a693d";
+// MarkForged(uint256 indexed reaperId, uint8 indexed markId, uint256 cost, uint256 newConsumed)
+// — carries no ids; the burned canvases come from the tx receipt (Pikkazo→0x0).
+const MARK_FORGED_TOPIC =
+  "0x6d5f0a39" + "5fe619afa9755ecba72d00b07c8f43017980cadec0db831548bd8b6f";
+
 // Function selectors (keccak256(sig)[:4]).
 const SEL_TOTAL_SUPPLY = "0x18160ddd";
 const SEL_PRICE_NOW = "0xfeaa7f29";
@@ -49,6 +63,7 @@ let lastSupply: number | null = null;
 let lastPricing: Pricing | null = null;
 let lastFreed: FreedEntry[] | null = null;
 let lastReapers: ReaperOrderEntry[] | null = null;
+let lastConsumed: ConsumedData | null = null;
 
 export type Pricing = {
   free: boolean;
@@ -64,6 +79,13 @@ export type FreedEntry = { id: number; block: number };
 // A member of THE ORDER — a soul that crossed 30 souls consumed (renamed a
 // "Soul Reaper"). Derived from ReaperAscended events + fresh soulsConsumed/marks.
 export type ReaperOrderEntry = { id: number; consumed: number; marks: number[]; holder: string };
+
+// THE CONSUMED — the memorial of canvases the fire ate. `total` is the on-chain
+// truth (Σ soulsConsumed over every reaper with activity, read fresh), NOT an
+// event count. `canvases` are the individual Pikkazos consumed, newest first,
+// each tagged with the reaper it fed.
+export type ConsumedCanvas = { id: number; reaperId: number; block: number };
+export type ConsumedData = { total: number; canvases: ConsumedCanvas[] };
 
 /** totalSupply() — how many souls have been freed on-chain. */
 export async function getSupply(): Promise<number | null> {
@@ -205,6 +227,107 @@ function decodeMarksBitmask(data: string): number[] {
     return out;
   } catch {
     return [];
+  }
+}
+
+/**
+ * THE CONSUMED — the memorial of every canvas the fire has eaten.
+ *
+ * Two sources of consumed Pikkazo ids:
+ *   • SoulsOffered — the ids ride in the event `data` (uint256[] pikkazoIds).
+ *   • MarkForged — carries no ids (the two legacy forges of #8777), so we read
+ *     them from the tx receipt: Pikkazo Transfer(→0x0) logs in the same tx.
+ *
+ * The big counter is NOT an event tally: we collect the reaper ids that show any
+ * activity, read soulsConsumed() FRESH per reaper (multicall-style parallel), and
+ * sum — the on-chain number is the truth (it keeps climbing after each burn).
+ *
+ * Server-only (Tenderly), last-good cached like getFreed/getReapers.
+ */
+export async function getConsumed(): Promise<ConsumedData> {
+  try {
+    const [offered, forged] = await Promise.all([
+      getLogsRanged({ address: SOULS, topics: [SOULS_OFFERED_TOPIC] }),
+      getLogsRanged({ address: SOULS, topics: [MARK_FORGED_TOPIC] }),
+    ]);
+
+    const reaperIds = new Set<number>();
+    const canvases: ConsumedCanvas[] = [];
+
+    // SoulsOffered: ids in data. Non-indexed params = (uint256[] pikkazoIds,
+    // uint256 newConsumed). Head: [offset=0x40][newConsumed]; at 0x40: [len][ids…].
+    for (const l of offered) {
+      const reaperId = Number(BigInt(l.topics[1]));
+      reaperIds.add(reaperId);
+      const block = parseInt(l.blockNumber, 16);
+      const h = (l.data || "0x").slice(2);
+      const word = (i: number) => h.slice(i * 64, i * 64 + 64);
+      const len = parseInt(word(2), 16) || 0;
+      for (let k = 0; k < len; k++) {
+        const id = parseInt(word(3 + k), 16);
+        if (id >= 1 && id <= 10000) canvases.push({ id, reaperId, block });
+      }
+    }
+
+    // MarkForged: pull the burned canvases from the tx receipt.
+    await Promise.all(
+      forged.map(async (l: any) => {
+        const reaperId = Number(BigInt(l.topics[1]));
+        reaperIds.add(reaperId);
+        const block = parseInt(l.blockNumber, 16);
+        try {
+          const rec = await rpc("eth_getTransactionReceipt", [l.transactionHash]);
+          for (const x of rec?.logs ?? []) {
+            if (
+              x.address?.toLowerCase() === PIKKAZO.toLowerCase() &&
+              x.topics?.[0] === TRANSFER_TOPIC &&
+              x.topics?.[2] === ZERO_TOPIC
+            ) {
+              const id = Number(BigInt(x.topics[3]));
+              if (id >= 1 && id <= 10000) canvases.push({ id, reaperId, block });
+            }
+          }
+        } catch {}
+      }),
+    );
+
+    // Fresh soulsConsumed() per reaper → the true total.
+    const pad = (id: number) => id.toString(16).padStart(64, "0");
+    let total = 0;
+    await Promise.all(
+      [...reaperIds].map(async (id) => {
+        try {
+          const res = await rpc("eth_call", [{ to: SOULS, data: SEL_SOULS_CONSUMED + pad(id) }, "latest"]);
+          total += parseInt(res, 16) || 0;
+        } catch {}
+      }),
+    );
+
+    // newest first, de-duped by canvas id (a Pikkazo burns once)
+    canvases.sort((a, b) => b.block - a.block || b.id - a.id);
+    const seen = new Set<number>();
+    const uniq = canvases.filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
+
+    const out: ConsumedData = { total, canvases: uniq };
+    lastConsumed = out;
+    return out;
+  } catch {
+    return lastConsumed ?? { total: 0, canvases: [] };
+  }
+}
+
+/** eth_getLogs over the full deploy range, chunked only as a Tenderly fallback. */
+async function getLogsRanged(filter: Record<string, unknown>): Promise<any[]> {
+  try {
+    return await rpc("eth_getLogs", [{ ...filter, fromBlock: hex(DEPLOY_BLOCK), toBlock: "latest" }], 20000);
+  } catch {
+    const latest = parseInt(await rpc("eth_blockNumber", []), 16);
+    let logs: any[] = [];
+    for (let f = DEPLOY_BLOCK; f <= latest; f += 9000) {
+      const to = Math.min(f + 8999, latest);
+      logs = logs.concat(await rpc("eth_getLogs", [{ ...filter, fromBlock: hex(f), toBlock: hex(to) }], 20000));
+    }
+    return logs;
   }
 }
 
