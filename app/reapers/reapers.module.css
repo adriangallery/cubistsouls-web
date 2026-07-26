@@ -519,6 +519,16 @@
 }
 .sliderScale span:nth-child(2) { color: var(--ash-grey); letter-spacing: 0.06em; text-align: center; }
 
+/* Narrow screens: the 6/12/18 stops sit close, so the mark NAMES under them would
+   collide. Drop the name/state text on the track (the mark cards below carry the
+   full name + ✓/price/lock state); keep the numbers as the stop markers. */
+@media (max-width: 560px) {
+  .stopLabel em { display: none; }
+  .stopLabel b { font-size: 0.74rem; }
+  .sliderScale span:nth-child(2) { display: none; }
+  .markCards { grid-template-columns: repeat(2, 1fr); }
+}
+
 /* ---- the verdict line ---- */
 .verdict {
   display: flex;
