@@ -28,6 +28,19 @@ export const REAPER_DEPLOY_BLOCK = 25518546n; // diamond deploy; the cut is late
 // souls consumed by one reaper to earn the "Soul Reaper #id" rename (Adrian 26-jul).
 export const ASCEND_AT = 30;
 
+// OG-ONLY (Adrian 26-jul: "Only an OG could become a Soul Reaper"). The rite is
+// reserved for cohort-0 souls; the on-chain guard reverts NotOGSoul in offer/
+// forgeMark for any non-OG. The web mirrors it: non-OG aspirants are shown but
+// disabled with an "OG only" badge, and the CTA refuses. cohortOf(id) == 0 = OG.
+export const OG_COHORT = 0;
+
+// OpenSea, filtered to the OG cohort trait (trait_type "Cohort", value "OG" —
+// see app/api/meta). Degrades to the plain collection if OpenSea ignores the
+// param, so it is always a safe link to "go get an OG".
+export const OPENSEA_OG_URL =
+  "https://opensea.io/collection/cubist-souls?traits=" +
+  encodeURIComponent(JSON.stringify([{ traitType: "Cohort", values: ["OG"] }]));
+
 // The AGREED ReaperFacet interface (contract between the web and facet workers).
 export const REAPER_ABI = parseAbi([
   // writes
@@ -282,6 +295,39 @@ export async function getReaperState(
     });
   }
   return out;
+}
+
+// cohortOf(id) for a set of souls, via one multicall batch (same view + pattern
+// as lib/mh.ts). 0 = OG. On a per-id read failure we fall back to OG (0): the
+// on-chain guard is authoritative (it reverts NotOGSoul), so a flaky RPC must not
+// wrongly LOCK a genuine OG out of the rite — the worst case is a clear revert
+// toast, never a false lockout.
+const COHORT_ABI = parseAbi(["function cohortOf(uint256 tokenId) view returns (uint8)"]);
+
+export async function loadCohorts(client: PublicClient, ids: number[]): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  if (!ids.length) return out;
+  for (let i = 0; i < ids.length; i += 200) {
+    const chunk = ids.slice(i, i + 200);
+    const res = await client.multicall({
+      allowFailure: true,
+      contracts: chunk.map((id) => ({
+        address: SOULS,
+        abi: COHORT_ABI,
+        functionName: "cohortOf" as const,
+        args: [BigInt(id)] as const,
+      })),
+    });
+    chunk.forEach((id, j) => {
+      const r = res[j];
+      out.set(id, r?.status === "success" ? Number(r.result) : OG_COHORT);
+    });
+  }
+  return out;
+}
+
+export function isOG(cohort: number | undefined): boolean {
+  return cohort === undefined || cohort === OG_COHORT;
 }
 
 // markPrice(0..3) → costs; falls back to the ratified defaults on any failure.

@@ -23,6 +23,9 @@ import {
   composeFromBase,
   getReaperState,
   getMarkPrices,
+  loadCohorts,
+  isOG,
+  OPENSEA_OG_URL,
   type Rarity,
   type LayerData,
   type Slot,
@@ -66,7 +69,7 @@ const PREVIEW_ASPIRANTS: { id: number; name: string; base: BaseMap }[] = [
 // a demo wallet of Pikkazos for the preview offering grid (rarity is real via rarity.json)
 const DEMO_PIKKAZOS = [7, 42, 88, 136, 210, 271, 314, 420, 512, 636, 777, 900, 1024, 1150, 1337, 1500, 1808, 2020, 2222, 2600, 3003, 4200, 6400, 8000];
 
-type Aspirant = { id: number; name: string; base: BaseMap; state?: ReaperState };
+type Aspirant = { id: number; name: string; base: BaseMap; state?: ReaperState; og: boolean };
 
 export default function RiteMock({ live = false }: { live?: boolean }) {
   // Secret pre-launch override: ?reaper=1 enables the live panel on prod while
@@ -75,8 +78,14 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   // on-chain facet stays paused, so this exposes UI only — no rite can run
   // until unpause; and only a soul's owner can forge anyway.
   const [urlOverride, setUrlOverride] = useState(false);
+  // QA-only: ?demonog=1 marks one preview aspirant non-OG so the "OG only" locked
+  // state is demonstrable in the teaser (preview has no chain to read cohorts from).
+  // Harmless for real users; remove alongside the ?reaper gate at public launch.
+  const [demoNonOG, setDemoNonOG] = useState(false);
   useEffect(() => {
-    setUrlOverride(new URLSearchParams(window.location.search).get("reaper") === "1");
+    const q = new URLSearchParams(window.location.search);
+    setUrlOverride(q.get("reaper") === "1");
+    setDemoNonOG(q.get("demonog") === "1");
   }, []);
   live = live || urlOverride;
   const { openConnectModal } = useConnectModal();
@@ -100,6 +109,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   const [ownedSouls, setOwnedSouls] = useState<number[]>([]);
   const [ownedPikkazos, setOwnedPikkazos] = useState<number[]>([]);
   const [states, setStates] = useState<Map<number, ReaperState>>(new Map());
+  const [cohorts, setCohorts] = useState<Map<number, number>>(new Map());
 
   // rite selection
   const [aspirantId, setAspirantId] = useState<number>(136);
@@ -137,8 +147,18 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
         const [souls, pk] = await Promise.all([loadSouls(publicClient, acct), loadPikkazos(publicClient, acct)]);
         setOwnedSouls(souls.owned);
         setOwnedPikkazos(pk.owned);
-        setStates(souls.owned.length ? await getReaperState(publicClient, souls.owned) : new Map());
-        if (souls.owned.length) setAspirantId((cur) => (souls.owned.includes(cur) ? cur : souls.owned[0]));
+        const [st, ch] = await Promise.all([
+          souls.owned.length ? getReaperState(publicClient, souls.owned) : Promise.resolve(new Map<number, ReaperState>()),
+          souls.owned.length ? loadCohorts(publicClient, souls.owned) : Promise.resolve(new Map<number, number>()),
+        ]);
+        setStates(st);
+        setCohorts(ch);
+        // default to an OG soul when there is one (only OGs can take the scythe)
+        if (souls.owned.length) {
+          const ogs = souls.owned.filter((id) => isOG(ch.get(id)));
+          const pref = ogs.length ? ogs : souls.owned;
+          setAspirantId((cur) => (pref.includes(cur) ? cur : pref[0]));
+        }
         setPhase("loaded");
       } catch {
         setPhase("error");
@@ -155,21 +175,32 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
       setOwnedSouls([]);
       setOwnedPikkazos([]);
       setStates(new Map());
+      setCohorts(new Map());
     }
   }, [live, mounted, isConnected, address, loadWallet]);
 
   // ---- aspirants (preview: hardcoded · live: owned souls composed from traits) ----
   const aspirants: Aspirant[] = useMemo(() => {
-    if (!live) return PREVIEW_ASPIRANTS;
+    if (!live) {
+      // preview: the 4 demo souls are all pre-cut → OG. ?demonog=1 flips the last
+      // one to non-OG purely to demonstrate the locked "OG only" state.
+      return PREVIEW_ASPIRANTS.map((a, i) => ({
+        ...a,
+        og: !(demoNonOG && i === PREVIEW_ASPIRANTS.length - 1),
+      }));
+    }
     return ownedSouls.map((id) => ({
       id,
       name: `№${String(id).padStart(4, "0")}`,
       base: layerData ? baseLayersOf(id, layerData) : {},
       state: states.get(id),
+      og: isOG(cohorts.get(id)),
     }));
-  }, [live, ownedSouls, layerData, states]);
+  }, [live, ownedSouls, layerData, states, cohorts, demoNonOG]);
 
+  // never leave a non-OG selected — snap to the first OG aspirant if we can
   const aspirant = aspirants.find((a) => a.id === aspirantId) ?? aspirants[0];
+  const hasOG = aspirants.some((a) => a.og);
 
   // worn marks + the pikkazos each will consume (live cost overrides)
   const wornMarks = useMemo(
@@ -245,6 +276,10 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   const performRite = useCallback(async () => {
     if (!live || !walletClient || !publicClient || !address) return;
     if (!aspirant) return;
+    if (!aspirant.og) {
+      toast("This soul isn't OG — only OGs can take the scythe.");
+      return;
+    }
     const ids = chosenIds;
     if (!ids.length) return;
     if (worn.size > 0 && ids.length !== required) {
@@ -316,7 +351,13 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
       await loadWallet(address);
     } catch (e: any) {
       const msg = e?.shortMessage || e?.message || "Transaction failed";
-      toast(/reject|denied|user rejected/i.test(msg) ? "Stepped back from the fire." : `Failed: ${msg}`);
+      if (/NotOGSoul/i.test(msg) || /NotOGSoul/i.test(String(e?.cause?.data ?? ""))) {
+        toast("This soul isn't OG — only OGs can take the scythe.");
+      } else if (/reject|denied|user rejected/i.test(msg)) {
+        toast("Stepped back from the fire.");
+      } else {
+        toast(`Failed: ${msg}`);
+      }
     } finally {
       setBusy(false);
       setBusyLabel(null);
@@ -357,6 +398,21 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     );
   }
 
+  // LIVE + connected + owns souls but none is OG → only OGs can take the scythe
+  if (live && connected && phase === "loaded" && ownedSouls.length > 0 && !hasOG) {
+    return (
+      <div className="rite">
+        <div className={styles.connect}>
+          <p className={styles.connectLead}>Only OG souls can take the scythe.</p>
+          <a className="btn btn-primary" href={OPENSEA_OG_URL} target="_blank" rel="noopener noreferrer">
+            Get an OG soul
+          </a>
+          <p className="cta-note">OG cohort · freed before the eras</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="rite">
       {live && phase === "loading" && (
@@ -372,15 +428,19 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
             return (
               <button
                 key={a.id}
-                className={`aspirant${aspirantId === a.id ? " sel" : ""}`}
-                onClick={() => setAspirantId(a.id)}
+                className={`aspirant${aspirantId === a.id ? " sel" : ""}${a.og ? "" : " " + styles.aspLocked}`}
+                onClick={() => a.og && setAspirantId(a.id)}
+                disabled={!a.og}
+                aria-disabled={!a.og}
                 aria-pressed={aspirantId === a.id}
-                aria-label={`Aspirant ${a.name}`}
+                aria-label={a.og ? `Aspirant ${a.name}` : `${a.name} — OG only, cannot be used`}
+                title={a.og ? undefined : "Only OG souls can take the scythe"}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={IMG(a.id)} alt={`Cubist Soul ${a.name}`} loading="lazy" />
                 <span className="tag">{a.name}</span>
-                {st && st.consumed > 0 ? <span className={styles.aspBadge}>🔥{st.consumed}</span> : null}
+                {a.og && st && st.consumed > 0 ? <span className={styles.aspBadge}>🔥{st.consumed}</span> : null}
+                {!a.og ? <span className={styles.aspLock}>OG only</span> : null}
               </button>
             );
           })}
@@ -545,10 +605,12 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
           <button
             className={styles.riteGo}
             onClick={performRite}
-            disabled={busy || !countOk}
-            aria-disabled={busy || !countOk}
+            disabled={busy || !countOk || !aspirant?.og}
+            aria-disabled={busy || !countOk || !aspirant?.og}
           >
-            {busyLabel ?? `🔥 Burn ${required} Pikkazo${required === 1 ? "" : "s"}`}
+            {!aspirant?.og
+              ? "OG Souls only"
+              : (busyLabel ?? `🔥 Burn ${required} Pikkazo${required === 1 ? "" : "s"}`)}
           </button>
         ) : (
           <button className="btn-rite" disabled aria-disabled="true">

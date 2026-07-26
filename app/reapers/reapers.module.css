@@ -55,6 +55,28 @@
   line-height: 1.1;
 }
 
+/* OG-only rule chip in the hero */
+.ogChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: clamp(0.9rem, 3vw, 1.3rem);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gild);
+  background: rgba(224, 165, 32, 0.1);
+  border: 1px solid rgba(224, 165, 32, 0.45);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+}
+.ogChipMark {
+  color: var(--reaper-lite);
+  filter: drop-shadow(0 0 6px rgba(167, 101, 209, 0.6));
+}
+
 /* milestone badge — 30 = SOUL REAPER */
 .milestone {
   display: flex;
@@ -190,6 +212,41 @@
   padding: 0.16rem 0.36rem;
   border-radius: 3px;
   box-shadow: 0 0 10px rgba(122, 63, 160, 0.6);
+}
+
+/* OG-ONLY: a non-OG aspirant is shown but dimmed + badged, never selectable.
+   !important beats the global `.aspirant:hover` rule in globals.css (edited by a
+   parallel wave — this module must not touch it). */
+.aspLocked {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+.aspLocked img {
+  opacity: 0.24 !important;
+  filter: grayscale(0.75);
+}
+.aspLocked:hover {
+  transform: none !important;
+  border-color: rgba(224, 165, 32, 0.4) !important;
+  box-shadow: none !important;
+}
+.aspLock {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bone);
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid var(--gild);
+  padding: 0.2rem 0.45rem;
+  border-radius: 3px;
+  white-space: nowrap;
 }
 
 /* ---- step 3: offering grid ---- */

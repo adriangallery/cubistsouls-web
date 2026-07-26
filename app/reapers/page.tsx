@@ -62,6 +62,7 @@ export default async function ReapersPage() {
           <p className="rp-mech rp-mech-2">
             Hit <b>30</b> and become a <b>SOUL REAPER</b>.
           </p>
+          <span className={styles.ogChip}><span className={styles.ogChipMark}>🜃</span>OG Souls only</span>
         </div>
       </header>
 
@@ -199,6 +200,7 @@ export default async function ReapersPage() {
           <details className={styles.fine}>
             <summary className={styles.fineSummary}>How it works — the fine print</summary>
             <ul className={styles.fineList}>
+              <li><b>Only souls freed before the eras (OG cohort) can become Soul Reapers.</b></li>
               <li>The fire burns <b>Pikkazos</b> (canvases), never freed Souls. Their souls are consumed by your reaper.</li>
               <li>Each mark costs Pikkazos: <b>Orange 6 · Flame Crown 12 · Phoenix 18 · Burning Soul 30</b>.</li>
               <li>Every burn adds to <b>Souls Consumed</b>. At <b>30</b>, the museum renames your Soul to <b>Soul Reaper</b>.</li>
