@@ -302,6 +302,35 @@ export async function getReaperState(
   return out;
 }
 
+// soulsConsumed(id) ONLY, for a set of souls, via multicall batches. Lighter than
+// getReaperState (1 call/id instead of 3) — used by the MH board's full-collection
+// scan, where marks/isReaper are not needed, only the per-soul consumption that
+// drives the Reaper MH multiplier and the total-contribution ranking.
+export async function getConsumedMap(
+  client: PublicClient,
+  ids: number[],
+): Promise<Map<number, number>> {
+  const out = new Map<number, number>();
+  if (!ids.length) return out;
+  for (let i = 0; i < ids.length; i += 400) {
+    const chunk = ids.slice(i, i + 400);
+    const res = await client.multicall({
+      allowFailure: true,
+      contracts: chunk.map((id) => ({
+        address: SOULS,
+        abi: REAPER_ABI,
+        functionName: "soulsConsumed" as const,
+        args: [BigInt(id)] as const,
+      })),
+    });
+    chunk.forEach((id, j) => {
+      const r = res[j];
+      out.set(id, r?.status === "success" ? Number(r.result as bigint) : 0);
+    });
+  }
+  return out;
+}
+
 // cohortOf(id) for a set of souls, via one multicall batch (same view + pattern
 // as lib/mh.ts). 0 = OG. On a per-id read failure we fall back to OG (0): the
 // on-chain guard is authoritative (it reverts NotOGSoul), so a flaky RPC must not

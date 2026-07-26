@@ -9,9 +9,17 @@ export type CardStats = {
   total: number;
   held: number;
   tier: string;
+  consumed?: number; // souls consumed (offerings) — shown as a 4th column when > 0
   mh?: number; // present only in ?mh=1 mode
   rate?: number;
 };
+
+// Evenly-spaced column centers around W/2 (3 cols → ±320; 4 cols → tighter).
+function colCenters(W: number, n: number): number[] {
+  const gap = n >= 4 ? 250 : 320;
+  const start = W / 2 - (gap * (n - 1)) / 2;
+  return Array.from({ length: n }, (_, i) => start + gap * i);
+}
 
 function roundRect(x: CanvasRenderingContext2D, X: number, Y: number, w: number, h: number, r: number) {
   x.beginPath();
@@ -100,16 +108,18 @@ export async function drawCard(s: CardStats): Promise<Blob> {
     const cols: [string, string][] = [
       [`#${s.rank}`, `OF ${s.total} LIBERATORS`],
       [String(s.freed), "SOULS FREED"],
+      ...(s.consumed ? ([[String(s.consumed), "SOULS CONSUMED"]] as [string, string][]) : []),
       [String(s.held), "HELD NOW"],
     ];
-    const cx = [W / 2 - 320, W / 2, W / 2 + 320];
+    const cx = colCenters(W, cols.length);
     const sy = 468;
+    const numF = cols.length >= 4 ? "800 50px 'Big Shoulders Display', sans-serif" : "800 58px 'Big Shoulders Display', sans-serif";
     cols.forEach((col, i) => {
       x.fillStyle = "#e0a520";
-      x.font = "800 58px 'Big Shoulders Display', sans-serif";
+      x.font = numF;
       x.fillText(col[0], cx[i], sy);
       x.fillStyle = "#c99a8f";
-      x.font = "400 17px 'Space Mono', monospace";
+      x.font = "400 15px 'Space Mono', monospace";
       x.fillText(col[1], cx[i], sy + 40);
     });
     x.fillStyle = "rgba(244,237,225,.62)";
@@ -140,16 +150,18 @@ export async function drawCard(s: CardStats): Promise<Blob> {
     const cols: [string, string][] = [
       [`#${s.rank}`, `OF ${s.total} LIBERATORS`],
       [String(s.freed), "SOULS FREED"],
+      ...(s.consumed ? ([[String(s.consumed), "SOULS CONSUMED"]] as [string, string][]) : []),
       [String(s.held), "HELD NOW"],
     ];
-    const cx = [W / 2 - 320, W / 2, W / 2 + 320];
+    const cx = colCenters(W, cols.length);
     const sy = 420;
+    const numF = cols.length >= 4 ? "800 54px 'Big Shoulders Display', sans-serif" : "800 62px 'Big Shoulders Display', sans-serif";
     cols.forEach((col, i) => {
       x.fillStyle = "#e0a520";
-      x.font = "800 62px 'Big Shoulders Display', sans-serif";
+      x.font = numF;
       x.fillText(col[0], cx[i], sy);
       x.fillStyle = "#c99a8f";
-      x.font = "400 18px 'Space Mono', monospace";
+      x.font = "400 16px 'Space Mono', monospace";
       x.fillText(col[1], cx[i], sy + 44);
     });
     x.fillStyle = "rgba(244,237,225,.62)";

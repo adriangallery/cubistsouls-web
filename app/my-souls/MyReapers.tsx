@@ -1,0 +1,119 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import {
+  loadLayerData,
+  composeStack,
+  MARK_BY_ID,
+  rankName,
+  ASCEND_AT,
+  type LayerData,
+  type ReaperState,
+} from "@/lib/reaper";
+
+// YOUR REAPERS — the prominent block, right under the plaque, for the souls THIS
+// wallet is powering up (souls-consumed > 0). Adrian 26-jul: "los que queman souls
+// deben tener un lugar destacado". Art is composed with the vector engine so each
+// soul shows the marks it forged (never a blend over the flat PNG). No reapers in
+// progress → one discreet line with a CTA, never a big empty panel.
+
+const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
+
+export type MineEntry = { id: number; consumed: number; marks: number[]; isReaper: boolean };
+
+// Pull the wallet's in-progress reapers out of the per-owned reaper-state map.
+export function mineFrom(reaper: Map<number, ReaperState> | null, owned: number[]): MineEntry[] {
+  if (!reaper) return [];
+  return owned
+    .map((id) => ({ id, ...(reaper.get(id) ?? { consumed: 0, marks: [], isReaper: false }) }))
+    .filter((e) => e.consumed > 0)
+    .sort((a, b) => b.consumed - a.consumed || a.id - b.id);
+}
+
+export default function MyReapers({ mine }: { mine: MineEntry[] }) {
+  const [layerData, setLayerData] = useState<LayerData | null>(null);
+  useEffect(() => {
+    if (mine.length) loadLayerData().then(setLayerData).catch(() => {});
+  }, [mine.length]);
+
+  // no rite in progress — a single discreet line, not an empty panel.
+  if (!mine.length) {
+    return (
+      <div className="rm-none">
+        <span className="rm-none-mark">🜃</span>
+        <span>None of your souls carry the fire yet.</span>
+        <a className="rm-none-cta" href="/reapers#rite">
+          Take up the scythe →
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <section className="reapers-mine" aria-label="Your Reapers">
+      <div className="rm-head">
+        <span className="rm-title">
+          <span className="rm-mark">🜃</span> YOUR REAPERS
+        </span>
+        <span className="rm-meta">{mine.length} in the fire</span>
+        <a className="rm-cta" href="/reapers#rite">
+          Feed the fire →
+        </a>
+      </div>
+      <div className="rm-grid">
+        {mine.map((e) => {
+          const stack = layerData ? composeStack(e.id, layerData, e.marks) : [];
+          const marks = e.marks.map((m) => MARK_BY_ID.get(m)).filter(Boolean);
+          const pct = Math.min(100, Math.round((e.consumed / ASCEND_AT) * 100));
+          const left = Math.max(0, ASCEND_AT - e.consumed);
+          return (
+            <article className={`rm-card${e.isReaper ? " ascended" : ""}`} key={e.id}>
+              <div className="tryon-stack">
+                {stack.length ? (
+                  stack.map((src, j) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={`${src}-${j}`} className="lyr" src={src} alt="" loading="lazy" />
+                  ))
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className="lyr" src={IMG(e.id)} alt={`Soul #${e.id}`} loading="lazy" />
+                )}
+              </div>
+              <div className="rm-body">
+                <div className="rm-name">
+                  {e.isReaper ? (
+                    <>
+                      <span className="rm-mark">🜃</span> Soul Reaper <b>#{e.id}</b>
+                    </>
+                  ) : (
+                    <>
+                      Soul <b>#{e.id}</b> · {rankName(e.consumed)}
+                    </>
+                  )}
+                </div>
+                <div className="rm-bar" role="progressbar" aria-valuenow={e.consumed} aria-valuemax={ASCEND_AT}>
+                  <span style={{ width: `${pct}%` }} />
+                </div>
+                <div className="rm-prog">
+                  <b>{e.consumed}</b>/{ASCEND_AT}
+                  <span className="rm-left">
+                    {e.isReaper ? "ascended 🜃" : `${left} to ascend`}
+                  </span>
+                </div>
+                {marks.length > 0 && (
+                  <div className="rm-marks">
+                    {marks.map((m) => (
+                      <span className="rm-chip" key={m!.id}>
+                        {m!.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </section>
+  );
+}

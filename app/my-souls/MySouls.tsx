@@ -7,10 +7,15 @@ import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 import CollabGrid from "./CollabGrid";
 import Panel from "../components/Panel";
+import MyReapers, { mineFrom, type MineEntry } from "./MyReapers";
 import MobileWalletSheet, { useIsMobileNoInjected } from "../components/MobileWalletSheet";
 import { loadSouls, tierOf, type SoulsData } from "@/lib/souls";
-import { buildMyMH, buildBoard, type MyMHResult, type MHBoardRow } from "@/lib/mh";
+import { buildMyMH, buildBoard, type MyMHResult, type MHBoardResult, type MHBoardRow } from "@/lib/mh";
+import { getReaperState, type ReaperState } from "@/lib/reaper";
 import { drawCard, shareText, downloadBlob, type CardStats } from "@/lib/share-card";
+import flags from "@/public/flags.json";
+
+const REAPER_LIVE = (flags as { reaperLive?: boolean }).reaperLive === true;
 
 // DEV-ONLY read-only harness: ?as=0x… lets us render another wallet's page
 // (no signer, reads only) to reproduce/verify. Gated to NODE_ENV==="development"
@@ -56,9 +61,10 @@ export default function MySouls() {
   const [mounted, setMounted] = useState(false);
   const [phase, setPhase] = useState<Phase>("idle");
   const [data, setData] = useState<SoulsData | null>(null);
+  const [reaper, setReaper] = useState<Map<number, ReaperState> | null>(null); // per-owned reaper state
   const [myMh, setMyMh] = useState<MyMHResult | null>(null);
   const [mhPhase, setMhPhase] = useState<Phase>("idle"); // your-hours pass (cheap)
-  const [board, setBoard] = useState<MHBoardRow[] | null>(null);
+  const [board, setBoard] = useState<MHBoardResult | null>(null);
   const [boardPhase, setBoardPhase] = useState<Phase>("idle"); // leaderboard (heavy)
   const [cardBusy, setCardBusy] = useState(false);
   const [collab, setCollab] = useState(true); // WTP collab spark; fail-open
@@ -80,6 +86,7 @@ export default function MySouls() {
       const reqId = ++reqRef.current;
       setPhase("loading");
       setData(null);
+      setReaper(null);
       setMyMh(null);
       setBoard(null);
       setMhPhase("idle");
@@ -90,17 +97,24 @@ export default function MySouls() {
         setData(d);
         setPhase("loaded");
         if (d.freed > 0) {
+          // Per-owned reaper state (consumed/marks) — cheap multicall. Powers the
+          // "souls consumed" plaque stat, the YOUR REAPERS block, and the Reaper MH
+          // multiplier fed into buildMyMH. Only fires when the facet is live.
+          const rmap = REAPER_LIVE ? await getReaperState(client, d.owned) : new Map<number, ReaperState>();
+          if (reqId !== reqRef.current) return;
+          setReaper(rmap);
+          const consumedById = new Map([...rmap].map(([id, s]) => [id, s.consumed]));
           // Phase 1 — YOUR hours (cheap; only your souls). Shows in seconds.
           setMhPhase("loading");
           try {
-            const my = await buildMyMH(client, acct, d.owned, d.freed, d.acq);
+            const my = await buildMyMH(client, acct, d.owned, d.freed, d.acq, consumedById, REAPER_LIVE);
             if (reqId !== reqRef.current) return;
             setMyMh(my);
             setMhPhase("loaded");
             // Phase 2 — the curators' board (heavy: full collection scan). Runs
             // in the background so a slow/failing scan never hides your numbers.
             setBoardPhase("loading");
-            buildBoard(client, acct, d.owned, d.freed, my.me.mh)
+            buildBoard(client, acct, d.owned, d.freed, my.me.mh, REAPER_LIVE)
               .then((b) => {
                 if (reqId === reqRef.current) {
                   setBoard(b);
@@ -127,6 +141,7 @@ export default function MySouls() {
       reqRef.current++;
       setPhase("idle");
       setData(null);
+      setReaper(null);
       setMyMh(null);
       setBoard(null);
       setMhPhase("idle");
@@ -134,14 +149,26 @@ export default function MySouls() {
     }
   }, [mounted, connected, account, load]);
 
+  // Souls consumed = Σ soulsConsumed over the souls this wallet HOLDS (task rule:
+  // "souls freed" stays pure mints; consumed travels with the token). The mine list
+  // (souls with the fire in them) drives the YOUR REAPERS block.
+  const mine: MineEntry[] = data ? mineFrom(reaper, data.owned) : [];
+  const consumed = mine.reduce((s, e) => s + e.consumed, 0);
+  // Total contribution = freed + consumed. Deck tier upgrades instantly (cheap
+  // consumed); deck rank/total upgrade to the exact board figures when they land.
+  const contribution = (data?.freed ?? 0) + consumed;
+  const deckRank = board ? board.myRank : data?.rank ?? 0;
+  const deckTotal = board ? board.totalLibs : data?.totalLibs ?? 0;
+
   const cardStats: CardStats | null =
     data && data.freed > 0
       ? {
           freed: data.freed,
-          rank: data.rank,
-          total: data.totalLibs,
+          rank: deckRank,
+          total: deckTotal,
           held: data.owned.length,
-          tier: tierOf(data.freed),
+          tier: tierOf(contribution),
+          ...(consumed ? { consumed } : {}),
           ...(myMh ? { mh: myMh.me.mh, rate: myMh.me.rate } : {}),
         }
       : null;
@@ -247,6 +274,11 @@ export default function MySouls() {
               shareRow={shareRow}
               address={account ?? ""}
               collab={collab}
+              mine={mine}
+              consumed={consumed}
+              contribution={contribution}
+              deckRank={deckRank}
+              deckTotal={deckTotal}
               myMh={myMh}
               mhPhase={mhPhase}
               board={board}
@@ -286,6 +318,11 @@ function Dashboard({
   shareRow,
   address,
   collab,
+  mine,
+  consumed,
+  contribution,
+  deckRank,
+  deckTotal,
   myMh,
   mhPhase,
   board,
@@ -295,15 +332,21 @@ function Dashboard({
   shareRow: React.ReactNode;
   address: string;
   collab: boolean;
+  mine: MineEntry[];
+  consumed: number;
+  contribution: number;
+  deckRank: number;
+  deckTotal: number;
   myMh: MyMHResult | null;
   mhPhase: Phase;
-  board: MHBoardRow[] | null;
+  board: MHBoardResult | null;
   boardPhase: Phase;
 }) {
-  const tier = tierOf(data.freed);
+  // Tier by TOTAL contribution (freed + consumed) — offerings never cost you rank.
+  const tier = tierOf(contribution);
   const earned = myMh ? myMh.achievements.filter((a) => a.state === "earned").length : 0;
   const openSeats = myMh ? myMh.achievements.length : 0;
-  const boardTop = board ? Math.min(20, board.filter((r) => !r.gap).length) : 0;
+  const boardTop = board ? Math.min(20, board.rows.filter((r) => !r.gap).length) : 0;
 
   return (
     <>
@@ -317,13 +360,19 @@ function Dashboard({
         </div>
         <div className="dk-stats">
           <div className="dk-stat">
-            <b>#{data.rank}</b>
-            <span>of {data.totalLibs} liberators</span>
+            <b>#{deckRank}</b>
+            <span>of {deckTotal} liberators</span>
           </div>
           <div className="dk-stat">
             <b>{data.freed}</b>
             <span>souls freed</span>
           </div>
+          {REAPER_LIVE ? (
+            <div className="dk-stat">
+              <b>{consumed}</b>
+              <span>souls consumed</span>
+            </div>
+          ) : null}
           <div className="dk-stat">
             <b>{data.owned.length}</b>
             <span>held now</span>
@@ -331,6 +380,9 @@ function Dashboard({
         </div>
         <div className="dk-actions">{shareRow}</div>
       </div>
+
+      {/* ---- YOUR REAPERS — the prominent block, right under the plaque ---- */}
+      {REAPER_LIVE ? <MyReapers mine={mine} /> : null}
 
       <div className="dash">
         <Panel
@@ -344,10 +396,10 @@ function Dashboard({
         <Panel
           id="board"
           title="Curators' board"
-          meta={board ? `top ${boardTop} of ${board.length}` : boardPhase === "error" ? "unavailable" : "tallying…"}
+          meta={board ? `top ${boardTop} of ${board.rows.length}` : boardPhase === "error" ? "unavailable" : "tallying…"}
           tall
         >
-          <BoardBody board={board} boardPhase={boardPhase} />
+          <BoardBody board={board?.rows ?? null} boardPhase={boardPhase} />
         </Panel>
 
         <Panel id="standing" title="Your standing" meta={myMh ? `${earned} of ${openSeats}` : undefined}>
@@ -468,6 +520,16 @@ function MHHero({ myMh, mhPhase, heldNone }: { myMh: MyMHResult | null; mhPhase:
           <span className="mh-chip">
             Liberator <b>{myMh.me.lib.name}</b> ×{myMh.me.lib.mult}
           </span>
+          {myMh.me.reaperCount > 0 ? (
+            <span className="mh-chip reaper">
+              🜃 Reaper <b>{myMh.me.reaperCount}</b> ×{myMh.me.maxReaperMult.toFixed(1)}
+            </span>
+          ) : null}
+          {myMh.me.maxProvBonus > 0 ? (
+            <span className="mh-chip">
+              🏺 Provenance <b>+{myMh.me.maxProvBonus}%</b>
+            </span>
+          ) : null}
           <span className="mh-chip">
             Base <b>1.0</b> MH / soul / hr
           </span>

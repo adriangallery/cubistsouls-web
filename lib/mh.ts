@@ -14,11 +14,35 @@
 import type { PublicClient } from "viem";
 import { parseAbiItem, zeroAddress } from "viem";
 import { SOULS, getLogsRange } from "./souls";
+import { getConsumedMap } from "./reaper";
 
 export const MH_BASE = 1.0;
 export const MH_COHORT_MULT = [2.0, 1.5, 1.25, 1.0, 1.0]; // OG · Era I · II · III · IV
 export const MH_COHORT_NAME = ["OG", "Era I", "Era II", "Era III", "Era IV"];
 const MH_RARITY_FALLBACK_MULT = [1.0, 1.15, 1.3, 1.5, 2.0];
+
+// ── LAUNCH FACTORS (Adrian 26-jul, ratified) — ADDED on top of the intact base
+// formula; NEVER replace cohortMult/rarityMult. Applied per soul, CONSISTENTLY in
+// buildMyMH (hero) and buildBoard (leaderboard) so a wallet's number matches (Δ=0).
+//
+//  Reaper multiplier by that soul's OWN souls-consumed: ≥6 ×1.2 · ≥18 ×1.5 · ≥30 ×2.0.
+//  (Consumed souls "pay" the wallet's contribution via THIS multiplier — MH does not
+//   also count them in the liberator tier, which stays on freed. No double-count.)
+const MH_REAPER_TIERS = [
+  { min: 30, mult: 2.0 },
+  { min: 18, mult: 1.5 },
+  { min: 6, mult: 1.2 },
+];
+export function reaperMultOf(consumed: number): number {
+  for (const t of MH_REAPER_TIERS) if (consumed >= t.min) return t.mult;
+  return 1.0;
+}
+//  Provenance bonus by the soul's FROZEN (born) rarity tier — applied as a factor:
+//  Collection 0 · Catalogued +5% · Featured +10% · Exhibition +15% · Masterpiece +25%.
+export const MH_PROVENANCE_BONUS = [1.0, 1.05, 1.1, 1.15, 1.25]; // by tier 0..4
+export function provenanceBonusOf(tier: number): number {
+  return MH_PROVENANCE_BONUS[tier] ?? 1.0;
+}
 const MH_LIB_TIERS = [
   { min: 50, name: "Founding Patron", mult: 1.3 },
   { min: 20, name: "Patron", mult: 1.2 },
@@ -54,8 +78,22 @@ export type MHExhibit = {
   rankTxt?: string;
 };
 export type MHBoardRow = { rank: number; addr: string; mh: number; isMe: boolean; gap?: boolean };
+// The board pass also resolves the deck's rank/tier by TOTAL contribution
+// (freed + consumed) — see buildBoard. Returned alongside the rows so my-souls
+// upgrades the plaque from the instant freed-based rank to the exact one.
+export type MHBoardResult = { rows: MHBoardRow[]; myRank: number; totalLibs: number; myContribution: number };
 export type MHAchievement = { ic: string; nm: string; ds: string; state: "earned" | "locked" | "" };
-export type MHMe = { mh: number; rate: number; heldCount: number; lib: { name: string; mult: number }; freed: number };
+export type MHMe = {
+  mh: number;
+  rate: number;
+  heldCount: number;
+  lib: { name: string; mult: number };
+  freed: number;
+  // launch-factor summary for the hero chips (only shown when they apply)
+  reaperCount: number; // owned souls empowered by a Reaper mult (consumed ≥6)
+  maxReaperMult: number; // top Reaper mult among owned (1.0 = none)
+  maxProvBonus: number; // top Provenance bonus among owned, as a % (0 = none)
+};
 
 // The CHEAP pass — everything about YOU (hero + exhibits + achievements). Reads
 // only your souls (cohortOf of your held ids + getBlock of your acquisition
@@ -145,6 +183,8 @@ export async function buildMyMH(
   owned: number[],
   freed: number,
   acq: Record<number, number>,
+  consumedById?: Map<number, number>,
+  launch = false,
 ): Promise<MyMHResult> {
   const rarity = await getRarity();
   const [cohorts, blockTs] = await Promise.all([
@@ -155,8 +195,17 @@ export async function buildMyMH(
   const now = Math.floor(Date.now() / 1000);
   const rMult = Array.isArray(rarity?.tierMultipliers) ? rarity!.tierMultipliers! : MH_RARITY_FALLBACK_MULT;
   const tierOfId = (id: number) => (rarity ? Number(rarity.tiers![id - 1]) || 0 : 0);
+  const consumedOf = (id: number) => consumedById?.get(id) ?? 0;
+  // ratified launch factors, applied only once the fire is lit (launch flag).
+  const reaperMult = (id: number) => (launch ? reaperMultOf(consumedOf(id)) : 1.0);
+  const provBonus = (id: number) => (launch ? provenanceBonusOf(tierOfId(id)) : 1.0);
+  // base formula (cohort × rarity) × the ratified launch factors (reaper × provenance)
   const tokenRate = (id: number) =>
-    MH_BASE * (MH_COHORT_MULT[cohorts.get(id) ?? 3] ?? 1.0) * (rMult[tierOfId(id)] ?? 1.0);
+    MH_BASE *
+    (MH_COHORT_MULT[cohorts.get(id) ?? 3] ?? 1.0) *
+    (rMult[tierOfId(id)] ?? 1.0) *
+    reaperMult(id) *
+    provBonus(id);
   const acqTs = (id: number) => {
     const b = acq[id];
     const ts = b != null ? blockTs.get(b) : null;
@@ -171,7 +220,29 @@ export async function buildMyMH(
     mh += r * Math.max(0, (now - acqTs(id)) / 3600);
   }
   const lib = mhLibOf(freed || 0);
-  const me: MHMe = { mh: mh * lib.mult, rate: rate * lib.mult, heldCount: owned.length, lib, freed: freed || 0 };
+  // launch-factor summary for the hero chips (only rendered when they apply)
+  let reaperCount = 0;
+  let maxReaperMult = 1.0;
+  let maxProvBonus = 0;
+  if (launch) {
+    for (const id of owned) {
+      const rm = reaperMultOf(consumedOf(id));
+      if (rm > 1) reaperCount++;
+      if (rm > maxReaperMult) maxReaperMult = rm;
+      const pb = Math.round((provenanceBonusOf(tierOfId(id)) - 1) * 100);
+      if (pb > maxProvBonus) maxProvBonus = pb;
+    }
+  }
+  const me: MHMe = {
+    mh: mh * lib.mult,
+    rate: rate * lib.mult,
+    heldCount: owned.length,
+    lib,
+    freed: freed || 0,
+    reaperCount,
+    maxReaperMult,
+    maxProvBonus,
+  };
 
   const exhibits: MHExhibit[] = owned.map((id) => {
     const co = cohorts.get(id) ?? 3;
@@ -234,7 +305,8 @@ export async function buildBoard(
   owned: number[],
   freed: number,
   meMh: number,
-): Promise<MHBoardRow[]> {
+  reaperLive = false,
+): Promise<MHBoardResult> {
   const acct = account.toLowerCase();
   const [rarity, xfers] = await Promise.all([getRarity(), getTransfers(client)]);
 
@@ -256,19 +328,31 @@ export async function buildBoard(
   freedBy.set(acct, freed);
 
   const allIds = [...new Set(([] as number[]).concat(...holdings.values()))];
-  const [cohorts, blockTs] = await Promise.all([
+  // Per-soul souls-consumed over the WHOLE held collection: drives both the Reaper
+  // MH multiplier (below, same as the hero) AND the total-contribution ranking. One
+  // extra multicall over the ~held set — only fired when the facet is live.
+  const [cohorts, blockTs, consumedById] = await Promise.all([
     getCohorts(client, allIds),
     getBlockTimestamps(
       client,
       [...new Set(allIds.map((id) => lastXfer.get(id)?.block).filter(Boolean) as number[])],
     ),
+    reaperLive ? getConsumedMap(client, allIds) : Promise.resolve(new Map<number, number>()),
   ]);
 
   const now = Math.floor(Date.now() / 1000);
   const rMult = Array.isArray(rarity?.tierMultipliers) ? rarity!.tierMultipliers! : MH_RARITY_FALLBACK_MULT;
   const tierOfId = (id: number) => (rarity ? Number(rarity.tiers![id - 1]) || 0 : 0);
+  const consumedOf = (id: number) => consumedById.get(id) ?? 0;
+  // launch factors gated by the same flag as the hero (Δ=0 between the two views).
+  const reaperMult = (id: number) => (reaperLive ? reaperMultOf(consumedOf(id)) : 1.0);
+  const provBonus = (id: number) => (reaperLive ? provenanceBonusOf(tierOfId(id)) : 1.0);
   const tokenRate = (id: number) =>
-    MH_BASE * (MH_COHORT_MULT[cohorts.get(id) ?? 3] ?? 1.0) * (rMult[tierOfId(id)] ?? 1.0);
+    MH_BASE *
+    (MH_COHORT_MULT[cohorts.get(id) ?? 3] ?? 1.0) *
+    (rMult[tierOfId(id)] ?? 1.0) *
+    reaperMult(id) *
+    provBonus(id);
   const acqTs = (id: number) => {
     const x = lastXfer.get(id);
     const ts = x ? blockTs.get(x.block) : null;
@@ -294,13 +378,34 @@ export async function buildBoard(
 
   // top 20 + connected wallet's own row (with gap if beyond 20). The me row's MH
   // is the value from the cheap pass so hero and board never disagree.
-  const board: MHBoardRow[] = boardAll
+  const rows: MHBoardRow[] = boardAll
     .slice(0, 20)
     .map((r, i) => ({ rank: i + 1, addr: short(r.w), mh: r.w === acct ? meMh : r.mh, isMe: r.w === acct }));
   if (meIdx >= 20) {
-    board.push({ rank: meIdx + 1, addr: short(acct), mh: meMh, isMe: true, gap: true });
+    rows.push({ rank: meIdx + 1, addr: short(acct), mh: meMh, isMe: true, gap: true });
   } else if (meIdx < 0) {
-    board.push({ rank: boardAll.length + 1, addr: short(acct), mh: meMh, isMe: true, gap: true });
+    rows.push({ rank: boardAll.length + 1, addr: short(acct), mh: meMh, isMe: true, gap: true });
   }
-  return board;
+
+  // ── Deck rank + tier by TOTAL contribution = freed + consumed (Adrian 26-jul:
+  // "ofrendar no puede hacer perder rango vs convertir"). consumed per wallet =
+  // Σ soulsConsumed over the souls it currently holds (same "sum by holder" as The
+  // Order — consumed travels with the token). Liberators = anyone with any
+  // contribution (freed OR consumed). Exact here because we already enumerate every
+  // holding; the deck shows the instant freed-rank until this lands (Δ=0 when
+  // consumed==0, which is the case for all but a handful at launch).
+  const contribBy = new Map<string, number>();
+  for (const [w, fr] of freedBy) contribBy.set(w, (contribBy.get(w) || 0) + fr);
+  for (const [w, ids] of holdings) {
+    const c = ids.reduce((s, id) => s + consumedOf(id), 0);
+    if (c) contribBy.set(w, (contribBy.get(w) || 0) + c);
+  }
+  const contribRanked = [...contribBy.entries()]
+    .filter(([, v]) => v > 0)
+    .sort((a, b) => b[1] - a[1]);
+  const myContribution = contribBy.get(acct) || 0;
+  const myRank = contribRanked.findIndex(([w]) => w === acct) + 1;
+  const totalLibs = contribRanked.length;
+
+  return { rows, myRank: myRank || totalLibs + 1, totalLibs, myContribution };
 }
