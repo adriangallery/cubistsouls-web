@@ -3,7 +3,7 @@ import Footer from "./components/Footer";
 import Ticker from "./components/Ticker";
 import SoulCard from "./components/SoulCard";
 import BurnFlow from "./components/BurnFlow";
-import { getSupply, getPricing, getFreed, getBlockTimes, ago, fmtEth, fmtDate, type Pricing } from "@/lib/chain";
+import { getSupply, getPricing, getFreed, getConsumed, getBlockTimes, ago, fmtEth, fmtDate, type Pricing } from "@/lib/chain";
 
 // Live on-chain counter + roster, regenerated at most once per minute (ISR).
 export const revalidate = 60;
@@ -40,11 +40,20 @@ function pricingTickerLine(p: Pricing | null): string | undefined {
 }
 
 export default async function Home() {
-  const [freedCount, pricing, freed] = await Promise.all([getSupply(), getPricing(), getFreed()]);
+  const [freedCount, pricing, freed, consumed] = await Promise.all([
+    getSupply(),
+    getPricing(),
+    getFreed(),
+    getConsumed(),
+  ]);
 
   const freedN = freedCount ?? freed.length;
-  const dark = Math.max(0, TOTAL - freedN);
+  // Reaper offerings burn canvases whose souls are CONSUMED — never minted,
+  // never mintable. They are neither freed nor "in the dark": three-way tally.
+  const eaten = consumed.total;
+  const dark = Math.max(0, TOTAL - freedN - eaten);
   const pct = Math.min(100, (freedN / TOTAL) * 100);
+  const pctEaten = Math.min(100 - pct, (eaten / TOTAL) * 100);
 
   // Recent grid ("pulled from the ash") — newest 8, with real "ago" from block times.
   const recent = freed.slice(0, 8);
@@ -73,9 +82,22 @@ export default async function Home() {
         <div className="wrap">
           <div className="num hot">{freedN.toLocaleString("en-US")}</div>
           <div className="cap">
-            <b>{freedN.toLocaleString("en-US")}</b> freed by fire · <b>{dark.toLocaleString("en-US")}</b> still in the dark
+            <b>{freedN.toLocaleString("en-US")}</b> freed by fire
+            {eaten > 0 ? (
+              <>
+                {" · "}
+                <b>{eaten.toLocaleString("en-US")}</b> consumed by reapers
+              </>
+            ) : null}
+            {" · "}
+            <b>{dark.toLocaleString("en-US")}</b> still in the dark
           </div>
-          <div className="emberbar"><span style={{ width: `${pct}%` }} /></div>
+          <div className="emberbar">
+            <span style={{ width: `${pct}%` }} />
+            {eaten > 0 ? (
+              <span style={{ width: `${pctEaten}%`, background: "var(--violet, #7a3fa0)", opacity: 0.85 }} />
+            ) : null}
+          </div>
           {pricingPill(pricing)}
           <BurnFlow priceWei={pricing && !pricing.free ? pricing.priceWei : "0"} />
         </div>

@@ -118,6 +118,7 @@ button{font:inherit}
   text-transform:uppercase;color:var(--mute);margin-top:.4rem}
 .tally .cap b{color:var(--gild)}
 .emberbar{max-width:420px;height:8px;margin:1.1rem auto 0;background:#2a1210;border-radius:999px;overflow:hidden;
+  display:flex; /* two segments: freed (ember) + consumed by reapers (violet) */
   box-shadow:inset 0 1px 3px rgba(0,0,0,.6)}
 .emberbar span{display:block;height:100%;
   background:linear-gradient(90deg,var(--blood),var(--ember),var(--flame));box-shadow:var(--glow-ember);
@@ -287,11 +288,13 @@ button{font:inherit}
   .dk-actions{width:100%}
 }
 
-/* ---------- YOUR REAPERS — prominent block under the plaque ---------- */
-/* --reaper accent is scoped to .reaper elsewhere; redeclare it locally so the
+/* ---------- YOUR REAPERS — low-left dashboard slot (moved 26-jul) ---------- */
+/* Lives inside .dash now (where "Your standing" was), so it's a grid item that
+   sizes to its content — no more oversized band floating one card above MH.
+   --reaper accent is scoped to .reaper elsewhere; redeclare it locally so the
    shared .tryon-stack borders and the block's accents render on /my-souls. */
 .reapers-mine{--reaper:#7a3fa0;--reaper-lite:#a765d1;
-  margin:0 0 clamp(1rem,3vw,1.4rem);background:linear-gradient(180deg,rgba(122,63,160,.16),rgba(122,63,160,.05));
+  margin:0;background:linear-gradient(180deg,rgba(122,63,160,.16),rgba(122,63,160,.05));
   border:1px solid rgba(167,101,209,.5);border-radius:14px;
   padding:clamp(1rem,3vw,1.4rem) clamp(1rem,3.2vw,1.6rem);
   box-shadow:0 18px 44px -26px rgba(0,0,0,.9),0 0 60px -30px rgba(167,101,209,.6)}
@@ -303,7 +306,9 @@ button{font:inherit}
 .rm-cta{font-family:var(--mono);font-weight:700;font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;
   color:#160500;background:linear-gradient(180deg,var(--reaper-lite),var(--reaper));padding:.5rem .85rem;border-radius:999px;white-space:nowrap}
 .rm-cta:hover{filter:brightness(1.1)}
-.rm-grid{display:grid;gap:clamp(.7rem,2vw,1rem);grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr))}
+/* auto-FIT (not fill): a lone card fills its column instead of floating in an
+   empty track — the "one card in a giant container" Adrian flagged (26-jul). */
+.rm-grid{display:grid;gap:clamp(.7rem,2vw,1rem);grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr))}
 .rm-card{background:rgba(20,4,8,.4);border:1px solid rgba(167,101,209,.3);border-radius:10px;overflow:hidden}
 .rm-card.ascended{border-color:var(--reaper-lite);box-shadow:0 0 30px -14px rgba(167,101,209,.8)}
 .rm-card .tryon-stack{border:0;border-radius:0;border-bottom:1px solid rgba(167,101,209,.28)}
@@ -321,7 +326,7 @@ button{font:inherit}
   background:rgba(122,63,160,.22);border:1px solid rgba(167,101,209,.4);padding:.25rem .5rem;border-radius:999px}
 /* no reapers yet — one discreet line, never a big empty panel */
 .rm-none{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;
-  margin:0 0 clamp(1rem,3vw,1.4rem);padding:.7rem 1rem;font-family:var(--mono);font-size:.78rem;color:var(--mute);
+  margin:0;padding:.7rem 1rem;font-family:var(--mono);font-size:.78rem;color:var(--mute);
   background:rgba(122,63,160,.08);border:1px solid rgba(167,101,209,.28);border-radius:10px}
 .rm-none-mark{color:#a765d1}
 .rm-none-cta{margin-left:auto;color:#a765d1;font-weight:700;letter-spacing:.04em;white-space:nowrap}
