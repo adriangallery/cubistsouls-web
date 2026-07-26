@@ -724,14 +724,18 @@ button{font:inherit}
   letter-spacing:.01em;color:#2a1400;background:linear-gradient(180deg,var(--gild-lite),var(--gild-deep));
   padding:.24rem .48rem;border-radius:3px;box-shadow:0 2px 6px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.45)}
 .rtrait.sel .rt-price{background:linear-gradient(180deg,var(--reaper-lite),var(--reaper-deep));color:#fff}
+.rt-on{position:absolute;top:6px;left:6px;z-index:2;width:1.35rem;height:1.35rem;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:#fff;
+  background:linear-gradient(180deg,var(--reaper-lite),var(--reaper-deep));
+  box-shadow:0 0 12px rgba(167,101,209,.7),0 2px 6px rgba(0,0,0,.5)}
 
 /* LIVE compositor — try before the fire (soul art + trait SVG stacked) */
 .tryon-stack{position:relative;border:2px solid var(--reaper);border-radius:6px;overflow:hidden;
   background:var(--wall-deep);aspect-ratio:1;
   box-shadow:0 0 26px -4px rgba(122,63,160,.7),0 14px 30px -12px rgba(0,0,0,.85)}
 .tryon-stack img{position:absolute;inset:0;width:100%;height:100%;display:block}
-.tryon-stack .base{object-fit:cover;z-index:0}
-.tryon-stack .layer{object-fit:contain;z-index:1}
+/* every layer is a full 768×768 vector drawn edge-to-edge; DOM order = z-order */
+.tryon-stack .lyr{object-fit:cover}
 .tryon-hint{margin-top:.6rem;font-family:var(--mono);font-size:.58rem;letter-spacing:.12em;text-transform:uppercase;
   color:var(--ash-grey);text-align:center}
 
