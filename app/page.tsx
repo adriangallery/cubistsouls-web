@@ -80,7 +80,9 @@ export default async function Home() {
 
       <section className="tally">
         <div className="wrap">
-          <div className="num hot">{freedN.toLocaleString("en-US")}</div>
+          {/* Big number = GLOBAL Pikkazo burns (freed + consumed). New users don't
+              know the lore — they must see one total; the breakdown lives below. */}
+          <div className="num hot">{(freedN + eaten).toLocaleString("en-US")}</div>
           <div className="cap">
             <b>{freedN.toLocaleString("en-US")}</b> freed by fire
             {eaten > 0 ? (
