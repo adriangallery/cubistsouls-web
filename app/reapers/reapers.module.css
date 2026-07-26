@@ -249,6 +249,212 @@
   white-space: nowrap;
 }
 
+/* ---- step 2: balance + affordability gating ---- */
+/* real Pikkazo balance, always visible above the marks (live only) */
+.balanceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bone);
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.42);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+}
+.balanceChip b {
+  color: var(--reaper-lite);
+  font-size: 0.9rem;
+  letter-spacing: 0;
+}
+
+/* wallet below the cheapest mark → single "go get some" state */
+.needMin {
+  text-align: center;
+  padding: clamp(1.2rem, 4vw, 2rem) 0;
+}
+.needMinLead {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--bone-2);
+  font-size: clamp(1rem, 2.2vw, 1.18rem);
+  margin-bottom: 1.1rem;
+  line-height: 1.5;
+}
+
+/* a mark you can't pay for: dimmed, not clickable. !important beats the global
+   `.rtrait:hover` rule in globals.css (owned by a parallel wave — untouched here). */
+.markLocked {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.markLocked img {
+  filter: grayscale(0.7);
+}
+.markLocked:hover {
+  transform: none !important;
+  border-color: rgba(224, 165, 32, 0.28) !important;
+  box-shadow: none !important;
+}
+.markNeed {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--bone);
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid var(--gild);
+  padding: 0.22rem 0.5rem;
+  border-radius: 4px;
+}
+
+/* ---- mode toggle: Forge / Feed (two clearly separate paths) ---- */
+.modeTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin: 0 0 clamp(1rem, 3vw, 1.4rem);
+  background: rgba(20, 4, 8, 0.4);
+  border: 1px solid rgba(167, 101, 209, 0.28);
+  border-radius: 999px;
+  padding: 0.3rem;
+}
+.modeTab {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.6rem 0.5rem;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.modeTab:hover { color: var(--bone); }
+.modeTabActive {
+  color: #fff;
+  background: linear-gradient(180deg, var(--reaper-lite), var(--reaper) 60%, var(--reaper-deep));
+  box-shadow: 0 0 18px -4px rgba(167, 101, 209, 0.8);
+}
+
+/* ---- feed-only path ---- */
+.feedBox {
+  background: linear-gradient(180deg, rgba(255, 91, 24, 0.08), rgba(20, 4, 8, 0.3));
+  border: 1px solid rgba(255, 91, 24, 0.4);
+  border-radius: var(--r-md);
+  padding: clamp(0.9rem, 3vw, 1.3rem);
+}
+.feedNote {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  color: var(--bone);
+  line-height: 1.5;
+  margin: 0 0 0.9rem;
+}
+.feedNote b { color: var(--flame); letter-spacing: 0.06em; }
+.qtyRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.qtyBtn {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: 0 0 auto;
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: #fff;
+  background: rgba(122, 63, 160, 0.24);
+  border: 1px solid rgba(167, 101, 209, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.qtyBtn:hover:not(:disabled) { background: rgba(122, 63, 160, 0.42); }
+.qtyBtn:disabled { opacity: 0.35; cursor: not-allowed; }
+.qtyVal {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bone);
+  min-width: 7.5rem;
+  text-align: center;
+}
+.qtyVal b { color: var(--flame); font-size: 1.1rem; }
+.qtyMax {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.42);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.qtyMax:hover:not(:disabled) { background: rgba(122, 63, 160, 0.28); }
+.qtyMax:disabled { opacity: 0.35; cursor: not-allowed; }
+.feedBenefit {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin: 0.9rem 0 0;
+}
+.feedBenefit b { color: var(--reaper-lite); }
+
+/* a mark already forged on THIS soul: done, never re-selectable, no cost shown */
+.markForged {
+  cursor: default;
+  border-color: rgba(224, 165, 32, 0.55) !important;
+}
+.markForged img { opacity: 0.4; filter: grayscale(0.5); }
+.markForged:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+.markForgedTag {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #12140a;
+  background: var(--gild);
+  padding: 0.22rem 0.55rem;
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgba(224, 165, 32, 0.5);
+}
+
 /* ---- step 3: offering grid ---- */
 .offerEmpty {
   font-family: var(--serif);

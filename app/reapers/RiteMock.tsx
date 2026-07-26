@@ -26,6 +26,7 @@ import {
   loadCohorts,
   isOG,
   OPENSEA_OG_URL,
+  OPENSEA_PIKKAZO_URL,
   type Rarity,
   type LayerData,
   type Slot,
@@ -113,7 +114,10 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
 
   // rite selection
   const [aspirantId, setAspirantId] = useState<number>(136);
+  // two explicit paths: FORGE a mark, or FEED only (pure offer, no mark).
+  const [mode, setMode] = useState<"forge" | "feed">("forge");
   const [worn, setWorn] = useState<Set<string>>(() => new Set(["crown"]));
+  const [feedQty, setFeedQty] = useState(1); // feed-only: how many Pikkazos to burn
   const [chosen, setChosen] = useState<Set<number>>(new Set());
   const [manual, setManual] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -202,12 +206,35 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   const aspirant = aspirants.find((a) => a.id === aspirantId) ?? aspirants[0];
   const hasOG = aspirants.some((a) => a.og);
 
-  // worn marks + the pikkazos each will consume (live cost overrides)
-  const wornMarks = useMemo(
-    () => REAPER_MARKS.filter((m) => worn.has(m.id)).map((m) => ({ ...m, cost: costOf(m.markId, m.cost) })),
-    [worn, costOf],
+  // marks ALREADY forged on the picked soul (live): the contract reverts
+  // MarkAlreadyForged, so the web never lets one be re-selected. Recomputed
+  // whenever the aspirant changes. Preview has no chain → empty.
+  const forgedMarkIds = useMemo(
+    () => new Set<number>(live ? aspirant?.state?.marks ?? [] : []),
+    [live, aspirant],
   );
-  const required = wornMarks.reduce((s, m) => s + m.cost, 0);
+
+  // worn marks + the pikkazos each will consume (live cost overrides). A forged
+  // mark can never count toward the sum or the tx, even if it lingered in `worn`.
+  // Feed-only mode forges nothing, so it contributes no marks.
+  const wornMarks = useMemo(
+    () =>
+      mode === "feed"
+        ? []
+        : REAPER_MARKS.filter((m) => worn.has(m.id) && !forgedMarkIds.has(m.markId)).map((m) => ({
+            ...m,
+            cost: costOf(m.markId, m.cost),
+          })),
+    [mode, worn, forgedMarkIds, costOf],
+  );
+  const forgeCost = wornMarks.reduce((s, m) => s + m.cost, 0);
+
+  // the offering wallet (preview demo · live real)
+  const wallet = live ? ownedPikkazos : DEMO_PIKKAZOS;
+  const balance = wallet.length; // B (live: real owned Pikkazos)
+
+  // how many Pikkazos this run burns: FEED = the chosen quantity, FORGE = mark cost.
+  const required = mode === "feed" ? Math.min(feedQty, balance) : forgeCost;
 
   // existing consumption of the picked soul (live) — the rite ADDS to it
   const already = live ? aspirant?.state?.consumed ?? 0 : 0;
@@ -218,8 +245,53 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   const mhBonus = wornMarks.reduce((s, m) => s + m.mh, 0);
   const mult = wornMarks.reduce((mx, m) => Math.max(mx, m.mult), 0);
 
-  // the offering wallet (preview demo · live real)
-  const wallet = live ? ownedPikkazos : DEMO_PIKKAZOS;
+  // ---- affordability gating (LIVE only) --------------------------------------
+  // B = Pikkazos you own. C = cost of the marks already selected (= forgeCost). A
+  // non-selected mark whose cost would push C+cost past B can't be picked — no
+  // impossible "27/36 selected" state can exist. Preview has no real balance, so
+  // it stays ungated. Only trust the balance once the wallet has loaded, so a
+  // mid-load empty read never false-locks a genuine owner.
+  const gateReady = live && phase === "loaded";
+  // marks still available to forge on THIS soul (not already forged)
+  const forgeableMarks = useMemo(
+    () => REAPER_MARKS.filter((m) => !forgedMarkIds.has(m.markId)),
+    [forgedMarkIds],
+  );
+  const allForged = forgeableMarks.length === 0;
+  const minMarkCost = allForged
+    ? Infinity
+    : Math.min(...forgeableMarks.map((m) => costOf(m.markId, m.cost)));
+  // FORGE below the cheapest forgeable mark → show the single "get more" state.
+  // FEED needs only 1 Pikkazo (no minimum-6 rule — that only bounds forging).
+  const cantAfford = gateReady && (mode === "feed" ? balance < 1 : balance < minMarkCost);
+
+  // keep the feed quantity inside [1 .. balance]
+  useEffect(() => {
+    if (!gateReady) return;
+    setFeedQty((q) => Math.max(1, Math.min(q, Math.max(1, balance))));
+  }, [gateReady, balance]);
+
+  // never leave the panel in the impossible state: the default worn set (crown)
+  // may cost more than a small wallet holds, or contain a mark already forged on
+  // the newly-picked soul. Once the balance/soul is known, prune worn to a set
+  // that (a) excludes forged marks and (b) fits B — dropping the priciest first.
+  useEffect(() => {
+    if (!gateReady) return;
+    setWorn((prev) => {
+      let changed = false;
+      const next = new Set(prev);
+      for (const m of REAPER_MARKS) if (next.has(m.id) && forgedMarkIds.has(m.markId)) { next.delete(m.id); changed = true; }
+      let total = REAPER_MARKS.filter((m) => next.has(m.id)).reduce((s, m) => s + costOf(m.markId, m.cost), 0);
+      if (total > balance) {
+        const picked = REAPER_MARKS.filter((m) => next.has(m.id)).sort((a, b) => costOf(b.markId, b.cost) - costOf(a.markId, a.cost));
+        for (const m of picked) {
+          if (total <= balance) break;
+          next.delete(m.id); total -= costOf(m.markId, m.cost); changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [gateReady, balance, costOf, forgedMarkIds]);
 
   // auto-suggest the N least-rare Pikkazos whenever the requirement or wallet
   // changes — UNLESS the curator has taken manual control of the selection.
@@ -251,15 +323,19 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     setChosen(new Set(suggestLeastRare(wallet, required, rarity)));
   };
 
-  // preview: compose from the hardcoded base map · live: from traits index
+  // preview: compose from the hardcoded base map · live: from traits index. Marks
+  // already forged on the soul are drawn too (feed shows the soul as-is; forge
+  // adds the newly-picked marks on top).
   const stack = useMemo(
-    () => composeFromBase(aspirant?.base ?? {}, [...worn]),
-    [aspirant, worn],
+    () => composeFromBase(aspirant?.base ?? {}, mode === "feed" ? [...forgedMarkIds] : [...forgedMarkIds, ...worn]),
+    [aspirant, worn, mode, forgedMarkIds],
   );
 
   const chosenIds = useMemo(() => [...chosen].sort((a, b) => a - b), [chosen]);
   const rareChosen = chosenIds.filter((id) => rarityOf(id, rarity).rare).length;
   const countOk = chosenIds.length === required && required > 0;
+  // forge needs at least one still-forgeable mark selected; feed needs none.
+  const readyToRun = countOk && (mode === "feed" || wornMarks.length > 0);
 
   // ---------------------------------------------------------------- the tx flow
   const ensureMainnet = useCallback(async () => {
@@ -282,8 +358,12 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     }
     const ids = chosenIds;
     if (!ids.length) return;
-    if (worn.size > 0 && ids.length !== required) {
-      toast(`Select exactly ${required} Pikkazos for the chosen marks.`);
+    if (ids.length !== required) {
+      toast(
+        mode === "feed"
+          ? `Select exactly ${required} Pikkazos to feed.`
+          : `Select exactly ${required} Pikkazos for the chosen marks.`,
+      );
       return;
     }
     if (!(await ensureMainnet())) return;
@@ -314,9 +394,9 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
       const reaperId = BigInt(aspirant.id);
       let lastHash: `0x${string}` | undefined;
 
-      if (worn.size === 0) {
+      if (mode === "feed") {
         // pure offering — consume souls without forging a mark
-        setBusyLabel("Confirm offering…");
+        setBusyLabel("Confirm feed…");
         lastHash = await walletClient.writeContract({
           address: SOULS, abi: REAPER_ABI, functionName: "offer",
           args: [reaperId, ids.map((n) => BigInt(n))],
@@ -351,8 +431,12 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
       await loadWallet(address);
     } catch (e: any) {
       const msg = e?.shortMessage || e?.message || "Transaction failed";
-      if (/NotOGSoul/i.test(msg) || /NotOGSoul/i.test(String(e?.cause?.data ?? ""))) {
+      const raw = msg + String(e?.cause?.data ?? "");
+      if (/NotOGSoul/i.test(raw)) {
         toast("This soul isn't OG — only OGs can take the scythe.");
+      } else if (/MarkAlreadyForged/i.test(raw)) {
+        toast("That mark is already forged on this soul.");
+        await loadWallet(address);
       } else if (/reject|denied|user rejected/i.test(msg)) {
         toast("Stepped back from the fire.");
       } else {
@@ -362,7 +446,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
       setBusy(false);
       setBusyLabel(null);
     }
-  }, [live, walletClient, publicClient, address, aspirant, chosenIds, worn, required, wornMarks, ensureMainnet, ascended, loadWallet]);
+  }, [live, mode, walletClient, publicClient, address, aspirant, chosenIds, required, wornMarks, ensureMainnet, ascended, loadWallet]);
 
   const startConnect = () => {
     if (mobileNoInjected) setSheet(true);
@@ -447,35 +531,115 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
         </div>
       </div>
 
-      {/* STEP 2 — combine marks */}
+      {/* MODE — two clear paths: forge a mark, or feed only (pure offer) */}
+      <div className={styles.modeTabs} role="tablist" aria-label="Rite mode">
+        <button
+          type="button" role="tab" aria-selected={mode === "forge"}
+          className={`${styles.modeTab}${mode === "forge" ? " " + styles.modeTabActive : ""}`}
+          onClick={() => { setManual(false); setMode("forge"); }}
+        >
+          ★ Forge a mark
+        </button>
+        <button
+          type="button" role="tab" aria-selected={mode === "feed"}
+          className={`${styles.modeTab}${mode === "feed" ? " " + styles.modeTabActive : ""}`}
+          onClick={() => { setManual(false); setMode("feed"); }}
+        >
+          🔥 Feed only
+        </button>
+      </div>
+
+      {/* STEP 2 — forge: pick marks · feed: choose how many */}
       <div className="rite-step">
-        <div className="rite-lab"><span className="n">2</span>Pick your marks</div>
-        <div className="rtraits">
-          {REAPER_MARKS.map((t) => {
-            const on = worn.has(t.id);
-            const cost = costOf(t.markId, t.cost);
-            return (
-              <button
-                key={t.id}
-                className={`rtrait${on ? " sel" : ""}`}
-                onClick={() => toggleMark(t.id)}
-                aria-pressed={on}
-                aria-label={`${t.name} — ${cost} Pikkazos`}
-              >
-                <span className="rt-price">{cost} 🔥</span>
-                {on && <span className="rt-on">✓</span>}
-                <span className="rt-thumb">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={t.file} alt={t.name} loading="lazy" />
-                </span>
-                <span className="rt-body">
-                  <span className="rt-name"><b>{t.name}</b></span>
-                  <span className="rt-kind">{t.kind}</span>
-                </span>
-              </button>
-            );
-          })}
+        <div className="rite-lab">
+          <span className="n">2</span>{mode === "feed" ? "How many to feed" : "Pick your marks"}
         </div>
+
+        {gateReady && (
+          <div className={styles.balanceChip}>
+            You have <b>{balance}</b> Pikkazo{balance === 1 ? "" : "s"} 🔥
+          </div>
+        )}
+
+        {mode === "feed" ? (
+          cantAfford ? (
+            <div className={styles.needMin}>
+              <p className={styles.needMinLead}>You need at least 1 Pikkazo.</p>
+              <a className="btn btn-primary" href={OPENSEA_PIKKAZO_URL} target="_blank" rel="noopener noreferrer">
+                Get Pikkazos
+              </a>
+            </div>
+          ) : (
+            <div className={styles.feedBox}>
+              <p className={styles.feedNote}><b>FEED ONLY — no mark.</b> Just souls consumed.</p>
+              <div className={styles.qtyRow}>
+                <button type="button" className={styles.qtyBtn} aria-label="One fewer"
+                  onClick={() => { setManual(false); setFeedQty((q) => Math.max(1, q - 1)); }}
+                  disabled={required <= 1}>–</button>
+                <span className={styles.qtyVal}><b>{required}</b> Pikkazo{required === 1 ? "" : "s"}</span>
+                <button type="button" className={styles.qtyBtn} aria-label="One more"
+                  onClick={() => { setManual(false); setFeedQty((q) => Math.min(balance, q + 1)); }}
+                  disabled={required >= balance}>+</button>
+                <button type="button" className={styles.qtyMax}
+                  onClick={() => { setManual(false); setFeedQty(balance); }}
+                  disabled={required >= balance}>Max</button>
+              </div>
+              <p className={styles.feedBenefit}>Counts toward 30 → <b>SOUL REAPER</b>.</p>
+            </div>
+          )
+        ) : allForged ? (
+          <div className={styles.needMin}>
+            <p className={styles.needMinLead}>All marks already forged.</p>
+            <button type="button" className="btn btn-primary" onClick={() => { setManual(false); setMode("feed"); }}>
+              Feed only
+            </button>
+          </div>
+        ) : cantAfford ? (
+          <div className={styles.needMin}>
+            <p className={styles.needMinLead}>You need at least {minMarkCost} Pikkazos.</p>
+            <a className="btn btn-primary" href={OPENSEA_PIKKAZO_URL} target="_blank" rel="noopener noreferrer">
+              Get Pikkazos
+            </a>
+          </div>
+        ) : (
+          <div className="rtraits">
+            {REAPER_MARKS.map((t) => {
+              const forged = forgedMarkIds.has(t.markId);
+              const on = !forged && worn.has(t.id);
+              const cost = costOf(t.markId, t.cost);
+              // already forged → done, never selectable, no cost. Else, can't pay
+              // for it (and not already worn) → lock it, show the shortfall.
+              const locked = !forged && gateReady && !on && required + cost > balance;
+              const need = required + cost - balance;
+              const disabled = forged || locked;
+              return (
+                <button
+                  key={t.id}
+                  className={`rtrait${on ? " sel" : ""}${forged ? " " + styles.markForged : locked ? " " + styles.markLocked : ""}`}
+                  onClick={() => { if (!disabled) toggleMark(t.id); }}
+                  disabled={disabled}
+                  aria-disabled={disabled}
+                  aria-pressed={on}
+                  aria-label={forged ? `${t.name} — already forged` : locked ? `${t.name} — need ${need} more Pikkazos` : `${t.name} — ${cost} Pikkazos`}
+                  title={forged ? "Already forged on this soul" : locked ? `Need ${need} more Pikkazos` : undefined}
+                >
+                  {!forged && <span className="rt-price">{cost} 🔥</span>}
+                  {on && <span className="rt-on">✓</span>}
+                  {forged && <span className={styles.markForgedTag}>✓ Forged</span>}
+                  {locked && <span className={styles.markNeed}>Need {need} more 🔥</span>}
+                  <span className="rt-thumb">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={t.file} alt={t.name} loading="lazy" />
+                  </span>
+                  <span className="rt-body">
+                    <span className="rt-name"><b>{t.name}</b></span>
+                    <span className="rt-kind">{t.kind}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* STEP 3 — offer Pikkazos (manual selection + auto-suggest) */}
@@ -486,7 +650,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
         </div>
 
         {required === 0 ? (
-          <p className={styles.offerEmpty}>Pick a mark first.</p>
+          <p className={styles.offerEmpty}>{mode === "feed" ? "Get Pikkazos first." : "Pick a mark first."}</p>
         ) : (
           <>
             <div className={styles.offerHead}>
@@ -563,7 +727,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
 
           <div>
             <div className="granted-lab">
-              Marks · {wornMarks.length ? wornMarks.map((m) => m.name).join(" + ") : "none yet"}
+              Marks · {mode === "feed" ? "Feed only — no mark" : wornMarks.length ? wornMarks.map((m) => m.name).join(" + ") : "none yet"}
             </div>
             <div className="perk-chips">
               <span className="rk-chip"><span className="ico">🔥</span><b>{required}</b> Pikkazos</span>
@@ -583,7 +747,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                   ? "★ 30 reached — renamed by the museum"
                   : required > 0
                     ? `${ASCEND_AT - consumedAfter} more to become a Reaper`
-                    : "add marks to start"}
+                    : mode === "feed" ? "choose how many" : "add marks to start"}
                 {live && already > 0 ? ` · ${already} already consumed` : ""}
               </div>
             </div>
@@ -605,12 +769,15 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
           <button
             className={styles.riteGo}
             onClick={performRite}
-            disabled={busy || !countOk || !aspirant?.og}
-            aria-disabled={busy || !countOk || !aspirant?.og}
+            disabled={busy || !readyToRun || !aspirant?.og}
+            aria-disabled={busy || !readyToRun || !aspirant?.og}
           >
             {!aspirant?.og
               ? "OG Souls only"
-              : (busyLabel ?? `🔥 Burn ${required} Pikkazo${required === 1 ? "" : "s"}`)}
+              : (busyLabel ??
+                  (mode === "feed"
+                    ? `🔥 Feed ${required} Pikkazo${required === 1 ? "" : "s"}`
+                    : `🔥 Forge for ${required} Pikkazo${required === 1 ? "" : "s"}`))}
           </button>
         ) : (
           <button className="btn-rite" disabled aria-disabled="true">

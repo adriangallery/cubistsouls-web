@@ -41,6 +41,11 @@ export const OPENSEA_OG_URL =
   "https://opensea.io/collection/cubist-souls?traits=" +
   encodeURIComponent(JSON.stringify([{ traitType: "Cohort", values: ["OG"] }]));
 
+// Where to buy Pikkazos (the fuel the rite burns). Verified OpenSea slug for the
+// Pikkazo contract 0x6478…484e; falls back to the contract page if the slug ever
+// moves. Shown when a wallet can't afford even the cheapest mark.
+export const OPENSEA_PIKKAZO_URL = "https://opensea.io/collection/pikkazonft";
+
 // The AGREED ReaperFacet interface (contract between the web and facet workers).
 export const REAPER_ABI = parseAbi([
   // writes
