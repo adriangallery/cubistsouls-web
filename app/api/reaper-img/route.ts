@@ -34,6 +34,7 @@ export const maxDuration = 60;
 
 const SOULS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 const SEL_MARKS_OF = "0xfb115701"; // marksOf(uint256) -> uint256 bitmask
+const SEL_SOULS_CONSUMED = "0x5b99ce59"; // soulsConsumed(uint256) -> uint256
 const RPC = "https://gateway.tenderly.co/public/mainnet"; // only gateway that answers from a datacenter IP
 const TRAITS_URL =
   "https://raw.githubusercontent.com/adriangallery/cubist-souls-assets/main/traits/index.json";
@@ -69,10 +70,8 @@ async function loadLayerDataServer(): Promise<LayerData | null> {
   }
 }
 
-// marksOf(id) via Tenderly. Returns the bitmask, or null on any failure (fail-open).
-async function readMarks(id: number): Promise<bigint | null> {
+async function ethCall(data: string): Promise<bigint | null> {
   try {
-    const data = SEL_MARKS_OF + id.toString(16).padStart(64, "0");
     const r = await fetch(RPC, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -86,6 +85,23 @@ async function readMarks(id: number): Promise<bigint | null> {
   } catch {
     return null;
   }
+}
+
+// Worn marks under the MILESTONE economy (26-jul): unlocked by cumulative
+// consumption — Orange@6, Flame Crown@12, Phoenix@18, Burning Soul@30 — unioned
+// with any legacy forged bits on-chain. Null on total RPC failure (fail-open).
+const MILESTONES = [6, 12, 18, 30];
+async function readMarks(id: number): Promise<bigint | null> {
+  const hexId = id.toString(16).padStart(64, "0");
+  const [mask, consumed] = await Promise.all([
+    ethCall(SEL_MARKS_OF + hexId),
+    ethCall(SEL_SOULS_CONSUMED + hexId),
+  ]);
+  if (mask === null && consumed === null) return null;
+  let m = mask ?? 0n;
+  const c = Number(consumed ?? 0n);
+  MILESTONES.forEach((t, i) => { if (c >= t) m |= 1n << BigInt(i); });
+  return m;
 }
 
 function imgRedirect(origin: string, id: number): Response {
