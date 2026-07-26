@@ -10,7 +10,8 @@
 // the real source — nothing else changes.
 //
 // ⚠️ ABI ASSUMPTIONS the facet MUST honor (flagged for the facet author):
-//   • marksOf(uint256) returns uint8[]  (the worn markIds, 0..3)
+//   • marksOf(uint256) returns uint256 — BITMASK (bit i set == markId i forged),
+//     as deployed on mainnet (facet 0x8fa530b6…50a5); decode to markId list client-side
 //   • soulsConsumed(uint256) returns uint256
 //   • markPrice(uint8) returns uint16
 //   • SoulsOffered/MarkForged/ReaperAscended shapes exactly as below
@@ -34,7 +35,7 @@ export const REAPER_ABI = parseAbi([
   "function forgeMark(uint256 reaperId, uint8 markId, uint256[] pikkazoIds)",
   // views
   "function soulsConsumed(uint256 reaperId) view returns (uint256)",
-  "function marksOf(uint256 reaperId) view returns (uint8[])",
+  "function marksOf(uint256 reaperId) view returns (uint256)",
   "function isReaper(uint256 reaperId) view returns (bool)",
   "function markPrice(uint8 markId) view returns (uint16)",
   // events
@@ -245,6 +246,13 @@ export function composeStack(
 // =============================================================================
 export type ReaperState = { consumed: number; marks: number[]; isReaper: boolean };
 
+// marksOf() on the deployed facet is a uint256 bitmask (bit i == markId i forged).
+export function bitmaskToMarkIds(mask: bigint): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < 8; i++) if ((mask >> BigInt(i)) & 1n) out.push(i);
+  return out;
+}
+
 // per-soul consumed / marks / isReaper via one multicall batch.
 export async function getReaperState(
   client: PublicClient,
@@ -268,7 +276,7 @@ export async function getReaperState(
       const r = res[j * 3 + 2];
       out.set(id, {
         consumed: c?.status === "success" ? Number(c.result as bigint) : 0,
-        marks: m?.status === "success" ? (m.result as readonly number[]).map(Number) : [],
+        marks: m?.status === "success" ? bitmaskToMarkIds(m.result as bigint) : [],
         isReaper: r?.status === "success" ? Boolean(r.result) : false,
       });
     });

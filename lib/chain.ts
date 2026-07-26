@@ -24,7 +24,7 @@ const SEL_PRICE_NOW = "0xfeaa7f29";
 const SEL_PRICING = "0x7ce91411";
 // ReaperFacet views (cut on this same diamond) — used by The Order.
 const SEL_SOULS_CONSUMED = "0x5b99ce59"; // soulsConsumed(uint256)
-const SEL_MARKS_OF = "0xfb115701"; // marksOf(uint256) returns uint8[]
+const SEL_MARKS_OF = "0xfb115701"; // marksOf(uint256) returns uint256 bitmask
 const SEL_OWNER_OF = "0x6352211e"; // ownerOf(uint256)
 // ReaperAscended(uint256 indexed reaperId, uint256 consumed) — fired at 30 crossed.
 // Split literal so the secret-scanner doesn't flag the 64-hex string.
@@ -181,7 +181,7 @@ export async function getReapers(): Promise<ReaperOrderEntry[]> {
           ]);
           const consumed = parseInt(cRes, 16) || 0;
           const holder = "0x" + oRes.slice(-40);
-          return { id, consumed, marks: decodeUint8Array(mRes), holder };
+          return { id, consumed, marks: decodeMarksBitmask(mRes), holder };
         } catch {
           return { id, consumed: 30, marks: [], holder: "" };
         }
@@ -195,18 +195,13 @@ export async function getReapers(): Promise<ReaperOrderEntry[]> {
   }
 }
 
-// Decode an ABI-encoded dynamic uint8[] returned by marksOf(): offset, length,
-// then one 32-byte word per element (low byte is the value).
-function decodeUint8Array(data: string): number[] {
+// marksOf() on the deployed facet (0x8fa530b6…50a5) returns a uint256 BITMASK:
+// bit i set == markId i forged. Decode the single word into a markId list.
+function decodeMarksBitmask(data: string): number[] {
   try {
-    const h = data.slice(2);
-    if (h.length < 128) return [];
-    const len = parseInt(h.slice(64, 128), 16);
+    const word = BigInt(data);
     const out: number[] = [];
-    for (let i = 0; i < len; i++) {
-      const word = h.slice(128 + i * 64, 128 + i * 64 + 64);
-      out.push(parseInt(word.slice(-2), 16));
-    }
+    for (let i = 0; i < 8; i++) if ((word >> BigInt(i)) & 1n) out.push(i);
     return out;
   } catch {
     return [];
