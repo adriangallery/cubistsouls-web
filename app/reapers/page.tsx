@@ -2,11 +2,19 @@ import type { Metadata } from "next";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
 import RiteMock from "./RiteMock";
+import TheOrder from "./TheOrder";
+import { getReapers } from "@/lib/chain";
+import flags from "@/public/flags.json";
 
-// PUBLIC product teaser (Adrian, 25-jul): the page is now live, indexable and
-// linked from Nav/Footer. The rite has no on-chain mechanic yet — the CTA stays
-// disabled and offerings/rewards may shift before launch. Canonical is /reapers;
-// the old secret slug /reapers-k7x2m9 redirects here (next.config).
+// Soul Reapers — public product panel. GATED by flags.reaperLive: false = preview
+// (demo data, disabled CTA, empty Order), true = real reads/writes against the
+// diamond's ReaperFacet cut. The flag is read at build time (flipping it is a
+// deploy anyway — see the launch runbook in the worker report). The rite itself is
+// a client component; The Order is derived from chain server-side (ISR).
+export const revalidate = 60;
+
+const REAPER_LIVE = (flags as { reaperLive?: boolean }).reaperLive === true;
+
 export const metadata: Metadata = {
   title: "Soul Reapers — the second fire",
   description:
@@ -30,11 +38,15 @@ export const metadata: Metadata = {
 // Real soul art via the on-chain renderer host (unchanged by the domain flip).
 const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
 
-export default function ReapersPage() {
+export default async function ReapersPage() {
+  // Only touch the chain when the facet is live; otherwise The Order is preview-only.
+  const reapers = REAPER_LIVE ? await getReapers() : [];
+
   return (
     <div className="reaper">
       <div className="teaser-strip">
-        <span className="ts-dot" />The second fire is coming · the rite is being prepared
+        <span className="ts-dot" />
+        {REAPER_LIVE ? "The second fire burns · take up the scythe" : "The second fire is coming · the rite is being prepared"}
         <span className="ts-legal">offerings and rewards may shift before the fire is lit</span>
       </div>
       <Nav active="reapers" />
@@ -56,14 +68,27 @@ export default function ReapersPage() {
 
       <div className="rp-rule"><div className="line" /></div>
 
-      {/* ---------- THE RITE (interactive mock) ---------- */}
+      {/* ---------- THE RITE ---------- */}
       <section className="section" style={{ paddingTop: 0 }}>
         <div className="wrap">
           <div className="sec-head">
-            <span className="eyebrow">The rite · try before the fire</span>
+            <span className="eyebrow">{REAPER_LIVE ? "The rite · feed the fire" : "The rite · try before the fire"}</span>
             <h2>ENTER <span className="rp-hot">THE ORDER</span></h2>
           </div>
-          <RiteMock />
+          <RiteMock live={REAPER_LIVE} />
+        </div>
+      </section>
+
+      <div className="rp-rule"><div className="line" /></div>
+
+      {/* ---------- THE ORDER — public leaderboard of reapers ---------- */}
+      <section className="section" style={{ paddingTop: 0 }}>
+        <div className="wrap">
+          <div className="sec-head">
+            <span className="eyebrow">The leaderboard of the order · souls consumed</span>
+            <h2>THE <span className="rp-hot">ORDER</span></h2>
+          </div>
+          <TheOrder live={REAPER_LIVE} reapers={reapers} />
         </div>
       </section>
 

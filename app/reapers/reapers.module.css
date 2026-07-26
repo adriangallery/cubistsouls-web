@@ -1,0 +1,359 @@
+/* Soul Reapers — scoped styles for the real panel (Pikkazo offering grid, live
+   CTA, connect prompt) and THE ORDER. Kept in a CSS module so the shared
+   globals.css is never touched (another wave edits it in parallel). These
+   elements render inside `.reaper`, so the --reaper* tokens cascade in; global
+   tokens (--bone, --mono, --gild, --wall-deep…) resolve from :root. */
+
+/* ---- live connect prompt ---- */
+.connect {
+  text-align: center;
+  padding: clamp(1.4rem, 5vw, 2.6rem) 0;
+}
+.connectLead {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--bone-2);
+  font-size: clamp(1rem, 2.2vw, 1.18rem);
+  margin-bottom: 1.2rem;
+  line-height: 1.5;
+}
+
+.loadingRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+  margin-bottom: 1.2rem;
+}
+
+/* consumed badge on an aspirant thumbnail */
+.aspBadge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, var(--reaper-lite), var(--reaper-deep));
+  padding: 0.16rem 0.36rem;
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(122, 63, 160, 0.6);
+}
+
+/* ---- step 3: offering grid ---- */
+.offerEmpty {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--mute);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.offerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+.offerCount {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.offerCount b {
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+.ok { color: var(--reaper-lite); }
+.bad { color: var(--flame); }
+.demoTag {
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  color: var(--ash-grey);
+  border: 1px solid rgba(107, 95, 99, 0.5);
+  border-radius: 999px;
+  padding: 0.16rem 0.5rem;
+}
+
+.suggestBtn {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.42);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.suggestBtn:hover {
+  background: rgba(122, 63, 160, 0.26);
+  border-color: var(--reaper-lite);
+}
+
+.rareWarn {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  color: var(--flame);
+  background: rgba(255, 91, 24, 0.1);
+  border: 1px solid rgba(255, 91, 24, 0.4);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.pkzGrid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(64px, 16vw, 84px), 1fr));
+}
+.pkz {
+  position: relative;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 5px;
+  overflow: hidden;
+  aspect-ratio: 1;
+  background: var(--wall-deep);
+  border: 2px solid rgba(224, 165, 32, 0.34);
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.pkz img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.15s;
+}
+.pkz:hover { transform: translateY(-2px); border-color: var(--reaper-lite); }
+.pkzSel {
+  border-color: var(--reaper-lite);
+  box-shadow: 0 0 0 3px rgba(167, 101, 209, 0.3), 0 0 18px -4px rgba(122, 63, 160, 0.7);
+}
+.pkz:not(.pkzSel) img { opacity: 0.62; }
+/* a rare piece NOT selected gets a warning ring so it stands out in the grid */
+.pkzRare:not(.pkzSel) {
+  border-color: rgba(255, 91, 24, 0.75);
+  box-shadow: 0 0 0 1px rgba(255, 91, 24, 0.35);
+}
+.pkzCheck {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, var(--reaper-lite), var(--reaper-deep));
+  box-shadow: 0 0 10px rgba(167, 101, 209, 0.7);
+}
+.pkzId {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.55rem 0.3rem 0.22rem;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  color: var(--bone);
+  text-align: left;
+}
+.pkzTier {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--bone);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 0.12rem 0.3rem;
+  border-radius: 3px;
+}
+
+/* ---- live CTA ---- */
+.riteGo {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1rem 1.6rem;
+  border-radius: 8px;
+  border: 0;
+  width: 100%;
+  max-width: 520px;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(180deg, var(--reaper-lite), var(--reaper) 55%, var(--reaper-deep));
+  box-shadow: 0 0 26px -6px rgba(167, 101, 209, 0.8);
+  transition: transform 0.12s, box-shadow 0.15s, filter 0.15s;
+}
+.riteGo:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
+.riteGo:disabled {
+  cursor: not-allowed;
+  color: var(--mute);
+  background: linear-gradient(180deg, #3a2450, #241033);
+  box-shadow: none;
+}
+
+/* ========================= THE ORDER ========================= */
+.orderEmpty {
+  text-align: center;
+  padding: clamp(1rem, 4vw, 2rem) 0 0;
+}
+.orderScythe {
+  display: block;
+  font-size: clamp(2.2rem, 8vw, 3.2rem);
+  filter: drop-shadow(0 0 14px rgba(167, 101, 209, 0.7));
+  margin-bottom: 0.6rem;
+}
+.orderEmptyLead {
+  font-family: var(--disp);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: clamp(1.3rem, 4vw, 2rem);
+  color: var(--bone);
+  line-height: 1.05;
+}
+.orderEmptySub {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--bone-2);
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  line-height: 1.6;
+  max-width: 48ch;
+  margin: 0.7rem auto clamp(1.6rem, 5vw, 2.4rem);
+}
+
+.orderGrid {
+  display: grid;
+  gap: clamp(0.9rem, 3vw, 1.5rem);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+}
+.orderCard {
+  background: var(--wall-raise);
+  border: 1px solid rgba(167, 101, 209, 0.34);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--sh-plaque);
+  display: flex;
+  flex-direction: column;
+}
+.orderCard .tryon-stack {
+  border: 0;
+  border-radius: 0;
+  border-bottom: 2px solid var(--reaper-lite);
+}
+.orderRank {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: 1rem;
+  color: #fff;
+  background: linear-gradient(180deg, var(--reaper-lite), var(--reaper-deep));
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgba(122, 63, 160, 0.6);
+}
+.orderPreviewTag {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(107, 95, 99, 0.6);
+  padding: 0.16rem 0.42rem;
+  border-radius: 3px;
+}
+.orderBody {
+  padding: clamp(0.8rem, 3vw, 1.1rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.orderName {
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: var(--bone);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.orderName b { color: var(--reaper-lite); }
+.orderMark { filter: drop-shadow(0 0 6px rgba(167, 101, 209, 0.6)); }
+.orderConsumed {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.orderConsumed b { color: var(--flame); font-size: 0.9rem; }
+.orderMarks { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.orderChip {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--reaper-lite);
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.42);
+  padding: 0.24rem 0.5rem;
+  border-radius: 999px;
+}
+.orderHolder {
+  margin-top: auto;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(224, 165, 32, 0.14);
+  text-decoration: none;
+}
+.orderHolder:not([aria-disabled="true"]):hover { color: var(--reaper-lite); }
+.orderHolder[aria-disabled="true"] { cursor: default; }

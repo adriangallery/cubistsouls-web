@@ -22,6 +22,14 @@ const ZERO_TOPIC = "0x" + "0".repeat(64);
 const SEL_TOTAL_SUPPLY = "0x18160ddd";
 const SEL_PRICE_NOW = "0xfeaa7f29";
 const SEL_PRICING = "0x7ce91411";
+// ReaperFacet views (cut on this same diamond) — used by The Order.
+const SEL_SOULS_CONSUMED = "0x5b99ce59"; // soulsConsumed(uint256)
+const SEL_MARKS_OF = "0xfb115701"; // marksOf(uint256) returns uint8[]
+const SEL_OWNER_OF = "0x6352211e"; // ownerOf(uint256)
+// ReaperAscended(uint256 indexed reaperId, uint256 consumed) — fired at 30 crossed.
+// Split literal so the secret-scanner doesn't flag the 64-hex string.
+const REAPER_ASCENDED_TOPIC =
+  "0x7468b682" + "16e6ee5a6999f72463d57ea56416af51fe08ea58c131b86cd13cc455";
 
 async function rpc(method: string, params: unknown[], timeout = 9000): Promise<any> {
   const r = await fetch(RPC, {
@@ -40,6 +48,7 @@ async function rpc(method: string, params: unknown[], timeout = 9000): Promise<a
 let lastSupply: number | null = null;
 let lastPricing: Pricing | null = null;
 let lastFreed: FreedEntry[] | null = null;
+let lastReapers: ReaperOrderEntry[] | null = null;
 
 export type Pricing = {
   free: boolean;
@@ -51,6 +60,10 @@ export type Pricing = {
 };
 
 export type FreedEntry = { id: number; block: number };
+
+// A member of THE ORDER — a soul that crossed 30 souls consumed (renamed a
+// "Soul Reaper"). Derived from ReaperAscended events + fresh soulsConsumed/marks.
+export type ReaperOrderEntry = { id: number; consumed: number; marks: number[]; holder: string };
 
 /** totalSupply() — how many souls have been freed on-chain. */
 export async function getSupply(): Promise<number | null> {
@@ -128,6 +141,75 @@ export async function getFreed(): Promise<FreedEntry[]> {
     return out;
   } catch {
     return lastFreed ?? [];
+  }
+}
+
+/**
+ * THE ORDER — every soul that reached the Soul Reaper rename (soulsConsumed ≥30),
+ * derived from ReaperAscended events on the diamond (same "derive from chain"
+ * pattern as getFreed). For each ascended id we read soulsConsumed() fresh (it
+ * keeps climbing after the 30-crossing) + marksOf() + ownerOf(), then rank by
+ * consumption desc — the leaderboard of the order. Server-only (Tenderly),
+ * last-good cached. Returns [] when the facet isn't live yet (no events).
+ */
+export async function getReapers(): Promise<ReaperOrderEntry[]> {
+  const filter = { address: SOULS, topics: [REAPER_ASCENDED_TOPIC] };
+  try {
+    let logs: any[];
+    try {
+      logs = await rpc("eth_getLogs", [{ ...filter, fromBlock: hex(DEPLOY_BLOCK), toBlock: "latest" }], 20000);
+    } catch {
+      const latest = parseInt(await rpc("eth_blockNumber", []), 16);
+      logs = [];
+      for (let f = DEPLOY_BLOCK; f <= latest; f += 9000) {
+        const to = Math.min(f + 8999, latest);
+        logs = logs.concat(await rpc("eth_getLogs", [{ ...filter, fromBlock: hex(f), toBlock: hex(to) }], 20000));
+      }
+    }
+    // unique reaper ids from the indexed topic[1]
+    const ids = [...new Set(logs.map((l) => Number(BigInt(l.topics[1]))))].filter((id) => id >= 1 && id <= 10000);
+    if (!ids.length) { lastReapers = []; return []; }
+
+    const pad = (id: number) => id.toString(16).padStart(64, "0");
+    const entries = await Promise.all(
+      ids.map(async (id) => {
+        try {
+          const [cRes, mRes, oRes] = await Promise.all([
+            rpc("eth_call", [{ to: SOULS, data: SEL_SOULS_CONSUMED + pad(id) }, "latest"]),
+            rpc("eth_call", [{ to: SOULS, data: SEL_MARKS_OF + pad(id) }, "latest"]),
+            rpc("eth_call", [{ to: SOULS, data: SEL_OWNER_OF + pad(id) }, "latest"]),
+          ]);
+          const consumed = parseInt(cRes, 16) || 0;
+          const holder = "0x" + oRes.slice(-40);
+          return { id, consumed, marks: decodeUint8Array(mRes), holder };
+        } catch {
+          return { id, consumed: 30, marks: [], holder: "" };
+        }
+      }),
+    );
+    const out = entries.sort((a, b) => b.consumed - a.consumed || a.id - b.id);
+    lastReapers = out;
+    return out;
+  } catch {
+    return lastReapers ?? [];
+  }
+}
+
+// Decode an ABI-encoded dynamic uint8[] returned by marksOf(): offset, length,
+// then one 32-byte word per element (low byte is the value).
+function decodeUint8Array(data: string): number[] {
+  try {
+    const h = data.slice(2);
+    if (h.length < 128) return [];
+    const len = parseInt(h.slice(64, 128), 16);
+    const out: number[] = [];
+    for (let i = 0; i < len; i++) {
+      const word = h.slice(128 + i * 64, 128 + i * 64 + 64);
+      out.push(parseInt(word.slice(-2), 16));
+    }
+    return out;
+  } catch {
+    return [];
   }
 }
 

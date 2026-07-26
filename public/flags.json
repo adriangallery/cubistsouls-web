@@ -3,5 +3,6 @@
   "ticker": true,
   "eraBar": true,
   "govern": true,
-  "wc": true
+  "wc": true,
+  "reaperLive": false
 }
