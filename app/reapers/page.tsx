@@ -83,7 +83,7 @@ export default async function ReapersPage() {
             <li className={styles.step}>
               <span className={styles.stepNum}>3</span>
               <span className={styles.stepIco}>🜃</span>
-              <span className={styles.stepTitle}>Unlock marks</span>
+              <span className={styles.stepTitle}>Batches earn marks</span>
             </li>
           </ol>
           <a href="#rite" className={styles.milestone}>
@@ -202,7 +202,7 @@ export default async function ReapersPage() {
             <ul className={styles.fineList}>
               <li><b>Only souls freed before the eras (OG cohort) can become Soul Reapers.</b></li>
               <li>The fire burns <b>Pikkazos</b> (canvases), never freed Souls. Their souls are consumed by your reaper.</li>
-              <li>Each mark costs Pikkazos: <b>Orange 6 · Flame Crown 12 · Phoenix 18 · Burning Soul 30</b>.</li>
+              <li>Every Pikkazo burned = <b>+1</b>. Burn an <b>exact batch</b> and it also forges that mark: <b>Orange 6 · Flame Crown 12 · Phoenix 18 · Burning Soul 30</b>. Any other number is a pure feed.</li>
               <li>Every burn adds to <b>Souls Consumed</b>. At <b>30</b>, the museum renames your Soul to <b>Soul Reaper</b>.</li>
               <li>Marks add Museum Hours perks — a higher multiplier and more MH per hour.</li>
               <li><b>The museum never forgets what you were born as</b> — it only lets you become more.</li>
