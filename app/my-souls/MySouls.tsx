@@ -193,16 +193,20 @@ export default function MySouls() {
     <>
       <Nav active="souls" />
 
-      <header className="ms-head wrap">
-        <div className="eyebrow">Your place in the gallery</div>
-        <h1 className="title ms-title">YOUR SOULS</h1>
-        <p className="lead">
-          Every Cubist Soul you freed, and your standing among the community that reclaimed the collection.
-        </p>
-      </header>
-
-      <main className="wrap ms-main">
-        <div className="ms-connect">
+      {/* Masthead as a single compact row: identity on the left, wallet on the
+          right. The lead only shows before you're in — once the deck and the
+          panels are on screen, THEY are the page (Adrian, 26-jul). */}
+      <header className="ms-top wrap">
+        <div className="ms-top-l">
+          <div className="eyebrow">Your place in the gallery</div>
+          <h1 className="title ms-title">YOUR SOULS</h1>
+          {!data ? (
+            <p className="lead">
+              Every Cubist Soul you freed, and your standing among the community that reclaimed the collection.
+            </p>
+          ) : null}
+        </div>
+        <div className="ms-top-r">
           {mounted && !connected && mobileNoInjected ? (
             <button className="btn btn-primary" onClick={() => setSheet(true)}>
               🔥 Connect Wallet
@@ -211,6 +215,9 @@ export default function MySouls() {
             <ConnectButton chainStatus="none" showBalance={false} accountStatus="address" />
           )}
         </div>
+      </header>
+
+      <main className="wrap ms-main">
         <MobileWalletSheet
           open={sheet}
           onClose={() => setSheet(false)}
