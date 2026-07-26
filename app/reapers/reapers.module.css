@@ -4,6 +4,152 @@
    elements render inside `.reaper`, so the --reaper* tokens cascade in; global
    tokens (--bone, --mono, --gild, --wall-deep…) resolve from :root. */
 
+/* ---- 3 pictographic steps ---- */
+.steps {
+  list-style: none;
+  margin: 0 0 clamp(1.2rem, 4vw, 1.8rem);
+  padding: 0;
+  display: grid;
+  gap: clamp(0.6rem, 2vw, 1rem);
+  grid-template-columns: repeat(3, 1fr);
+  counter-reset: none;
+}
+.step {
+  position: relative;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(122, 63, 160, 0.1), rgba(20, 4, 8, 0.35));
+  border: 1px solid rgba(167, 101, 209, 0.34);
+  border-radius: var(--r-md);
+  padding: clamp(1rem, 3.5vw, 1.6rem) clamp(0.4rem, 2vw, 1rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.stepNum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--reaper);
+  color: #fff;
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: 1rem;
+  box-shadow: 0 0 16px -2px rgba(167, 101, 209, 0.8);
+}
+.stepIco {
+  font-size: clamp(1.8rem, 7vw, 2.8rem);
+  line-height: 1;
+  filter: drop-shadow(0 0 10px rgba(167, 101, 209, 0.45));
+}
+.stepTitle {
+  font-family: var(--disp);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  font-size: clamp(0.82rem, 2.6vw, 1.15rem);
+  color: var(--bone);
+  line-height: 1.1;
+}
+
+/* milestone badge — 30 = SOUL REAPER */
+.milestone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  max-width: 520px;
+  margin: 0 auto;
+  text-decoration: none;
+  background: linear-gradient(180deg, rgba(167, 101, 209, 0.22), rgba(122, 63, 160, 0.08));
+  border: 1px solid var(--reaper-lite);
+  border-radius: 999px;
+  padding: 0.7rem 1.2rem;
+  box-shadow: 0 0 26px -8px rgba(167, 101, 209, 0.8);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.milestone:hover { transform: translateY(-1px); box-shadow: 0 0 30px -6px rgba(167, 101, 209, 0.95); }
+.milestoneMark {
+  font-size: 1.3rem;
+  filter: drop-shadow(0 0 8px rgba(167, 101, 209, 0.7));
+}
+.milestoneNum {
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: clamp(1.6rem, 6vw, 2.2rem);
+  color: var(--reaper-lite);
+  line-height: 1;
+}
+.milestoneText {
+  font-family: var(--disp);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: clamp(0.85rem, 2.8vw, 1.15rem);
+  color: var(--bone);
+}
+.milestoneText b { color: var(--reaper-lite); }
+
+/* ---- fine print (collapsible details) ---- */
+.fine {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--wall-deep);
+  border: 1px solid rgba(224, 165, 32, 0.24);
+  border-radius: var(--r-md);
+  padding: 0 clamp(1rem, 3vw, 1.4rem);
+}
+.fineSummary {
+  cursor: pointer;
+  list-style: none;
+  padding: clamp(0.9rem, 3vw, 1.15rem) 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gild);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.fineSummary::-webkit-details-marker { display: none; }
+.fineSummary::after {
+  content: "+";
+  font-size: 1.1rem;
+  color: var(--reaper-lite);
+}
+.fine[open] .fineSummary::after { content: "–"; }
+.fineList {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 clamp(1rem, 3vw, 1.3rem);
+  display: grid;
+  gap: 0.7rem;
+}
+.fineList li {
+  font-family: var(--serif);
+  color: var(--bone-2);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  padding-left: 1.1rem;
+  position: relative;
+}
+.fineList li::before {
+  content: "🜃";
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  font-size: 0.7rem;
+  color: var(--reaper-lite);
+}
+.fineList li b { color: var(--bone); }
+
 /* ---- live connect prompt ---- */
 .connect {
   text-align: center;

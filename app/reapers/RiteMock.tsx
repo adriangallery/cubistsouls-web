@@ -260,7 +260,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
       if (need.length) {
         if (need.length >= 6) {
           setBusyLabel("Approve all in wallet…");
-          toast("One signature so the fire can consume the pieces you offer. Revocable any time.", 0);
+          toast("One signature to let the fire burn your Pikkazos. Revocable anytime.", 0);
           const h = await walletClient.writeContract({
             address: PIKKAZO, abi: PIKKAZO_ABI, functionName: "setApprovalForAll", args: [SOULS, true],
           });
@@ -336,9 +336,9 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     return (
       <div className="rite">
         <div className={styles.connect}>
-          <p className={styles.connectLead}>The rite reads the souls you already hold. Connect to begin.</p>
-          <button className="btn btn-primary" onClick={startConnect}>🜃 Enter the order</button>
-          <p className="cta-note">Ethereum mainnet · connect to see your souls &amp; Pikkazos</p>
+          <p className={styles.connectLead}>Connect to see your Souls.</p>
+          <button className="btn btn-primary" onClick={startConnect}>Connect wallet</button>
+          <p className="cta-note">Ethereum mainnet</p>
         </div>
         <MobileWalletSheet open={sheet} onClose={() => setSheet(false)} onWalletConnect={() => openConnectModal?.()} />
       </div>
@@ -350,7 +350,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     return (
       <div className="rite">
         <p className="note" style={{ textAlign: "center" }}>
-          No Cubist Souls in this wallet — free one first, then return to take up the scythe.{" "}
+          No Souls in this wallet. Free one first.{" "}
           <a href="/" >Free a soul</a>
         </p>
       </div>
@@ -360,12 +360,12 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   return (
     <div className="rite">
       {live && phase === "loading" && (
-        <div className={styles.loadingRow}><span className="dot" /> Reading your souls from the chain…</div>
+        <div className={styles.loadingRow}><span className="dot" /> Reading your Souls…</div>
       )}
 
       {/* STEP 1 — pick the aspirant soul */}
       <div className="rite-step">
-        <div className="rite-lab"><span className="n">1</span>{live ? "Pick your aspirant — one of your souls" : "Pick your aspirant"}</div>
+        <div className="rite-lab"><span className="n">1</span>Pick a Soul</div>
         <div className="aspirants">
           {aspirants.map((a) => {
             const st = a.state;
@@ -389,7 +389,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
 
       {/* STEP 2 — combine marks */}
       <div className="rite-step">
-        <div className="rite-lab"><span className="n">2</span>Choose marks — combine any</div>
+        <div className="rite-lab"><span className="n">2</span>Pick your marks</div>
         <div className="rtraits">
           {REAPER_MARKS.map((t) => {
             const on = worn.has(t.id);
@@ -422,11 +422,11 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
       <div className="rite-step">
         <div className="rite-lab">
           <span className="n">3</span>
-          Offer {required} Pikkazo{required === 1 ? "" : "s"} to the fire
+          Burn {required} Pikkazo{required === 1 ? "" : "s"}
         </div>
 
         {required === 0 ? (
-          <p className={styles.offerEmpty}>Choose a mark above — the fire needs canvases to consume.</p>
+          <p className={styles.offerEmpty}>Pick a mark first.</p>
         ) : (
           <>
             <div className={styles.offerHead}>
@@ -435,18 +435,18 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                 {!live && <span className={styles.demoTag}>demo wallet</span>}
               </div>
               <button className={styles.suggestBtn} onClick={resetSuggestion} type="button">
-                ✦ Auto-pick least rare
+                ✦ Auto-pick commons
               </button>
             </div>
 
             {rareChosen > 0 && (
               <div className={styles.rareWarn}>
-                ⚠ {rareChosen} rare piece{rareChosen === 1 ? "" : "s"} selected — the fire is forever. Tap to deselect, or auto-pick the commons.
+                ⚠ {rareChosen} rare piece{rareChosen === 1 ? "" : "s"} selected — burning is forever. Tap to deselect, or auto-pick commons.
               </div>
             )}
 
             {live && phase === "loaded" && wallet.length === 0 ? (
-              <p className="note">No Pikkazos in this wallet — nothing to offer. <a href="https://opensea.io/collection/cubist-souls" target="_blank" rel="noopener noreferrer">Go find some cubism.</a></p>
+              <p className="note">No Pikkazos in this wallet. <a href="https://opensea.io/collection/cubist-souls" target="_blank" rel="noopener noreferrer">Go find some.</a></p>
             ) : (
               <div className={styles.pkzGrid}>
                 {wallet.map((id) => {
@@ -478,7 +478,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
 
       {/* STEP 4 — live preview, consumption, rename */}
       <div className="rite-step">
-        <div className="rite-lab"><span className="n">4</span>The Reaper rises</div>
+        <div className="rite-lab"><span className="n">4</span>Preview</div>
         <div className="rite-preview">
           <div className="rp-portrait">
             <div className="tryon-stack">
@@ -498,12 +498,12 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
               {ascended && <span className="plate-mark">🜃</span>}
               {displayName} <span className="pnum">#{aspirantId}</span>
             </div>
-            <div className="tryon-hint">Swap soul or toggle marks freely · try before the fire</div>
+            <div className="tryon-hint">Try freely · nothing is burned yet</div>
           </div>
 
           <div>
             <div className="granted-lab">
-              Wearing · {wornMarks.length ? wornMarks.map((m) => m.name).join(" + ") : "nothing yet"}
+              Marks · {wornMarks.length ? wornMarks.map((m) => m.name).join(" + ") : "none yet"}
             </div>
             <div className="perk-chips">
               <span className="rk-chip"><span className="ico">🔥</span><b>{required}</b> Pikkazos</span>
@@ -522,8 +522,8 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                 {ascended
                   ? "★ 30 reached — renamed by the museum"
                   : required > 0
-                    ? `${ASCEND_AT - consumedAfter} more to ascend`
-                    : "add marks to feed the fire"}
+                    ? `${ASCEND_AT - consumedAfter} more to become a Reaper`
+                    : "add marks to start"}
                 {live && already > 0 ? ` · ${already} already consumed` : ""}
               </div>
             </div>
@@ -548,11 +548,11 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
             disabled={busy || !countOk}
             aria-disabled={busy || !countOk}
           >
-            {busyLabel ?? (worn.size === 0 ? `🜃 Offer ${required} to the fire` : `🜃 Forge — burn ${required} Pikkazos`)}
+            {busyLabel ?? `🔥 Burn ${required} Pikkazo${required === 1 ? "" : "s"}`}
           </button>
         ) : (
           <button className="btn-rite" disabled aria-disabled="true">
-            The rite is being prepared — the scythe is not yet forged
+            Coming soon
           </button>
         )}
         <div className="cost-line">

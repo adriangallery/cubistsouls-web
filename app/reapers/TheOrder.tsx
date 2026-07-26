@@ -48,10 +48,9 @@ export default function TheOrder({ live = false, reapers = [] }: { live?: boolea
     return (
       <div className={styles.orderEmpty}>
         <span className={styles.orderScythe}>🜃</span>
-        <p className={styles.orderEmptyLead}>The order awaits its first reaper.</p>
+        <p className={styles.orderEmptyLead}>No reapers yet.</p>
         <p className={styles.orderEmptySub}>
-          When a soul consumes thirty, the museum renames it and enshrines it here — the leaderboard of the order.
-          Below: how the order will look.
+          Hit 30 burned and your Soul becomes a Reaper — right here. Preview below.
         </p>
         <OrderGrid list={PREVIEW} layerData={layerData} preview />
       </div>

@@ -5,6 +5,7 @@ import RiteMock from "./RiteMock";
 import TheOrder from "./TheOrder";
 import { getReapers } from "@/lib/chain";
 import flags from "@/public/flags.json";
+import styles from "./reapers.module.css";
 
 // Soul Reapers — public product panel. GATED by flags.reaperLive: false = preview
 // (demo data, disabled CTA, empty Order), true = real reads/writes against the
@@ -16,21 +17,21 @@ export const revalidate = 60;
 const REAPER_LIVE = (flags as { reaperLive?: boolean }).reaperLive === true;
 
 export const metadata: Metadata = {
-  title: "Soul Reapers — the second fire",
+  title: "Soul Reapers",
   description:
-    "The second fire is coming. Burn Pikkazos for Reaper marks — special traits and Museum Hours perks. Try before the fire.",
+    "Burn Pikkazos to power up your Cubist Soul. Hit 30 and it becomes a Soul Reaper.",
   alternates: { canonical: "/reapers" },
   openGraph: {
     type: "website",
-    title: "Soul Reapers — the second fire",
-    description: "The second fire is coming. Burn Pikkazos for Reaper marks. Try before the fire.",
+    title: "Soul Reapers",
+    description: "Burn Pikkazos to power up your Soul. Hit 30 and become a Soul Reaper.",
     url: "https://cubistsouls.com/reapers",
     images: ["https://cubistsouls.vercel.app/api/img?id=136"],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Soul Reapers — the second fire",
-    description: "The second fire is coming. Burn Pikkazos for Reaper marks. Try before the fire.",
+    title: "Soul Reapers",
+    description: "Burn Pikkazos to power up your Soul. Hit 30 and become a Soul Reaper.",
     images: ["https://cubistsouls.vercel.app/api/img?id=136"],
   },
 };
@@ -46,34 +47,60 @@ export default async function ReapersPage() {
     <div className="reaper">
       <div className="teaser-strip">
         <span className="ts-dot" />
-        {REAPER_LIVE ? "The second fire burns · take up the scythe" : "The second fire is coming · the rite is being prepared"}
-        <span className="ts-legal">offerings and rewards may shift before the fire is lit</span>
+        {REAPER_LIVE ? "The fire is live · power up your Soul" : "Coming soon · try it now"}
       </div>
       <Nav active="reapers" />
 
-      {/* ---------- LORE (hero) — 2-3 lines, no paragraphs ---------- */}
+      {/* ---------- HERO — the whole page in two lines ---------- */}
       <header className="rp-hero">
         <div className="wrap">
-          <span className="rp-kicker"><span className="scythe">🜃</span>The second fire · a secret order</span>
+          <span className="rp-kicker"><span className="scythe">🜃</span>The fire</span>
           <h1 className="rp-title">SOUL <em>REAPERS</em></h1>
-          <p className="rp-tagline">Some freed souls take up the scythe.</p>
           <p className="rp-mech">
-            Feed the second fire: burn <b>Pikkazos</b> for the marks.
+            Burn <b>Pikkazos</b> to power up your Soul.
           </p>
           <p className="rp-mech rp-mech-2">
-            The fire takes <b>no freed soul</b> — it feeds on canvases. Their souls are <b>consumed</b> by your reaper.
+            Hit <b>30</b> and become a <b>SOUL REAPER</b>.
           </p>
         </div>
       </header>
 
-      <div className="rp-rule"><div className="line" /></div>
-
-      {/* ---------- THE RITE ---------- */}
+      {/* ---------- 3 STEPS — pictographic, numbered ---------- */}
       <section className="section" style={{ paddingTop: 0 }}>
         <div className="wrap">
+          <ol className={styles.steps}>
+            <li className={styles.step}>
+              <span className={styles.stepNum}>1</span>
+              <span className={styles.stepIco}>🖼️</span>
+              <span className={styles.stepTitle}>Pick a Soul</span>
+            </li>
+            <li className={styles.step}>
+              <span className={styles.stepNum}>2</span>
+              <span className={styles.stepIco}>🔥</span>
+              <span className={styles.stepTitle}>Burn Pikkazos</span>
+            </li>
+            <li className={styles.step}>
+              <span className={styles.stepNum}>3</span>
+              <span className={styles.stepIco}>🜃</span>
+              <span className={styles.stepTitle}>Unlock marks</span>
+            </li>
+          </ol>
+          <a href="#rite" className={styles.milestone}>
+            <span className={styles.milestoneMark}>🜃</span>
+            <span className={styles.milestoneNum}>30</span>
+            <span className={styles.milestoneText}>burned = <b>SOUL REAPER</b></span>
+          </a>
+        </div>
+      </section>
+
+      <div className="rp-rule"><div className="line" /></div>
+
+      {/* ---------- THE RITE — the panel is the center of the page ---------- */}
+      <section id="rite" className="section" style={{ paddingTop: 0, scrollMarginTop: "80px" }}>
+        <div className="wrap">
           <div className="sec-head">
-            <span className="eyebrow">{REAPER_LIVE ? "The rite · feed the fire" : "The rite · try before the fire"}</span>
-            <h2>ENTER <span className="rp-hot">THE ORDER</span></h2>
+            <span className="eyebrow">Do it here</span>
+            <h2>FEED <span className="rp-hot">THE FIRE</span></h2>
           </div>
           <RiteMock live={REAPER_LIVE} />
         </div>
@@ -81,11 +108,11 @@ export default async function ReapersPage() {
 
       <div className="rp-rule"><div className="line" /></div>
 
-      {/* ---------- THE ORDER — public leaderboard of reapers ---------- */}
+      {/* ---------- THE ORDER — souls that hit 30 ---------- */}
       <section className="section" style={{ paddingTop: 0 }}>
         <div className="wrap">
           <div className="sec-head">
-            <span className="eyebrow">The leaderboard of the order · souls consumed</span>
+            <span className="eyebrow">Souls that hit 30</span>
             <h2>THE <span className="rp-hot">ORDER</span></h2>
           </div>
           <TheOrder live={REAPER_LIVE} reapers={reapers} />
@@ -94,23 +121,23 @@ export default async function ReapersPage() {
 
       <div className="rp-rule"><div className="line" /></div>
 
-      {/* ---------- DOUBLE RARITY — legend + 3 cards ---------- */}
+      {/* ---------- DOUBLE RARITY — 3 cards + 2 one-line pills ---------- */}
       <section className="section" style={{ paddingTop: 0 }}>
         <div className="wrap">
           <div className="sec-head">
-            <span className="eyebrow">Two rarities, two honors</span>
-            <h2>WHAT YOU WERE <span className="rp-hot">& WHAT YOU ARE</span></h2>
+            <span className="eyebrow">Two rarities</span>
+            <h2>BORN <span className="rp-hot">&amp; BECOMING</span></h2>
           </div>
 
           {/* one line per pill */}
           <div className="rr-legend">
             <div className="rr-leg">
-              <span className="pill pill-prov">Born 🏺 Provenance</span>
+              <span className="pill pill-prov">Born 🏺</span>
               what you were born as — frozen forever.
             </div>
             <div className="rr-leg">
-              <span className="pill pill-museum">Museum ✦ Rarity</span>
-              the living one — perks read this.
+              <span className="pill pill-museum">Museum ✦</span>
+              the living rank — perks read this one.
             </div>
           </div>
 
@@ -127,7 +154,7 @@ export default async function ReapersPage() {
                   <span className="pill pill-prov">Born 🏺 Masterpiece</span>
                   <span className="pill pill-museum">Museum ✦ Rank 6</span>
                 </div>
-                <span className="rr-tag">Honorary · never devalued</span>
+                <span className="rr-tag">Never devalued</span>
               </div>
             </div>
 
@@ -143,7 +170,7 @@ export default async function ReapersPage() {
                   <span className="pill pill-prov">Born 🏺 Rare</span>
                   <span className="pill pill-museum up">Museum ▲ Ascendant</span>
                 </div>
-                <span className="rr-tag up">Ascended by the rite ▲</span>
+                <span className="rr-tag up">Ascended by the fire ▲</span>
               </div>
             </div>
 
@@ -159,14 +186,27 @@ export default async function ReapersPage() {
                   <span className="pill pill-prov">Born 🏺 Common</span>
                   <span className="pill pill-museum">Museum ✦ Rank 4,120</span>
                 </div>
-                <span className="rr-tag">The path is open to all</span>
+                <span className="rr-tag">Open to all</span>
               </div>
             </div>
           </div>
+        </div>
+      </section>
 
-          <p className="rarity-note">
-            <b>The museum never forgets what you were born as</b> — it only lets you become more.
-          </p>
+      {/* ---------- FINE PRINT — details for who wants them ---------- */}
+      <section className="section" style={{ paddingTop: 0 }}>
+        <div className="wrap">
+          <details className={styles.fine}>
+            <summary className={styles.fineSummary}>How it works — the fine print</summary>
+            <ul className={styles.fineList}>
+              <li>The fire burns <b>Pikkazos</b> (canvases), never freed Souls. Their souls are consumed by your reaper.</li>
+              <li>Each mark costs Pikkazos: <b>Orange 6 · Flame Crown 12 · Phoenix 18 · Burning Soul 30</b>.</li>
+              <li>Every burn adds to <b>Souls Consumed</b>. At <b>30</b>, the museum renames your Soul to <b>Soul Reaper</b>.</li>
+              <li>Marks add Museum Hours perks — a higher multiplier and more MH per hour.</li>
+              <li><b>The museum never forgets what you were born as</b> — it only lets you become more.</li>
+              <li>Burning is <b>irreversible</b>. Offerings and rewards may shift before launch.</li>
+            </ul>
+          </details>
         </div>
       </section>
 
