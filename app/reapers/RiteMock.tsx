@@ -656,7 +656,10 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
               <div className={styles.pbar}>
                 <div className={styles.pbarTop}>
                   <span>Souls consumed</span>
-                  <b className={ascended ? styles.pbarValUp : ""}>{consumedAfter}<i> / {ASCEND_AT}</i></b>
+                  {/* REAL consumed of THIS soul only — the slider batch is preview
+                      (ghost segment + verdict line), never mixed into this number.
+                      (Adrian 27-jul: switching souls kept showing the batch as "1"). */}
+                  <b className={ascended ? styles.pbarValUp : ""}>{already}<i> / {ASCEND_AT}</i></b>
                 </div>
                 <div className={`${styles.pbarTrack}${ascended ? " " + styles.pbarTrackUp : ""}`}>
                   <div className={styles.pbarBase} style={{ width: `${basePct}%` }} />
@@ -667,11 +670,11 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                 </div>
                 <div className={`${styles.pbarNote}${ascended ? " " + styles.pbarNoteUp : ""}`}>
                   {alreadyReaper
-                    ? `★ SOUL REAPER · ${consumedAfter} consumed`
+                    ? `★ SOUL REAPER · ${already} consumed`
                     : ascended
-                      ? "★ 30 — the final prize: the Burning Soul skin and the SOUL REAPER name"
-                      : `${ASCEND_AT - consumedAfter} more to become a Soul Reaper`}
-                  {!demo && already > 0 && !alreadyReaper ? ` · ${already} already` : ""}
+                      ? "★ this burn hits 30 — the final prize: the Burning Soul skin and the SOUL REAPER name"
+                      : `${ASCEND_AT - already} more to become a Soul Reaper`}
+                  {!demo && !alreadyReaper && required > 0 ? ` · burning +${required} now` : ""}
                 </div>
               </div>
             </div>
@@ -696,7 +699,9 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={IMG(a.id)} alt={`Cubist Soul ${a.name}`} loading="lazy" />
                     <span className="tag">{a.name}</span>
-                    {a.og && a.state && a.state.consumed > 0 ? <span className={styles.aspBadge}>🔥{a.state.consumed}</span> : null}
+                    {a.og && a.state && a.state.consumed > 0 ? (
+                      <span className={styles.aspBadge}>🔥{Math.min(a.state.consumed, ASCEND_AT)}/{ASCEND_AT}</span>
+                    ) : null}
                     {!a.og ? <span className={styles.aspLock}>OG only</span> : null}
                   </button>
                 ))}
