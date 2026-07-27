@@ -1,11 +1,35 @@
-# cubistsouls-web — migration notes (W0)
+# cubistsouls-web — migration notes
 
-New, SEPARATE Next.js 14 project for the migration of cubistsouls.com. It does
-NOT touch `pikkazo-burn` (prod). Prod keeps serving `cubistsouls.vercel.app/api/*`
-(where the on-chain SoulRendererV2 points) forever; this project's API only
-serves this site (behaviour parity, no external byte-a-byte obligation).
+Next.js 14 project for cubistsouls.com.
 
-The whole site is `X-Robots-Tag: noindex, nofollow` until the final domain flip.
+## ⚠️ MIGRATION OFF VERCEL (2026-07-27) — now self-hosted on the mini/Dokku
+
+Vercel paused the `adrianlab` team (HTTP 402 on everything), so
+`cubistsouls.vercel.app` and `pikkazo-burn.vercel.app` are **DEAD**. This repo is
+now the single source of truth for cubistsouls.com, deployed as a **Docker image
+on the mini/Dokku** (see the Dockerfile + the "Docker / mini deploy" section
+below). Nothing in the codebase may reference a `*.vercel.app` host anymore — all
+self-references are relative (`/api/img?id=…`) or absolute on
+`https://cubistsouls.com` (OG/Twitter images, contractURI, and the on-chain
+metadata TARGET `/api/meta`).
+
+**`/api/meta` is the on-chain renderer TARGET** post-migration: the diamond's
+SoulRenderer tokenURI points at `https://cubistsouls.com/api/meta?id=<id>`. It is
+ported byte-for-byte from `pikkazo-burn/api/meta.js` — verified locally against
+the canonical handler for ids 136 (OG), 23 (Era I), 8777 (reaper, 18 consumed):
+attributes byte-identical, name identical, full body identical once the dead
+vercel.app host is swapped to cubistsouls.com. Key behaviours it now carries:
+- **OG cohort is FROZEN** via `app/api/meta/og_frozen.json` (863 ids, copied from
+  pikkazo-burn). OG is decided from that set only — **never by RPC**. A non-frozen
+  soul reads its era (Era I..IV) from the diamond; on read failure the Cohort
+  trait is **OMITTED** (never defaulted to "OG" — that was the 26-jul mislabel bug).
+- **Reaper state** (soulsConsumed + marksOf on the diamond via Tenderly): marks
+  unlock by cumulative consumption (Orange@6 · Flame Crown@12 · Phoenix@18 ·
+  Burning Soul@30) ∪ legacy on-chain forged bits. Adds a `Souls Consumed` trait
+  and one `Reaper Mark` trait per mark; renames to `Soul Reaper #id` at ≥30; and
+  points `image` at `/api/reaper-img` (absolute cubistsouls.com) once marks>0.
+- **FAIL-OPEN**: any RPC/IPFS failure leaves the metadata byte-identical to the
+  pre-reaper response. tokenURI must never break.
 
 ## Stack versions (aligned with zerothetoken frontend)
 
@@ -68,14 +92,19 @@ complains about the origin.
   `next.config.mjs` ignores them via `IgnorePlugin({resourceRegExp:/^@x402\//})`.
   The `@metamask/sdk` async-storage warning is a harmless optional RN dep.
 
-## Environment variables to configure in the Vercel dashboard (NOT committed)
+## Runtime environment variables (set via `dokku config`, NOT committed)
 
 The govern + telemetry endpoints read Upstash Redis (REST) credentials from env.
-**The code uses these exact names** (NOT `KV_REST_API_URL` — that was a guess in
-the task; the real code in pikkazo-burn uses the UPSTASH_* names):
+**The code uses these exact names** (the real pikkazo-burn code uses the UPSTASH_*
+names, NOT `KV_REST_API_URL`):
 
 - `UPSTASH_REDIS_REST_URL`
 - `UPSTASH_REDIS_REST_TOKEN`
+
+Set them on the mini with `dokku config:set <app> UPSTASH_REDIS_REST_URL=… UPSTASH_REDIS_REST_TOKEN=…`
+(Dokku injects them into the container at runtime). They are the ONLY runtime env
+vars the app needs. Everything else (WalletConnect projectId, RPC endpoints,
+chain id) is baked into the client bundle at build time and is public by design.
 
 Used by:
 - `app/api/govern/vote/route.ts`   (HSET cs:gov:votes:*, INCR cs:gov:rl:*)
@@ -98,7 +127,7 @@ All 8 endpoints ported to `app/api/*/route.ts` with `runtime = "nodejs"`:
 
 | endpoint | notes |
 |---|---|
-| meta | JSON shape/key order/Cache-Control identical; Cohort read via RPC (tenderly→publicnode→llamarpc, 5s timeout, "OG" fallback) |
+| meta | JSON shape/key order/Cache-Control identical; OG frozen (og_frozen.json), else era via RPC (tenderly→publicnode→llamarpc, 5s) — omitted on failure, never "OG"; reaper state (consumed/marks); reaper-img image when marks>0; rename Soul Reaper #id at ≥30. Byte-verified vs pikkazo for 136/23/8777 |
 | img | mirror-first then race IPFS gateways; 400/502; immutable cache |
 | collection | static JSON; byte-identical |
 | render | sharp composite 768×768; `maxDuration=60`; 400/502 |
@@ -114,10 +143,37 @@ wallet.js, tele.js, traits-svg, test-traits) for the future design/pages waves.
 
 ## Config
 
-- `next.config.mjs`: global `X-Robots-Tag: noindex, nofollow` + security headers
-  (X-Content-Type-Options, Referrer-Policy, HSTS) on every path; long immutable
-  Cache-Control on static image/font assets (mirrors pikkazo-burn/vercel.json).
-- **No host-based redirects** — those stay in the old project (pikkazo-burn).
+- `next.config.mjs`: `output: "standalone"` (for the Docker image); security
+  headers (X-Content-Type-Options, Referrer-Policy, HSTS) on every path; long
+  immutable Cache-Control on static image/font assets; clean-URL rewrites +
+  redirects for the still-legacy /public HTML pages. The site is PUBLIC (no global
+  noindex; only the legacy secret pages keep inline `<meta robots noindex>`).
+
+## Docker / mini deploy
+
+- **`Dockerfile`** — multi-stage `node:20-slim` (deps → builder → runner). Emits
+  the Next standalone server; the runner carries only `.next/standalone` +
+  `.next/static` + `public` + `sharp`/`@img`. Runs as non-root `nextjs`. Starts
+  with `node server.js`.
+- **PORT**: `ENV PORT=5000` + `EXPOSE 5000`. Dokku injects `PORT` for image
+  deploys (5000 default); `server.js` honours `process.env.PORT`, so it works
+  whatever Dokku sets. `HOSTNAME=0.0.0.0` so it binds all interfaces.
+- **sharp**: `node:20-slim` (glibc), NOT alpine — sharp's default glibc prebuilt
+  "just works"; alpine/musl needs the `@img/sharp-linuxmusl-*` variant and Next's
+  file-tracing is flaky about copying optional native deps. The runner *also*
+  copies `node_modules/sharp` + `node_modules/@img` from the builder explicitly as
+  a belt-and-suspenders guarantee (verified: tracing DID include them, but the
+  copy protects against a future tracing regression). `/api/render` and
+  `/api/reaper-img` need it. If you ever switch to alpine and sharp errors at
+  runtime with "Could not load the sharp module", that's the musl binary missing.
+- **public/ at runtime**: `/api/reaper-img` reads SVGs from
+  `process.cwd()/public/assets/...`, so the runner MUST have `public/` copied
+  alongside `server.js` (it does). Do not prune it.
+- **Secrets**: none baked into the image. `UPSTASH_*` come from `dokku config`.
+- **No secrets in build args** either — nothing UPSTASH-related is a NEXT_PUBLIC
+  build-time var, so a plain `docker build` (no build-args) is correct.
+- Local sanity check of the built image contract:
+  `PORT=5055 node .next/standalone/server.js` then `curl localhost:5055/api/meta?id=136`.
 
 ## Verify parity
 

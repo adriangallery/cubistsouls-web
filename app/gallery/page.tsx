@@ -6,15 +6,15 @@ import { getFreed, getSupply, getConsumed } from "@/lib/chain";
 
 export const revalidate = 60;
 
-// Real soul art via the on-chain renderer host.
-const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
+// Real soul art via the site's own image route (same-origin, relative).
+const IMG = (id: number) => `/api/img?id=${id}`;
 
 export const metadata: Metadata = {
   title: "The Freed — Cubist Souls",
   description: "Every soul pulled from the ash — the community's ledger of liberations.",
   openGraph: {
     title: "The Freed — Cubist Souls",
-    images: ["https://cubistsouls.vercel.app/api/img?id=136"],
+    images: ["https://cubistsouls.com/api/img?id=136"],
   },
 };
 

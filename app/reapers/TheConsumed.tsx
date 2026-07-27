@@ -8,7 +8,7 @@ import styles from "./reapers.module.css";
 // handed down. Native lazy-loading on the art; long histories collapse to the
 // most recent ~24 with an "and N more" line. Server component — no client JS.
 
-const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
+const IMG = (id: number) => `/api/img?id=${id}`;
 const MAX = 24;
 
 export default function TheConsumed({ data }: { data: ConsumedData }) {

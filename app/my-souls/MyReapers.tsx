@@ -17,7 +17,7 @@ import {
 // soul shows the marks it forged (never a blend over the flat PNG). No reapers in
 // progress → one discreet line with a CTA, never a big empty panel.
 
-const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
+const IMG = (id: number) => `/api/img?id=${id}`;
 
 export type MineEntry = { id: number; consumed: number; marks: number[]; isReaper: boolean };
 

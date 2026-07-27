@@ -14,8 +14,8 @@ export async function GET() {
   const body = {
     name: "Cubist Souls",
     description: LORE,
-    image: "https://cubistsouls.vercel.app/soul.jpg",
-    external_link: "https://cubistsouls.vercel.app",
+    image: "https://cubistsouls.com/soul.jpg",
+    external_link: "https://cubistsouls.com",
   };
   return Response.json(body, {
     status: 200,

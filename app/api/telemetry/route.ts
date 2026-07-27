@@ -24,8 +24,6 @@ const MAX_UA = 512;
 const ALLOW_EXACT = new Set([
   "https://cubistsouls.com",
   "https://www.cubistsouls.com",
-  "https://cubistsouls.vercel.app",
-  "https://pikkazo-burn.vercel.app",
 ]);
 const ALLOW_LOCAL = /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
 

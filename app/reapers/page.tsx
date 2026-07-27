@@ -27,13 +27,13 @@ export const metadata: Metadata = {
     title: "Soul Reapers",
     description: "Burn Pikkazos to power up your Soul. Hit 30 and become a Soul Reaper.",
     url: "https://cubistsouls.com/reapers",
-    images: ["https://cubistsouls.vercel.app/api/img?id=136"],
+    images: ["https://cubistsouls.com/api/img?id=136"],
   },
   twitter: {
     card: "summary_large_image",
     title: "Soul Reapers",
     description: "Burn Pikkazos to power up your Soul. Hit 30 and become a Soul Reaper.",
-    images: ["https://cubistsouls.vercel.app/api/img?id=136"],
+    images: ["https://cubistsouls.com/api/img?id=136"],
   },
 };
 

@@ -28,8 +28,8 @@ const mono = Space_Mono({
 
 // OG/Twitter tags kept identical to prod (pikkazo-burn/index.html). The site is
 // now PUBLIC (domain flip to cubistsouls.com): canonical URLs point at the real
-// domain; og:image stays on cubistsouls.vercel.app/api/img (that host doesn't
-// change — it's where the on-chain renderer lives).
+// domain and og:image is absolute on cubistsouls.com/api/img — the old
+// cubistsouls.vercel.app host is dead (Vercel 402), so nothing may reference it.
 export const metadata: Metadata = {
   metadataBase: new URL("https://cubistsouls.com"),
   title: "Cubist Souls — freed by fire",
@@ -44,14 +44,14 @@ export const metadata: Metadata = {
     description:
       "Burn a Pikkazo canvas and you get its Cubist Soul — same number, original art recovered — minted straight to your wallet on Ethereum.",
     url: "https://cubistsouls.com",
-    images: ["https://cubistsouls.vercel.app/api/img?id=136"],
+    images: ["https://cubistsouls.com/api/img?id=136"],
   },
   twitter: {
     card: "summary_large_image",
     title: "Burn Art — free your Cubist Soul",
     description:
       "Burn a Pikkazo canvas and you get its Cubist Soul — same number, original art recovered.",
-    images: ["https://cubistsouls.vercel.app/api/img?id=136"],
+    images: ["https://cubistsouls.com/api/img?id=136"],
   },
 };
 

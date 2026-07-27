@@ -1,5 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Self-hosted (mini/Dokku) via a Docker image — emit the minimal standalone
+  // server (.next/standalone/server.js) so the runtime image carries only the
+  // traced deps, not the full node_modules. Dokku injects PORT (defaults to 5000
+  // for image deploys); server.js honours process.env.PORT.
+  output: "standalone",
   // wagmi v2.19 pulls the Base Account connector, whose @coinbase/cdp-sdk has
   // optional x402 (Solana/EVM payment) sub-imports we never reach. They aren't
   // installed and would fail the build — alias them (and the usual web3 noise)

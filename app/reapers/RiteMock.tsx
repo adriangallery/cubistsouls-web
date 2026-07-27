@@ -56,7 +56,7 @@ import styles from "./reapers.module.css";
 // The tx is ALWAYS offer() — forgeMark is never called (the milestone marks are
 // display-derived; the V3 cut that aligns marksOf on-chain ships in parallel).
 
-const IMG = (id: number) => `https://cubistsouls.vercel.app/api/img?id=${id}`;
+const IMG = (id: number) => `/api/img?id=${id}`;
 
 // HTML-capable toast (etherscan links). Content is fully controlled.
 function toast(html: string, ms = 7000) {

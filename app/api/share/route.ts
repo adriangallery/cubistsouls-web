@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   const combo = validCombo(raw) ? String(raw).trim().toLowerCase() : null;
 
   const proto = (req.headers.get("x-forwarded-proto") || "https").split(",")[0];
-  const host = req.headers.get("host") || "cubistsouls.vercel.app";
+  const host = req.headers.get("host") || "cubistsouls.com";
   const origin = `${proto}://${host}`;
 
   const builderUrl = combo ? `/builder?combo=${combo}` : "/builder";
