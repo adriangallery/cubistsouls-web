@@ -30,14 +30,16 @@ export function mineFrom(reaper: Map<number, ReaperState> | null, owned: number[
     .sort((a, b) => b.consumed - a.consumed || a.id - b.id);
 }
 
-export default function MyReapers({ mine }: { mine: MineEntry[] }) {
+export default function MyReapers({ mine, mode = "self" }: { mine: MineEntry[]; mode?: "self" | "public" }) {
   const [layerData, setLayerData] = useState<LayerData | null>(null);
   useEffect(() => {
     if (mine.length) loadLayerData().then(setLayerData).catch(() => {});
   }, [mine.length]);
 
-  // no rite in progress — a single discreet line, not an empty panel.
+  // no rite in progress. On a public profile there's nothing to prompt (the visitor
+  // can't feed someone else's reaper) → render nothing rather than a dead CTA.
   if (!mine.length) {
+    if (mode === "public") return null;
     return (
       <div className="rm-none">
         <span className="rm-none-mark">🜃</span>
@@ -50,15 +52,17 @@ export default function MyReapers({ mine }: { mine: MineEntry[] }) {
   }
 
   return (
-    <section className="reapers-mine" aria-label="Your Reapers">
+    <section className="reapers-mine" aria-label="Reapers">
       <div className="rm-head">
         <span className="rm-title">
-          <span className="rm-mark">🜃</span> YOUR REAPERS
+          <span className="rm-mark">🜃</span> {mode === "self" ? "YOUR REAPERS" : "REAPERS"}
         </span>
         <span className="rm-meta">{mine.length} in the fire</span>
-        <a className="rm-cta" href="/reapers#rite">
-          Feed the fire →
-        </a>
+        {mode === "self" ? (
+          <a className="rm-cta" href="/reapers#rite">
+            Feed the fire →
+          </a>
+        ) : null}
       </div>
       <div className="rm-grid">
         {mine.map((e) => {

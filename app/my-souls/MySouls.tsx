@@ -1,26 +1,20 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { useAccount, usePublicClient } from "wagmi";
+import { useCallback, useEffect, useState } from "react";
+import { useAccount } from "wagmi";
 import { ConnectButton, useConnectModal } from "@rainbow-me/rainbowkit";
 import Nav from "../components/Nav";
 import Footer from "../components/Footer";
-import CollabGrid from "./CollabGrid";
-import Panel from "../components/Panel";
-import MyReapers, { mineFrom, type MineEntry } from "./MyReapers";
-import Standing from "./Standing";
 import MobileWalletSheet, { useIsMobileNoInjected } from "../components/MobileWalletSheet";
-import { loadSouls, tierOf, type SoulsData } from "@/lib/souls";
-import { buildMyMH, boardForAccount, type MyMHResult, type MHBoardResult, type MHBoardRow, type BoardData } from "@/lib/mh";
-import { getReaperState, type ReaperState } from "@/lib/reaper";
+import Dashboard from "./Dashboard";
+import { useHolderData } from "./useHolderData";
+import { tierOf } from "@/lib/souls";
 import { drawCard, shareText, downloadBlob, type CardStats } from "@/lib/share-card";
-import flags from "@/public/flags.json";
 
-const REAPER_LIVE = (flags as { reaperLive?: boolean }).reaperLive === true;
-
-// DEV-ONLY read-only harness: ?as=0x… lets us render another wallet's page
-// (no signer, reads only) to reproduce/verify. Gated to NODE_ENV==="development"
-// so it is inert in every deployed build — the branch is dead code in prod.
+// DEV-ONLY read-only harness: ?as=0x… lets us render another wallet's page (no
+// signer, reads only) to reproduce/verify. Gated to development so it is inert in
+// every deployed build. NOTE: the PUBLIC equivalent of this harness is now the real
+// /curator/<address> route — this stays only as a dev convenience on my-souls.
 function useDevAs(): string | undefined {
   const [as, setAs] = useState<string | undefined>();
   useEffect(() => {
@@ -29,21 +23,6 @@ function useDevAs(): string | undefined {
     if (v && /^0x[0-9a-fA-F]{40}$/.test(v)) setAs(v.toLowerCase());
   }, []);
   return as;
-}
-
-const mhNum = (v: number) =>
-  (v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-// "updated Nm ago" for the board's cached snapshot. The board is a 5-min server
-// snapshot, so your own row can trail the live hero by a few minutes — this caption
-// makes that lag read as freshness, not a bug (see NOTES.md "Curators' board Δ").
-function agoShort(ms: number): string {
-  const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
-  if (s < 60) return "just now";
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  return `${h}h ago`;
 }
 
 function toast(msg: string, ms = 6000) {
@@ -55,13 +34,8 @@ function toast(msg: string, ms = 6000) {
   if (ms) setTimeout(() => t.remove(), ms);
 }
 
-type Phase = "idle" | "loading" | "loaded" | "error";
-
 export default function MySouls() {
-  // Museum Hours are PUBLIC now — always shown, integrated below the collection
-  // (no ?mh=1 gate; the flag survives only as a harmless no-op).
   const { address, isConnected } = useAccount();
-  const client = usePublicClient();
   const { openConnectModal } = useConnectModal();
   const mobileNoInjected = useIsMobileNoInjected();
   const [sheet, setSheet] = useState(false);
@@ -72,17 +46,8 @@ export default function MySouls() {
   const connected = !!devAs || isConnected;
 
   const [mounted, setMounted] = useState(false);
-  const [phase, setPhase] = useState<Phase>("idle");
-  const [data, setData] = useState<SoulsData | null>(null);
-  const [reaper, setReaper] = useState<Map<number, ReaperState> | null>(null); // per-owned reaper state
-  const [myMh, setMyMh] = useState<MyMHResult | null>(null);
-  const [mhPhase, setMhPhase] = useState<Phase>("idle"); // your-hours pass (cheap)
-  const [board, setBoard] = useState<MHBoardResult | null>(null);
-  const [boardPhase, setBoardPhase] = useState<Phase>("idle"); // leaderboard (server-cached)
-  const [boardUpdatedAt, setBoardUpdatedAt] = useState<number | null>(null); // snapshot age caption
   const [cardBusy, setCardBusy] = useState(false);
   const [collab, setCollab] = useState(true); // WTP collab spark; fail-open
-  const reqRef = useRef(0); // guards against stale async when the wallet changes
 
   useEffect(() => setMounted(true), []);
 
@@ -94,94 +59,9 @@ export default function MySouls() {
       .catch(() => {});
   }, []);
 
-  const load = useCallback(
-    async (acct: string) => {
-      if (!client) return;
-      const reqId = ++reqRef.current;
-      setPhase("loading");
-      setData(null);
-      setReaper(null);
-      setMyMh(null);
-      setBoard(null);
-      setBoardUpdatedAt(null);
-      setMhPhase("idle");
-      setBoardPhase("idle");
-      try {
-        const d = await loadSouls(client, acct);
-        if (reqId !== reqRef.current) return;
-        setData(d);
-        setPhase("loaded");
-        if (d.freed > 0) {
-          // Per-owned reaper state (consumed/marks) — cheap multicall. Powers the
-          // "souls consumed" plaque stat, the YOUR REAPERS block, and the Reaper MH
-          // multiplier fed into buildMyMH. Only fires when the facet is live.
-          const rmap = REAPER_LIVE ? await getReaperState(client, d.owned) : new Map<number, ReaperState>();
-          if (reqId !== reqRef.current) return;
-          setReaper(rmap);
-          const consumedById = new Map([...rmap].map(([id, s]) => [id, s.consumed]));
-          // Phase 1 — YOUR hours (cheap; only your souls). Shows in seconds.
-          setMhPhase("loading");
-          try {
-            const my = await buildMyMH(client, acct, d.owned, d.freed, d.acq, consumedById, REAPER_LIVE);
-            if (reqId !== reqRef.current) return;
-            setMyMh(my);
-            setMhPhase("loaded");
-            // Phase 2 — the curators' board. NOW a server-cached 5-min snapshot:
-            // fetch the precomputed leaderboard JSON and slice THIS wallet's row
-            // locally (boardForAccount), instead of scanning the whole collection in
-            // the browser. Loads near-instantly once the server memo is warm; runs in
-            // the background so even a cold first fetch never hides the live hero.
-            // The board's MH for your row is the snapshot value (up to 5 min old vs
-            // the live hero — the "updated Nm ago" caption owns that delta on purpose;
-            // see NOTES.md "Curators' board Δ").
-            setBoardPhase("loading");
-            fetch("/api/board", { cache: "no-store" })
-              .then((r) => r.json() as Promise<BoardData>)
-              .then((bd) => {
-                if (reqId !== reqRef.current) return;
-                setBoard(boardForAccount(bd, acct));
-                setBoardUpdatedAt(bd.updatedAt || null);
-                setBoardPhase("loaded");
-              })
-              .catch(() => {
-                if (reqId === reqRef.current) setBoardPhase("error");
-              });
-          } catch {
-            if (reqId === reqRef.current) setMhPhase("error");
-          }
-        }
-      } catch {
-        if (reqId === reqRef.current) setPhase("error");
-      }
-    },
-    [client],
-  );
-
-  useEffect(() => {
-    if (mounted && connected && account) load(account);
-    if (mounted && !connected) {
-      reqRef.current++;
-      setPhase("idle");
-      setData(null);
-      setReaper(null);
-      setMyMh(null);
-      setBoard(null);
-      setBoardUpdatedAt(null);
-      setMhPhase("idle");
-      setBoardPhase("idle");
-    }
-  }, [mounted, connected, account, load]);
-
-  // Souls consumed = Σ soulsConsumed over the souls this wallet HOLDS (task rule:
-  // "souls freed" stays pure mints; consumed travels with the token). The mine list
-  // (souls with the fire in them) drives the YOUR REAPERS block.
-  const mine: MineEntry[] = data ? mineFrom(reaper, data.owned) : [];
-  const consumed = mine.reduce((s, e) => s + e.consumed, 0);
-  // Total contribution = freed + consumed. Deck tier upgrades instantly (cheap
-  // consumed); deck rank/total upgrade to the exact board figures when they land.
-  const contribution = (data?.freed ?? 0) + consumed;
-  const deckRank = board ? board.myRank : data?.rank ?? 0;
-  const deckTotal = board ? board.totalLibs : data?.totalLibs ?? 0;
+  // ── the shared per-holder load — SAME hook /curator uses (read-only there) ──
+  const h = useHolderData(account, mounted && connected && !!account);
+  const { phase, data, myMh, mhPhase, board, boardPhase, boardUpdatedAt, mine, consumed, contribution, deckRank, deckTotal, reaperLive } = h;
 
   const cardStats: CardStats | null =
     data && data.freed > 0
@@ -243,9 +123,6 @@ export default function MySouls() {
     <>
       <Nav active="souls" />
 
-      {/* Masthead as a single compact row: identity on the left, wallet on the
-          right. The lead only shows before you're in — once the deck and the
-          panels are on screen, THEY are the page (Adrian, 26-jul). */}
       <header className="ms-top wrap">
         <div className="ms-top-l">
           <div className="eyebrow">Your place in the gallery</div>
@@ -293,6 +170,7 @@ export default function MySouls() {
         ) : (
           data && (
             <Dashboard
+              mode="self"
               data={data}
               shareRow={shareRow}
               address={account ?? ""}
@@ -307,6 +185,7 @@ export default function MySouls() {
               board={board}
               boardPhase={boardPhase}
               boardUpdatedAt={boardUpdatedAt}
+              reaperLive={reaperLive}
             />
           )
         )}
@@ -326,328 +205,6 @@ function EmptyState() {
       <p className="note" style={{ padding: "8px 0 0" }}>
         Connect your wallet to see the Cubist Souls you&apos;ve freed and your standing among the liberators.
       </p>
-    </div>
-  );
-}
-
-
-/* ================= dashboard (the control room) =================
-   One deck bar on top, then a two-column grid of collapsible panels:
-   Museum Hours + Curators' board on top (the upper zone is for the MH now),
-   YOUR REAPERS in the low-left slot where "Your standing" used to sit, and
-   the collection across the full width. Stacked cards wasted the screen and
-   buried MH under 346 souls (Adrian, 25-jul).
-
-   Layout re-ordered 26-jul (Adrian: "quita Your standing de momento, ahí pones
-   los reapers, la parte superior para las MH"): the standing/badges panel is
-   retired (see below), REAPERS moved down out of its oversized band over MH.
-   ================================================================ */
-function Dashboard({
-  data,
-  shareRow,
-  address,
-  collab,
-  mine,
-  consumed,
-  contribution,
-  deckRank,
-  deckTotal,
-  myMh,
-  mhPhase,
-  board,
-  boardPhase,
-  boardUpdatedAt,
-}: {
-  data: SoulsData;
-  shareRow: React.ReactNode;
-  address: string;
-  collab: boolean;
-  mine: MineEntry[];
-  consumed: number;
-  contribution: number;
-  deckRank: number;
-  deckTotal: number;
-  myMh: MyMHResult | null;
-  mhPhase: Phase;
-  board: MHBoardResult | null;
-  boardPhase: Phase;
-  boardUpdatedAt: number | null;
-}) {
-  // Tier by TOTAL contribution (freed + consumed) — offerings never cost you rank.
-  const tier = tierOf(contribution);
-  // NOTE: `earned`/`openSeats` (the "Your standing" badge counts) were removed with
-  // that panel (retired 26-jul, see below). myMh.achievements still exists in lib/mh.
-  const boardTop = board ? Math.min(20, board.rows.filter((r) => !r.gap).length) : 0;
-  // per-soul consumed → the collection grid shows composed (marked) art for souls
-  // that carry the fire. `mine` only holds souls with consumed > 0 (all we need).
-  const consumedById = new Map(mine.map((e) => [e.id, e.consumed]));
-
-  return (
-    <>
-      {/* ---- deck: the recognition plaque, laid out as a status bar ---- */}
-      <div className="deck">
-        <div className="dk-id">
-          <div className="dk-tier">Founding Liberator · {tier}</div>
-          <div className="dk-headline">
-            You freed <b>{data.freed}</b> soul{data.freed === 1 ? "" : "s"}
-          </div>
-        </div>
-        <div className="dk-stats">
-          <div className="dk-stat">
-            <b>#{deckRank}</b>
-            <span>of {deckTotal} liberators</span>
-          </div>
-          <div className="dk-stat">
-            <b>{data.freed}</b>
-            <span>souls freed</span>
-          </div>
-          {REAPER_LIVE ? (
-            <div className="dk-stat">
-              <b>{consumed}</b>
-              <span>souls consumed</span>
-            </div>
-          ) : null}
-          <div className="dk-stat">
-            <b>{data.owned.length}</b>
-            <span>held now</span>
-          </div>
-        </div>
-        <div className="dk-actions">{shareRow}</div>
-      </div>
-
-      <div className="dash">
-        <Panel
-          id="mh"
-          title="🏛 Museum Hours"
-          meta={myMh ? `${mhNum(myMh.me.mh)} MH` : mhPhase === "error" ? "unavailable" : "counting…"}
-        >
-          <MHHero myMh={myMh} mhPhase={mhPhase} heldNone={!data.owned.length} />
-        </Panel>
-
-        <Panel
-          id="board"
-          title="Curators' board"
-          meta={board ? `top ${boardTop} of ${board.rows.length}` : boardPhase === "error" ? "unavailable" : "tallying…"}
-          tall
-        >
-          <BoardBody board={board?.rows ?? null} boardPhase={boardPhase} updatedAt={boardUpdatedAt} />
-        </Panel>
-
-        {/* ---- RAFFLE tickets moved INTO the standing grid (row 1, beside Weight
-             + Projection) so the dashboard reads as ordered blocks with no loose
-             card floating over MH (Adrian, 28-jul). ---- */}
-
-        {/* ---- YOUR REAPERS — moved here (low-left slot, where "Your standing"
-             used to sit) per Adrian 26-jul. As a grid item it sizes to its
-             content instead of floating one card in an oversized band over MH. ---- */}
-        {REAPER_LIVE ? <MyReapers mine={mine} /> : null}
-
-        {/* ---- YOUR STANDING — the 8-card read-out (rarity, weight, projection,
-             milestones, spotlight, member-since, cohorts). Full-width panel;
-             board-dependent numbers fill in on the two-phase pass. ---- */}
-        <Standing
-          data={data}
-          myMh={myMh}
-          board={board}
-          boardPhase={boardPhase}
-          mine={mine}
-          consumed={consumed}
-          contribution={contribution}
-          reaperLive={REAPER_LIVE}
-        />
-
-        {/* "Your standing" (the MH achievement badges) — RETIRADO 26-jul por
-            Adrian ("quita Your standing de momento"), PUEDE VOLVER. The badge
-            engine (myMh.achievements) stays in lib/mh, only this render is off.
-        <Panel id="standing" title="Your standing" meta={myMh ? `${earned} of ${openSeats}` : undefined}>
-          {myMh ? (
-            <div className="mh-badges">
-              {myMh.achievements.map((a, i) => (
-                <div
-                  className={`ach ${a.state}`}
-                  key={i}
-                  title={a.state === "locked" ? "The museum keeps its secrets." : a.ds}
-                >
-                  <div className="ico">{a.ic}</div>
-                  <div className="nm">{a.nm}</div>
-                  <div className="ds">{a.ds}</div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="mh-status">
-              {mhPhase === "error"
-                ? "The museum's records are unavailable right now."
-                : "The museum is checking your standing…"}
-            </p>
-          )}
-        </Panel>
-        */}
-
-        <Panel
-          id="collection"
-          title="Your collection"
-          meta={`${data.owned.length} soul${data.owned.length === 1 ? "" : "s"}`}
-          wide
-        >
-          {data.owned.length ? (
-            <CollabGrid
-              owned={data.owned}
-              address={address}
-              collabEnabled={collab}
-              exhibits={myMh?.exhibits ?? null}
-              consumedById={consumedById}
-            />
-          ) : (
-            <p className="mh-status">
-              You&apos;ve freed souls but hold none right now — the clock only runs on souls you keep.
-            </p>
-          )}
-        </Panel>
-      </div>
-
-      <div className="rewards">
-        <h3>You were early</h3>
-        <p>
-          You reclaimed the collection when it mattered. Founding Liberators won&apos;t be forgotten — more on that
-          soon.
-        </p>
-      </div>
-    </>
-  );
-}
-
-/* ---------------- Museum Hours hero (live counter) ---------------- */
-function MHHero({ myMh, mhPhase, heldNone }: { myMh: MyMHResult | null; mhPhase: Phase; heldNone: boolean }) {
-  const countRef = useRef<HTMLSpanElement>(null);
-
-  // Live counter: base + rate × hoursElapsed, ticking client-side (rAF), exactly
-  // like the vanilla page. Falls back to a 1s interval under reduced-motion.
-  useEffect(() => {
-    if (!myMh) return;
-    const el = countRef.current;
-    if (!el) return;
-    const t0 = performance.now();
-    const reduced = matchMedia("(prefers-reduced-motion:reduce)").matches;
-    let raf = 0;
-    let iv: ReturnType<typeof setInterval> | undefined;
-    const frame = () => {
-      el.textContent = mhNum(myMh.me.mh + myMh.me.rate * ((performance.now() - t0) / 3600000));
-      if (!reduced) raf = requestAnimationFrame(frame);
-    };
-    frame();
-    if (reduced) iv = setInterval(frame, 1000);
-    return () => {
-      if (raf) cancelAnimationFrame(raf);
-      if (iv) clearInterval(iv);
-    };
-  }, [myMh]);
-
-  // Still counting YOUR hours — a distinct LOADING state (not the failure note).
-  if (!myMh && (mhPhase === "loading" || mhPhase === "idle")) {
-    return (
-      <div className="mh-hero" aria-busy="true">
-        <div className="cap">Your Museum Hours</div>
-        <div className="mh-count">
-          <span className="spinner" aria-hidden="true" />
-        </div>
-        <div className="mh-rate">The museum is counting your hours…</div>
-      </div>
-    );
-  }
-
-  // The cheap pass genuinely failed — only now show the unavailable note.
-  if (!myMh) {
-    return <p className="mh-status">The museum&apos;s records are unavailable right now. Try again shortly.</p>;
-  }
-
-  return (
-    <>
-      <div className="mh-hero">
-        <div className="cap">Your Museum Hours</div>
-        <div className="mh-count">
-          <span className="v" ref={countRef}>
-            {mhNum(myMh.me.mh)}
-          </span>
-          <span className="unit">MH</span>
-        </div>
-        <div className="mh-rate">+{mhNum(myMh.me.rate)} MH / hour</div>
-        <div className="mh-mult">
-          <span className="mh-chip">
-            Souls held <b>{myMh.me.heldCount}</b>
-          </span>
-          <span className="mh-chip">
-            Liberator <b>{myMh.me.lib.name}</b> ×{myMh.me.lib.mult}
-          </span>
-          {myMh.me.reaperCount > 0 ? (
-            <span className="mh-chip reaper">
-              🜃 Inherited <b>+{myMh.me.inheritedMH}</b> MH/h
-            </span>
-          ) : null}
-          {myMh.me.maxProvBonus > 0 ? (
-            <span className="mh-chip">
-              🏺 Provenance <b>+{myMh.me.maxProvBonus}%</b>
-            </span>
-          ) : null}
-          <span className="mh-chip">
-            Base <b>1.0</b> MH / soul / hr
-          </span>
-        </div>
-      </div>
-
-      {heldNone ? (
-        <p className="mh-status">
-          You hold no souls in this wallet right now — the clock only runs on souls you keep.
-        </p>
-      ) : null}
-
-      <p className="mh-foot">
-        The museum records every hour its souls are kept. Preview · their purpose will be revealed.
-      </p>
-    </>
-  );
-}
-
-/* ---------------- Curators' board (server-cached snapshot) ---------------- */
-function BoardBody({
-  board,
-  boardPhase,
-  updatedAt,
-}: {
-  board: MHBoardRow[] | null;
-  boardPhase: Phase;
-  updatedAt: number | null;
-}) {
-  if (!board) {
-    return (
-      <p className="mh-status">
-        {boardPhase === "error"
-          ? "The full board couldn't load right now — your hours are current."
-          : "Tallying the curators' board…"}
-      </p>
-    );
-  }
-  return (
-    <div className="mh-board">
-      {board.map((r, i) =>
-        r.gap ? (
-          <div key={`g${i}`}>
-            <div className="lb-gap">···</div>
-            <div className="lb-row me">
-              <span className="rk">#{r.rank}</span>
-              <span className="addr">{r.addr}</span>
-              <span className="mh">{mhNum(r.mh)} MH</span>
-            </div>
-          </div>
-        ) : (
-          <div className={`lb-row ${r.isMe ? "me" : ""}`} key={i}>
-            <span className="rk">#{r.rank}</span>
-            <span className="addr">{r.addr}</span>
-            <span className="mh">{mhNum(r.mh)} MH</span>
-          </div>
-        ),
-      )}
-      {updatedAt ? <div className="lb-updated">Snapshot · updated {agoShort(updatedAt)}</div> : null}
     </div>
   );
 }

@@ -79,7 +79,7 @@ export type MHExhibit = {
   raritySeal?: string;
   rankTxt?: string;
 };
-export type MHBoardRow = { rank: number; addr: string; mh: number; isMe: boolean; gap?: boolean };
+export type MHBoardRow = { rank: number; addr: string; mh: number; isMe: boolean; gap?: boolean; raw?: string };
 // The board pass also resolves the deck's rank/tier by TOTAL contribution
 // (freed + consumed) — see buildBoard. Returned alongside the rows so my-souls
 // upgrades the plaque from the instant freed-based rank to the exact one.
@@ -463,10 +463,10 @@ export function boardForAccount(bd: BoardData, account: string): MHBoardResult {
   const meIdx = bd.rows.findIndex((r) => r.raw === acct);
   const rows: MHBoardRow[] = bd.rows
     .slice(0, 20)
-    .map((r) => ({ rank: r.rank, addr: r.addr, mh: r.mh, isMe: r.raw === acct }));
+    .map((r) => ({ rank: r.rank, addr: r.addr, mh: r.mh, isMe: r.raw === acct, raw: r.raw }));
   if (meIdx >= 20) {
     const me = bd.rows[meIdx];
-    rows.push({ rank: me.rank, addr: me.addr, mh: me.mh, isMe: true, gap: true });
+    rows.push({ rank: me.rank, addr: me.addr, mh: me.mh, isMe: true, gap: true, raw: me.raw });
   }
   const cIdx = bd.contrib.findIndex((c) => c.raw === acct);
   const myContribution = cIdx >= 0 ? bd.contrib[cIdx].contribution : 0;

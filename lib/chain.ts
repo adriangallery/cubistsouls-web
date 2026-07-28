@@ -134,7 +134,8 @@ export type ReaperOrderEntry = {
 // A RISING soul — one already burning canvases (0 < soulsConsumed < 30) but not
 // yet ascended (no rename). The aspirants of THE ORDER. Derived from the same
 // on-chain activity as THE CONSUMED, so it's real regardless of the reaper flag.
-export type RisingEntry = { id: number; consumed: number; marks: number[] };
+// `holder` (ownerOf, best-effort) lets the row link to that holder's /curator page.
+export type RisingEntry = { id: number; consumed: number; marks: number[]; holder?: string };
 
 // THE CONSUMED — the memorial of canvases the fire ate. `total` is the on-chain
 // truth (Σ soulsConsumed over every reaper with activity, read fresh), NOT an
@@ -333,11 +334,16 @@ export async function getRising(): Promise<RisingEntry[]> {
     const entries = await Promise.all(
       [...ids].map(async (id) => {
         try {
-          const [cRes, mRes] = await Promise.all([
+          // ownerOf is best-effort (drives the /curator link only); a failure there
+          // must NOT mark the roster partial — the aspirant is still real without it.
+          const [cRes, mRes, oRes] = await Promise.all([
             rpc("eth_call", [{ to: SOULS, data: SEL_SOULS_CONSUMED + pad(id) }, "latest"]),
             rpc("eth_call", [{ to: SOULS, data: SEL_MARKS_OF + pad(id) }, "latest"]),
+            rpc("eth_call", [{ to: SOULS, data: SEL_OWNER_OF + pad(id) }, "latest"]).catch(() => null),
           ]);
-          return { id, consumed: parseInt(cRes, 16) || 0, marks: decodeMarksBitmask(mRes) };
+          const holder = oRes ? "0x" + String(oRes).slice(-40) : undefined;
+          const clean = holder && !/^0x0+$/.test(holder) ? holder : undefined;
+          return { id, consumed: parseInt(cRes, 16) || 0, marks: decodeMarksBitmask(mRes), holder: clean };
         } catch {
           failed = true;
           return { id, consumed: 0, marks: [] as number[] };

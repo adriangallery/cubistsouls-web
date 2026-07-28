@@ -1378,9 +1378,19 @@
   text-transform: uppercase;
   color: var(--reaper-lite);
 }
-/* narrow: drop the mark names, keep art/id/bar/count in one line */
+/* holder → their public /curator page (invite the click) */
+.risingHolder {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--ash-grey);
+  text-decoration: none;
+}
+.risingHolder:hover { color: var(--reaper-lite); }
+/* narrow: drop the mark names + holder, keep art/id/bar/count in one line */
 @media (max-width: 480px) {
-  .risingMarks { display: none; }
+  .risingMarks, .risingHolder { display: none; }
   .risingRow { gap: 0.5rem; }
 }
 

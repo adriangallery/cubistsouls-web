@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   loadLayerData,
   composeStack,
@@ -27,7 +28,7 @@ export type OrderEntry = {
   holder: string;
   ascendedAt?: number | null;
 };
-export type RisingEntry = { id: number; consumed: number; marks: number[] };
+export type RisingEntry = { id: number; consumed: number; marks: number[]; holder?: string };
 
 const IMG = (id: number) => `/api/img?id=${id}`;
 const SOULS_OS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
@@ -104,6 +105,11 @@ export default function TheOrder({
                       {marks.map((m) => m!.name).join(" · ")}
                     </span>
                   )}
+                  {r.holder && /^0x[0-9a-fA-F]{40}$/.test(r.holder) ? (
+                    <Link className={styles.risingHolder} href={`/curator/${r.holder}`}>
+                      {short(r.holder)} →
+                    </Link>
+                  ) : null}
                 </li>
               );
             })}
@@ -148,14 +154,15 @@ function OrderGrid({ list, layerData }: { list: OrderEntry[]; layerData: LayerDa
                   ))}
                 </div>
               )}
-              <a
-                className={styles.orderHolder}
-                href={`https://opensea.io/item/ethereum/${SOULS_OS}/${r.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                held by {short(r.holder)}
-              </a>
+              {r.holder && /^0x[0-9a-fA-F]{40}$/.test(r.holder) ? (
+                <Link className={styles.orderHolder} href={`/curator/${r.holder}`}>
+                  held by {short(r.holder)} →
+                </Link>
+              ) : (
+                <span className={styles.orderHolder} aria-disabled="true">
+                  held by {short(r.holder)}
+                </span>
+              )}
               {ascDate(r.ascendedAt) ? (
                 <div className={styles.orderAscended}>Ascended {ascDate(r.ascendedAt)}</div>
               ) : null}

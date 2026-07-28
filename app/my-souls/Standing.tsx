@@ -54,6 +54,7 @@ export default function Standing({
   consumed,
   contribution,
   reaperLive,
+  mode = "self",
 }: {
   data: SoulsData;
   myMh: MyMHResult | null;
@@ -63,6 +64,7 @@ export default function Standing({
   consumed: number;
   contribution: number;
   reaperLive: boolean;
+  mode?: "self" | "public";
 }) {
   const exhibits = myMh?.exhibits ?? [];
   const consumedById = new Map(mine.map((e) => [e.id, e.consumed]));
@@ -75,16 +77,16 @@ export default function Standing({
   // is driven entirely by the `st-*` area classes. Raffle drops out cleanly when
   // reapers aren't live (the `no-raffle` template rebalances the top row).
   return (
-    <Panel id="standing" title="🏛 Your standing" meta={`${data.owned.length} held`} wide>
+    <Panel id="standing" title={mode === "self" ? "🏛 Your standing" : "🏛 Standing"} meta={`${data.owned.length} held`} wide>
       <div className={`stat-cards${reaperLive ? "" : " no-raffle"}`}>
-        <WeightCard data={data} myMh={myMh} board={board} boardPhase={boardPhase} />
+        <WeightCard data={data} myMh={myMh} board={board} boardPhase={boardPhase} mode={mode} />
         <ProjectionCard myMh={myMh} />
         {reaperLive ? <RaffleCard consumed={consumed} /> : null}
         <RarityCard exhibits={exhibits} loading={!myMh} />
         <SpotlightCard exhibits={exhibits} imgFor={imgFor} loading={!myMh} />
-        <MilestonesCard mine={mine} board={board} boardPhase={boardPhase} contribution={contribution} reaperLive={reaperLive} />
+        <MilestonesCard mine={mine} board={board} boardPhase={boardPhase} contribution={contribution} reaperLive={reaperLive} mode={mode} />
         <MemberSinceCard myMh={myMh} />
-        <CohortsCard exhibits={exhibits} loading={!myMh} reaperLive={reaperLive} />
+        <CohortsCard exhibits={exhibits} loading={!myMh} reaperLive={reaperLive} mode={mode} />
       </div>
     </Panel>
   );
@@ -139,17 +141,19 @@ function WeightCard({
   myMh,
   board,
   boardPhase,
+  mode = "self",
 }: {
   data: SoulsData;
   myMh: MyMHResult | null;
   board: MHBoardResult | null;
   boardPhase: string;
+  mode?: "self" | "public";
 }) {
   const supplyPct = data.totalSupply > 0 ? (data.owned.length / data.totalSupply) * 100 : null;
   const ratePct = board && board.totalRate > 0 && myMh ? (myMh.me.rate / board.totalRate) * 100 : null;
   return (
     <div className="stat st-weight">
-      <div className="stat-h">🏛️ Your weight</div>
+      <div className="stat-h">🏛️ {mode === "self" ? "Your weight" : "Weight"}</div>
       <div className="wt-two">
         <div className="wt-cell">
           {ratePct != null ? (
@@ -204,16 +208,19 @@ function MilestonesCard({
   boardPhase,
   contribution,
   reaperLive,
+  mode = "self",
 }: {
   mine: MineEntry[];
   board: MHBoardResult | null;
   boardPhase: string;
   contribution: number;
   reaperLive: boolean;
+  mode?: "self" | "public";
 }) {
+  const self = mode === "self";
   const nudges: { txt: ReactNode; href?: string }[] = [];
 
-  // (a) a soul in the fire, closest to ascending
+  // (a) a soul in the fire, closest to ascending (action link only on your own page)
   if (reaperLive) {
     const rising = mine.filter((e) => !e.isReaper && e.consumed > 0).sort((a, b) => b.consumed - a.consumed)[0];
     if (rising) {
@@ -223,18 +230,18 @@ function MilestonesCard({
             <b>{30 - rising.consumed}</b> more on #{rising.id} → SOUL REAPER
           </>
         ),
-        href: "/reapers#rite",
+        ...(self ? { href: "/reapers#rite" } : {}),
       });
     }
   }
 
-  // (b) your place on the curators' board (MH-ranked)
+  // (b) place on the curators' board (MH-ranked)
   let boardPending = false;
   if (board) {
     const meRow = board.rows.find((r) => r.isMe);
     if (meRow?.rank === 1) {
       const second = board.rows.find((r) => r.rank === 2);
-      if (second) nudges.push({ txt: <>You lead by <b>{mhNum(meRow.mh - second.mh)}</b> MH</> });
+      if (second) nudges.push({ txt: <>{self ? "You lead" : "Leads"} by <b>{mhNum(meRow.mh - second.mh)}</b> MH</> });
     } else if (meRow && meRow.rank > 1) {
       const above = board.rows.find((r) => r.rank === meRow.rank - 1);
       if (above) {
@@ -264,7 +271,9 @@ function MilestonesCard({
           <li key={i}>{n.href ? <a href={n.href}>{n.txt} →</a> : n.txt}</li>
         ))}
         {boardPending ? <li className="nudge-skel" /> : null}
-        {!shown.length && !boardPending ? <li className="ms-top-line">You&apos;re at the summit. 🜃</li> : null}
+        {!shown.length && !boardPending ? (
+          <li className="ms-top-line">{self ? "You're at the summit." : "At the summit."} 🜃</li>
+        ) : null}
       </ul>
     </div>
   );
@@ -332,7 +341,7 @@ function MemberSinceCard({ myMh }: { myMh: MyMHResult | null }) {
 }
 
 /* ---- 8 · cohorts ----------------------------------------------------------- */
-function CohortsCard({ exhibits, loading, reaperLive }: { exhibits: MHExhibit[]; loading: boolean; reaperLive: boolean }) {
+function CohortsCard({ exhibits, loading, reaperLive, mode = "self" }: { exhibits: MHExhibit[]; loading: boolean; reaperLive: boolean; mode?: "self" | "public" }) {
   const counts = [0, 0, 0, 0, 0];
   for (const e of exhibits) counts[e.cohort]++;
   const parts = counts.map((n, i) => (n > 0 ? `${MH_COHORT_NAME[i]} ×${n}` : null)).filter(Boolean) as string[];
@@ -345,7 +354,8 @@ function CohortsCard({ exhibits, loading, reaperLive }: { exhibits: MHExhibit[];
       ) : (
         <>
           <div className="cohort-line">{parts.length ? parts.join(" · ") : "—"}</div>
-          {reaperLive && og > 0 ? (
+          {/* the scythe CTA is an action — only on your own page */}
+          {mode === "self" && reaperLive && og > 0 ? (
             <a className="cohort-note" href="/reapers#rite">
               OG souls can take the scythe →
             </a>

@@ -262,6 +262,15 @@ button{font:inherit}
 }
 .ms-main{padding-bottom:clamp(4rem,10vw,6rem)}
 
+/* ---------- curator (public holder) identity header ---------- */
+.curator-top .ms-top-l{min-width:min(100%,320px);max-width:100%}
+.cur-name{overflow-wrap:anywhere;max-width:100%}
+.cur-sub{margin-top:.5rem;font-family:var(--mono);font-size:.78rem;color:var(--mute);letter-spacing:.02em}
+.cur-tier{color:var(--gild);text-transform:uppercase;letter-spacing:.14em;font-weight:700}
+.cur-since{color:var(--mute)}
+.cur-scan{color:var(--mute);text-decoration:none;white-space:nowrap}
+.cur-scan:hover{color:var(--bone)}
+
 /* ---------- deck: the recognition plaque as a status bar ---------- */
 .deck{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;
   gap:1rem clamp(1rem,3vw,2.2rem);margin:clamp(1rem,3vw,1.5rem) 0 clamp(1rem,3vw,1.4rem);
@@ -582,6 +591,15 @@ button{font:inherit}
 .lb-row.me{background:linear-gradient(90deg,rgba(224,165,32,.18),rgba(224,165,32,.05));border-top:1px solid var(--gild);border-bottom:1px solid var(--gild)}
 .lb-row.me .addr{color:var(--bone)}
 .lb-row.me .addr::after{content:" · you";color:var(--gild)}
+/* On a public curator page the highlighted row is the profile subject, not "you". */
+.mh-board.public .lb-row.me .addr::after{content:" · this curator"}
+/* Board rows are links to each curator's public profile — invite the click. */
+a.lb-row.lb-link{cursor:pointer;text-decoration:none;transition:background .12s ease}
+a.lb-row.lb-link:hover{background:rgba(224,165,32,.1)}
+a.lb-row.lb-link:hover .addr{color:var(--bone)}
+a.lb-row.lb-link .addr::before{content:"↗ ";color:var(--gild);opacity:0;transition:opacity .12s ease}
+a.lb-row.lb-link:hover .addr::before{opacity:.8}
+a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),rgba(224,165,32,.08))}
 .lb-gap{text-align:center;color:var(--mute);font-family:var(--mono);font-size:.9rem;padding:.4rem 0;letter-spacing:.3em}
 .lb-updated{text-align:center;color:var(--mute);font-family:var(--mono);font-size:.72rem;padding:.5rem 1rem;border-top:1px solid rgba(224,165,32,.14);letter-spacing:.04em;opacity:.75}
 
