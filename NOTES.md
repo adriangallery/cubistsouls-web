@@ -174,8 +174,35 @@ decides whether that regeneration actually touches RPC).
      genuinely succeeds. No reader ever fabricates data (the old `/reapers` "flat art
      / HELD BY — / total 30" bug was a hardcoded `catch` return — now removed).
 
+3. **Curators' board memo in `app/api/board/route.ts`** — `TTL_MS = 300_000` (5 min).
+   The `/my-souls` leaderboard used to be recomputed CLIENT-side on every visit
+   (`buildBoard`: a full-collection Transfer scan + cohortOf/getBlock storm) — slow
+   for every visitor and an RPC burst per page view (Adrian 28-jul: "siempre le cuesta
+   cargar; no necesitamos tiempo real, cachear a X minutos"). It now runs SERVER-side
+   via `computeBoardData` (viem client with the same Tenderly → drpc → publicnode
+   failover as `lib/chain.ts`), behind a module memo + inflight-dedupe + last-good
+   fallback (same shape as `getReapers`), and serves `{rows, contrib, totalRate,
+   totalLibs, updatedAt}`. The browser just `fetch('/api/board')` and slices its own
+   row with `boardForAccount`. First visitor after the TTL pays one compute; everyone
+   else is served the memo with no RPC. Header `s-maxage=300` lets any proxy cache it.
+
+## Curators' board Δ (accepted, by design)
+
+The MH **hero** on `/my-souls` is still computed CLIENT-side and LIVE (`buildMyMH`) —
+it ticks in real time. The **board** is the 5-min server snapshot. So a wallet's MH in
+its own board row can trail the live hero by up to the TTL (and, right after a fresh
+mint/transfer, the wallet may not be on the snapshot at all until the next cycle). This
+is EXPECTED, not a bug: the board is a cached leaderboard, not a live readout. The
+board row renders a discreet **"Snapshot · updated Nm ago"** caption (`updatedAt` from
+the JSON) so the small lag reads as freshness. Do not "fix" the hero/board delta by
+pinning the row to the live hero value — that reintroduces the per-visitor scan the
+cache exists to avoid.
+
 Verify after deploy: repeated `/reapers` reloads should NOT produce RPC bursts in
-`sudo dokku logs cubistsouls-web` (the memo absorbs them within the TTL window).
+`sudo dokku logs cubistsouls-web` (the memo absorbs them within the TTL window). Same
+for `/my-souls` board reloads — `/api/board` serves the memo; only one compute per 5
+min touches RPC. Sanity: `curl -s https://cubistsouls.com/api/board | head -c 200`
+returns `{rows,contrib,totalRate,totalLibs,updatedAt}` in well under a second once warm.
 
 ## Docker / mini deploy
 

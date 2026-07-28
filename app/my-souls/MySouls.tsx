@@ -11,7 +11,7 @@ import MyReapers, { mineFrom, type MineEntry } from "./MyReapers";
 import Standing from "./Standing";
 import MobileWalletSheet, { useIsMobileNoInjected } from "../components/MobileWalletSheet";
 import { loadSouls, tierOf, type SoulsData } from "@/lib/souls";
-import { buildMyMH, buildBoard, type MyMHResult, type MHBoardResult, type MHBoardRow } from "@/lib/mh";
+import { buildMyMH, boardForAccount, type MyMHResult, type MHBoardResult, type MHBoardRow, type BoardData } from "@/lib/mh";
 import { getReaperState, type ReaperState } from "@/lib/reaper";
 import { drawCard, shareText, downloadBlob, type CardStats } from "@/lib/share-card";
 import flags from "@/public/flags.json";
@@ -33,6 +33,18 @@ function useDevAs(): string | undefined {
 
 const mhNum = (v: number) =>
   (v || 0).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// "updated Nm ago" for the board's cached snapshot. The board is a 5-min server
+// snapshot, so your own row can trail the live hero by a few minutes — this caption
+// makes that lag read as freshness, not a bug (see NOTES.md "Curators' board Δ").
+function agoShort(ms: number): string {
+  const s = Math.max(0, Math.floor((Date.now() - ms) / 1000));
+  if (s < 60) return "just now";
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  return `${h}h ago`;
+}
 
 function toast(msg: string, ms = 6000) {
   document.querySelectorAll(".toast").forEach((t) => t.remove());
@@ -66,7 +78,8 @@ export default function MySouls() {
   const [myMh, setMyMh] = useState<MyMHResult | null>(null);
   const [mhPhase, setMhPhase] = useState<Phase>("idle"); // your-hours pass (cheap)
   const [board, setBoard] = useState<MHBoardResult | null>(null);
-  const [boardPhase, setBoardPhase] = useState<Phase>("idle"); // leaderboard (heavy)
+  const [boardPhase, setBoardPhase] = useState<Phase>("idle"); // leaderboard (server-cached)
+  const [boardUpdatedAt, setBoardUpdatedAt] = useState<number | null>(null); // snapshot age caption
   const [cardBusy, setCardBusy] = useState(false);
   const [collab, setCollab] = useState(true); // WTP collab spark; fail-open
   const reqRef = useRef(0); // guards against stale async when the wallet changes
@@ -90,6 +103,7 @@ export default function MySouls() {
       setReaper(null);
       setMyMh(null);
       setBoard(null);
+      setBoardUpdatedAt(null);
       setMhPhase("idle");
       setBoardPhase("idle");
       try {
@@ -112,15 +126,22 @@ export default function MySouls() {
             if (reqId !== reqRef.current) return;
             setMyMh(my);
             setMhPhase("loaded");
-            // Phase 2 — the curators' board (heavy: full collection scan). Runs
-            // in the background so a slow/failing scan never hides your numbers.
+            // Phase 2 — the curators' board. NOW a server-cached 5-min snapshot:
+            // fetch the precomputed leaderboard JSON and slice THIS wallet's row
+            // locally (boardForAccount), instead of scanning the whole collection in
+            // the browser. Loads near-instantly once the server memo is warm; runs in
+            // the background so even a cold first fetch never hides the live hero.
+            // The board's MH for your row is the snapshot value (up to 5 min old vs
+            // the live hero — the "updated Nm ago" caption owns that delta on purpose;
+            // see NOTES.md "Curators' board Δ").
             setBoardPhase("loading");
-            buildBoard(client, acct, d.owned, d.freed, my.me.mh, REAPER_LIVE)
-              .then((b) => {
-                if (reqId === reqRef.current) {
-                  setBoard(b);
-                  setBoardPhase("loaded");
-                }
+            fetch("/api/board", { cache: "no-store" })
+              .then((r) => r.json() as Promise<BoardData>)
+              .then((bd) => {
+                if (reqId !== reqRef.current) return;
+                setBoard(boardForAccount(bd, acct));
+                setBoardUpdatedAt(bd.updatedAt || null);
+                setBoardPhase("loaded");
               })
               .catch(() => {
                 if (reqId === reqRef.current) setBoardPhase("error");
@@ -145,6 +166,7 @@ export default function MySouls() {
       setReaper(null);
       setMyMh(null);
       setBoard(null);
+      setBoardUpdatedAt(null);
       setMhPhase("idle");
       setBoardPhase("idle");
     }
@@ -284,6 +306,7 @@ export default function MySouls() {
               mhPhase={mhPhase}
               board={board}
               boardPhase={boardPhase}
+              boardUpdatedAt={boardUpdatedAt}
             />
           )
         )}
@@ -333,6 +356,7 @@ function Dashboard({
   mhPhase,
   board,
   boardPhase,
+  boardUpdatedAt,
 }: {
   data: SoulsData;
   shareRow: React.ReactNode;
@@ -347,6 +371,7 @@ function Dashboard({
   mhPhase: Phase;
   board: MHBoardResult | null;
   boardPhase: Phase;
+  boardUpdatedAt: number | null;
 }) {
   // Tier by TOTAL contribution (freed + consumed) — offerings never cost you rank.
   const tier = tierOf(contribution);
@@ -405,7 +430,7 @@ function Dashboard({
           meta={board ? `top ${boardTop} of ${board.rows.length}` : boardPhase === "error" ? "unavailable" : "tallying…"}
           tall
         >
-          <BoardBody board={board?.rows ?? null} boardPhase={boardPhase} />
+          <BoardBody board={board?.rows ?? null} boardPhase={boardPhase} updatedAt={boardUpdatedAt} />
         </Panel>
 
         {/* ---- RAFFLE tickets moved INTO the standing grid (row 1, beside Weight
@@ -583,8 +608,16 @@ function MHHero({ myMh, mhPhase, heldNone }: { myMh: MyMHResult | null; mhPhase:
   );
 }
 
-/* ---------------- Curators' board ---------------- */
-function BoardBody({ board, boardPhase }: { board: MHBoardRow[] | null; boardPhase: Phase }) {
+/* ---------------- Curators' board (server-cached snapshot) ---------------- */
+function BoardBody({
+  board,
+  boardPhase,
+  updatedAt,
+}: {
+  board: MHBoardRow[] | null;
+  boardPhase: Phase;
+  updatedAt: number | null;
+}) {
   if (!board) {
     return (
       <p className="mh-status">
@@ -614,6 +647,7 @@ function BoardBody({ board, boardPhase }: { board: MHBoardRow[] | null; boardPha
           </div>
         ),
       )}
+      {updatedAt ? <div className="lb-updated">Snapshot · updated {agoShort(updatedAt)}</div> : null}
     </div>
   );
 }

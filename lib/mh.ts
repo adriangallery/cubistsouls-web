@@ -3,8 +3,9 @@
 // identical to the live page (Δ=0 vs 0x4943), only the reads move to viem.
 //
 // Split in two: buildMyMH (cheap — your hours, seconds) renders the hero right
-// away; buildBoard (heavy — the full leaderboard) runs after so a slow/failing
-// collection scan never blocks or hides your own numbers.
+// away, CLIENT-side and live; the heavy leaderboard (computeBoardData) now runs
+// SERVER-side, cached to a 5-min snapshot (app/api/board), and the browser just
+// fetches it + slices its own row via boardForAccount — no per-visitor scan.
 //
 //   per-soul rate/h = MH_BASE(1) × cohortMult × rarityMult
 //   wallet MH       = liberatorMult × Σ (rate/h × hoursHeld since acquisition)
@@ -88,6 +89,22 @@ export type MHBoardResult = {
   totalLibs: number;
   myContribution: number;
   totalRate: number; // Σ MH/h across every wallet — for "your share of the museum's emission"
+};
+
+// ── Account-AGNOSTIC leaderboard — computed ONCE server-side and cached (see
+// app/api/board/route.ts), instead of recomputed in every visitor's browser. One
+// row per wallet, ranked by MH desc, carrying the full (lowercase) address so any
+// client can locate its own row by a pure string match — no on-chain re-scan. The
+// mh/rate figures are the CACHED snapshot: the client renders them verbatim with an
+// "updated Nm ago" caption (the whole point of moving the board off the client is
+// that it no longer costs a full collection scan + RPC burst per page view).
+export type BoardWalletRow = { rank: number; raw: string; addr: string; mh: number; rate: number };
+export type BoardData = {
+  rows: BoardWalletRow[]; // every wallet, ranked by MH desc
+  contrib: { raw: string; contribution: number }[]; // ranked by contribution (freed+consumed) desc, >0 only
+  totalRate: number; // Σ MH/h across every wallet
+  totalLibs: number; // distinct contributors (freed OR consumed)
+  updatedAt: number; // ms epoch the snapshot was computed (stamped by the route)
 };
 export type MHAchievement = { ic: string; nm: string; ds: string; state: "earned" | "locked" | "" };
 export type MHMe = {
@@ -320,25 +337,24 @@ export async function buildMyMH(
 }
 
 /**
- * HEAVY pass — the curators' leaderboard. This is the expensive one (every
- * Transfer on the diamond + cohortOf of every held soul + getBlock of every
- * acquisition block), so it runs AFTER the cheap pass, in the background: the
- * hero shows in seconds and the board fills in a moment later. If it fails
- * (public-RPC rate limit on the getBlock storm) only the board is missing.
+ * HEAVY pass — the curators' leaderboard, ACCOUNT-AGNOSTIC and computed ONCE.
  *
- * `meMh` (from the cheap pass) is used verbatim for the connected wallet's row,
- * so the number on the board always matches the hero even if a background rarity
- * refetch differs. Ranking still uses the board's own self-consistent tally.
+ * This is the expensive one (every Transfer on the diamond + cohortOf of every held
+ * soul + getBlock of every acquisition block). It used to run in every visitor's
+ * browser (buildBoard), which was slow for everyone and fanned out RPC on each page
+ * view. It now runs SERVER-SIDE, cached to a 5-min snapshot (app/api/board), and the
+ * browser just fetches the JSON — see boardForAccount for the per-wallet slice.
+ *
+ * No `account` param on purpose: the board is the same for everyone. Every wallet is
+ * ranked from the transfer-derived holdings (the old per-connected-wallet ownerOf
+ * override is gone — the snapshot treats the connected wallet exactly like the rest,
+ * which is what a shared cache must do). Returns EVERY wallet (not just top 20) so a
+ * client can find its own row/rank regardless of position.
  */
-export async function buildBoard(
+export async function computeBoardData(
   client: PublicClient,
-  account: string,
-  owned: number[],
-  freed: number,
-  meMh: number,
   reaperLive = false,
-): Promise<MHBoardResult> {
-  const acct = account.toLowerCase();
+): Promise<Omit<BoardData, "updatedAt">> {
   const [rarity, xfers] = await Promise.all([getRarity(), getTransfers(client)]);
 
   const lastXfer = new Map<number, { from: string; to: string; block: number }>();
@@ -354,9 +370,6 @@ export async function buildBoard(
     if (!holdings.has(x.to)) holdings.set(x.to, []);
     holdings.get(x.to)!.push(id);
   }
-  // authoritative override for the connected wallet (ownerOf-derived set + verified freed)
-  holdings.set(acct, owned.slice());
-  freedBy.set(acct, freed);
 
   const allIds = [...new Set(([] as number[]).concat(...holdings.values()))];
   // Per-soul souls-consumed over the WHOLE held collection: drives both the Reaper
@@ -400,47 +413,63 @@ export async function buildBoard(
       mh += r * Math.max(0, (now - acqTs(id)) / 3600);
     }
     const lib = mhLibOf(fr || 0);
-    return { ids, freed: fr || 0, lib, rate: rate * lib.mult, mh: mh * lib.mult };
+    return { rate: rate * lib.mult, mh: mh * lib.mult };
   }
 
   const boardAll = [...holdings.entries()]
     .map(([w, ids]) => ({ w, ...compute(ids, freedBy.get(w) || 0) }))
     .sort((a, b) => b.mh - a.mh);
-  const meIdx = boardAll.findIndex((r) => r.w === acct);
   // Σ MH/h across the whole museum — the denominator for "your share of the
   // museum's hourly emission". Self-consistent with the same tally that ranks.
   const totalRate = boardAll.reduce((s, r) => s + r.rate, 0);
+  const rows: BoardWalletRow[] = boardAll.map((r, i) => ({
+    rank: i + 1,
+    raw: r.w,
+    addr: short(r.w),
+    mh: r.mh,
+    rate: r.rate,
+  }));
 
-  // top 20 + connected wallet's own row (with gap if beyond 20). The me row's MH
-  // is the value from the cheap pass so hero and board never disagree.
-  const rows: MHBoardRow[] = boardAll
-    .slice(0, 20)
-    .map((r, i) => ({ rank: i + 1, addr: short(r.w), mh: r.w === acct ? meMh : r.mh, isMe: r.w === acct }));
-  if (meIdx >= 20) {
-    rows.push({ rank: meIdx + 1, addr: short(acct), mh: meMh, isMe: true, gap: true });
-  } else if (meIdx < 0) {
-    rows.push({ rank: boardAll.length + 1, addr: short(acct), mh: meMh, isMe: true, gap: true });
-  }
-
-  // ── Deck rank + tier by TOTAL contribution = freed + consumed (Adrian 26-jul:
-  // "ofrendar no puede hacer perder rango vs convertir"). consumed per wallet =
-  // Σ soulsConsumed over the souls it currently holds (same "sum by holder" as The
-  // Order — consumed travels with the token). Liberators = anyone with any
-  // contribution (freed OR consumed). Exact here because we already enumerate every
-  // holding; the deck shows the instant freed-rank until this lands (Δ=0 when
-  // consumed==0, which is the case for all but a handful at launch).
+  // ── Rank/tier by TOTAL contribution = freed + consumed (Adrian 26-jul: "ofrendar
+  // no puede hacer perder rango vs convertir"). consumed per wallet = Σ soulsConsumed
+  // over the souls it currently holds (same "sum by holder" as The Order — consumed
+  // travels with the token). Liberators = anyone with any contribution (freed OR
+  // consumed). Returned as a ranked list so the client resolves any wallet's rank.
   const contribBy = new Map<string, number>();
   for (const [w, fr] of freedBy) contribBy.set(w, (contribBy.get(w) || 0) + fr);
   for (const [w, ids] of holdings) {
     const c = ids.reduce((s, id) => s + consumedOf(id), 0);
     if (c) contribBy.set(w, (contribBy.get(w) || 0) + c);
   }
-  const contribRanked = [...contribBy.entries()]
+  const contrib = [...contribBy.entries()]
     .filter(([, v]) => v > 0)
-    .sort((a, b) => b[1] - a[1]);
-  const myContribution = contribBy.get(acct) || 0;
-  const myRank = contribRanked.findIndex(([w]) => w === acct) + 1;
-  const totalLibs = contribRanked.length;
+    .sort((a, b) => b[1] - a[1])
+    .map(([raw, contribution]) => ({ raw, contribution }));
 
-  return { rows, myRank: myRank || totalLibs + 1, totalLibs, myContribution, totalRate };
+  return { rows, contrib, totalRate, totalLibs: contrib.length };
+}
+
+/**
+ * Client adapter (NO on-chain reads) — turn the cached, account-agnostic BoardData
+ * into the per-wallet MHBoardResult the dashboard consumes: top-20 rows + the
+ * connected wallet's own row (with a gap marker when it sits beyond 20), plus its
+ * contribution rank. The me-row's MH is the CACHED snapshot value (it can trail the
+ * live hero by up to the cache TTL; my-souls renders an "updated Nm ago" caption so
+ * the small delta reads as freshness, not a bug). A wallet holding nothing at
+ * snapshot time simply isn't on the board — rank falls back to "last".
+ */
+export function boardForAccount(bd: BoardData, account: string): MHBoardResult {
+  const acct = account.toLowerCase();
+  const meIdx = bd.rows.findIndex((r) => r.raw === acct);
+  const rows: MHBoardRow[] = bd.rows
+    .slice(0, 20)
+    .map((r) => ({ rank: r.rank, addr: r.addr, mh: r.mh, isMe: r.raw === acct }));
+  if (meIdx >= 20) {
+    const me = bd.rows[meIdx];
+    rows.push({ rank: me.rank, addr: me.addr, mh: me.mh, isMe: true, gap: true });
+  }
+  const cIdx = bd.contrib.findIndex((c) => c.raw === acct);
+  const myContribution = cIdx >= 0 ? bd.contrib[cIdx].contribution : 0;
+  const myRank = cIdx >= 0 ? cIdx + 1 : bd.totalLibs + 1;
+  return { rows, myRank, totalLibs: bd.totalLibs, myContribution, totalRate: bd.totalRate };
 }

@@ -583,6 +583,7 @@ button{font:inherit}
 .lb-row.me .addr{color:var(--bone)}
 .lb-row.me .addr::after{content:" · you";color:var(--gild)}
 .lb-gap{text-align:center;color:var(--mute);font-family:var(--mono);font-size:.9rem;padding:.4rem 0;letter-spacing:.3em}
+.lb-updated{text-align:center;color:var(--mute);font-family:var(--mono);font-size:.72rem;padding:.5rem 1rem;border-top:1px solid rgba(224,165,32,.14);letter-spacing:.04em;opacity:.75}
 
 .mh-badges{display:grid;gap:.6rem;grid-template-columns:repeat(auto-fill,minmax(min(100%,150px),1fr))}
 .ach{position:relative;background:rgba(20,4,8,.4);border:1px solid rgba(224,165,32,.28);border-radius:10px;padding:.8rem .7rem;text-align:center}
