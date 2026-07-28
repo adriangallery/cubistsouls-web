@@ -8,7 +8,7 @@ import Footer from "../components/Footer";
 import CollabGrid from "./CollabGrid";
 import Panel from "../components/Panel";
 import MyReapers, { mineFrom, type MineEntry } from "./MyReapers";
-import Standing, { RaffleCard } from "./Standing";
+import Standing from "./Standing";
 import MobileWalletSheet, { useIsMobileNoInjected } from "../components/MobileWalletSheet";
 import { loadSouls, tierOf, type SoulsData } from "@/lib/souls";
 import { buildMyMH, buildBoard, type MyMHResult, type MHBoardResult, type MHBoardRow } from "@/lib/mh";
@@ -408,9 +408,9 @@ function Dashboard({
           <BoardBody board={board?.rows ?? null} boardPhase={boardPhase} />
         </Panel>
 
-        {/* ---- RAFFLE tickets — small, highlighted, next to YOUR REAPERS (a
-             reaper perk: 1 ticket per soul consumed, forever). ---- */}
-        {REAPER_LIVE ? <RaffleCard consumed={consumed} /> : null}
+        {/* ---- RAFFLE tickets moved INTO the standing grid (row 1, beside Weight
+             + Projection) so the dashboard reads as ordered blocks with no loose
+             card floating over MH (Adrian, 28-jul). ---- */}
 
         {/* ---- YOUR REAPERS — moved here (low-left slot, where "Your standing"
              used to sit) per Adrian 26-jul. As a grid item it sizes to its

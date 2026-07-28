@@ -343,22 +343,70 @@ button{font:inherit}
 .cs-shim{background:linear-gradient(90deg,rgba(224,165,32,.04),rgba(224,165,32,.16),rgba(224,165,32,.04));
   background-size:220% 100%;animation:csshim 1.3s ease-in-out infinite;border-radius:6px}
 
-/* ---- Raffle tickets — small, highlighted (reaper perk) ---- */
-.raffle{display:flex;align-items:center;gap:.85rem;
-  background:linear-gradient(180deg,rgba(122,63,160,.22),rgba(122,63,160,.06));
-  border:1px solid rgba(167,101,209,.5);border-radius:12px;padding:clamp(.9rem,2.6vw,1.15rem) clamp(1rem,3vw,1.3rem);
-  box-shadow:0 12px 30px -16px rgba(167,101,209,.7)}
-.raffle-ico{font-size:clamp(1.7rem,5vw,2.2rem);line-height:1;filter:drop-shadow(0 3px 10px rgba(167,101,209,.5))}
-.raffle-b{display:flex;flex-direction:column;gap:.15rem;min-width:0}
-.raffle-n{font-family:var(--disp);font-weight:900;font-size:clamp(1.8rem,5vw,2.4rem);color:#d9a7ef;line-height:.95}
-.raffle-cap{font-family:var(--mono);font-size:.66rem;letter-spacing:.03em;color:var(--bone-2);line-height:1.4}
-.raffle-cap b{color:#c98fe0}
+/* ---- Raffle tickets — third numeric card in row 1, reaper-perk purple accent
+   over the shared stat-card frame (so it lines up with Weight + Projection). ---- */
+.stat.raffle{border-color:rgba(167,101,209,.5);
+  background:linear-gradient(180deg,rgba(122,63,160,.2),rgba(122,63,160,.05));
+  box-shadow:inset 0 0 40px -30px rgba(167,101,209,.9)}
+.stat.raffle .stat-h{color:#c98fe0}
+.raffle-n{color:#d9a7ef}
+.stat.raffle .stat-sub b{color:#c98fe0}
 
-/* ---- The stat grid ---- */
-.stat-cards{display:grid;gap:clamp(.7rem,2vw,1rem);align-items:start;
-  grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+/* ---- The stat grid — DETERMINISTIC template (grid-template-areas) so the panel
+   reads as the same ordered skeleton for every wallet: no accidental masonry, no
+   dead gaps. Content that varies (more/fewer rarity tiers, 1–3 nudges, 1–2
+   spotlight souls) flows INSIDE its fixed cell without deforming the frame.
+   Cards stretch to their row so a taller neighbour never leaves a hole. ---- */
+.stat-cards{display:grid;gap:clamp(.7rem,2vw,1rem);align-items:stretch;
+  grid-template-columns:1fr;
+  grid-template-areas:"weight" "proj" "raffle" "rarity" "next" "spot" "member" "cohorts"}
+.stat-cards.no-raffle{
+  grid-template-areas:"weight" "proj" "next" "rarity" "spot" "member" "cohorts"}
+/* tablet — 2 columns, explicit order */
+@media(min-width:600px){
+  .stat-cards{grid-template-columns:1fr 1fr;
+    grid-template-areas:
+      "weight  proj"
+      "raffle  next"
+      "rarity  spot"
+      "member  spot"
+      "cohorts cohorts"}
+  .stat-cards.no-raffle{
+    grid-template-areas:
+      "weight  proj"
+      "next    next"
+      "rarity  spot"
+      "member  spot"
+      "cohorts cohorts"}
+}
+/* desktop — 3 columns; rarity + spotlight are the two-row anchors, next/member
+   stack in the third column, cohorts a full-width band. */
+@media(min-width:900px){
+  .stat-cards{grid-template-columns:repeat(3,minmax(0,1fr));
+    grid-template-areas:
+      "weight  proj    raffle"
+      "rarity  spot    next"
+      "rarity  spot    member"
+      "cohorts cohorts cohorts"}
+  .stat-cards.no-raffle{
+    grid-template-areas:
+      "weight  proj    next"
+      "rarity  spot    next"
+      "rarity  spot    member"
+      "cohorts cohorts cohorts"}
+}
+.st-weight{grid-area:weight}
+.st-proj{grid-area:proj}
+.st-raffle{grid-area:raffle}
+.st-rarity{grid-area:rarity}
+.st-spot{grid-area:spot}
+.st-next{grid-area:next}
+.st-member{grid-area:member}
+.st-cohorts{grid-area:cohorts}
 .stat{background:rgba(20,4,8,.42);border:1px solid rgba(224,165,32,.26);border-radius:10px;
   padding:clamp(.85rem,2.4vw,1.1rem)}
+/* cohorts reads as a thin full-width band: name + note on one baseline */
+.st-cohorts{display:flex;flex-direction:column;justify-content:center}
 .stat-h{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;
   color:var(--gild);margin-bottom:.6rem}
 .stat-big{font-family:var(--disp);font-weight:800;font-size:clamp(1.6rem,4vw,2.1rem);color:var(--bone);
@@ -375,7 +423,10 @@ button{font:inherit}
 .stat-skel span,.wt-skel,.nudge-skel{background:linear-gradient(90deg,rgba(224,165,32,.04),rgba(224,165,32,.16),rgba(224,165,32,.04));
   background-size:220% 100%;animation:csshim 1.3s ease-in-out infinite;border-radius:6px}
 
-/* 2 · rarity portfolio */
+/* 2 · rarity portfolio — the card is a two-row anchor (taller than its bars), so
+   centre the ledger vertically: the slack reads as breathing room, not a gap. */
+.st-rarity{display:flex;flex-direction:column}
+.st-rarity .rz{flex:1 1 auto;justify-content:center}
 .rz{display:flex;flex-direction:column;gap:.45rem}
 .rz-row{display:grid;grid-template-columns:1fr 84px auto;align-items:center;gap:.55rem}
 .rz-row.zero{opacity:.42}

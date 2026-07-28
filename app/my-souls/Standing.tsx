@@ -27,16 +27,18 @@ const TIER_NAME = ["Collection", "Catalogued", "Featured", "Exhibition", "Master
 const shortDate = (ts: number) =>
   new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
-/* ============================ RAFFLE — small, highlighted, near YOUR REAPERS ===== */
+/* ============================ RAFFLE — third numeric card in the standing grid == */
+// Lives inside the stat grid now (row 1, beside Weight + Projection) so the panel
+// reads as one deterministic block instead of a card floating loose up above
+// (Adrian, 28-jul). Keeps its reaper-perk purple accent, but shares the stat-card
+// frame/padding/header so the three top numbers line up.
 export function RaffleCard({ consumed }: { consumed: number }) {
   return (
-    <div className="raffle" aria-label="Raffle tickets">
-      <span className="raffle-ico">🎟</span>
-      <div className="raffle-b">
-        <span className="raffle-n">{whole(consumed)}</span>
-        <span className="raffle-cap">
-          Raffle tickets · 1 per soul consumed. <b>Forever.</b>
-        </span>
+    <div className="stat raffle st-raffle" aria-label="Raffle tickets">
+      <div className="stat-h">🎟 Raffle tickets</div>
+      <div className="stat-big raffle-n">{whole(consumed)}</div>
+      <div className="stat-sub">
+        1 per soul consumed. <b>Forever.</b>
       </div>
     </div>
   );
@@ -67,14 +69,20 @@ export default function Standing({
   const imgFor = (id: number) =>
     reaperLive && (consumedById.get(id) ?? 0) >= REAPER_ART_MIN ? REAPER_IMG(id) : IMG(id);
 
+  // Deterministic grid (grid-template-areas in CSS) — same skeleton for EVERY
+  // wallet, so a whale and a 1-soul holder both read as an ordered panel with no
+  // dead gaps. DOM order below follows the mobile stack; desktop/tablet placement
+  // is driven entirely by the `st-*` area classes. Raffle drops out cleanly when
+  // reapers aren't live (the `no-raffle` template rebalances the top row).
   return (
     <Panel id="standing" title="🏛 Your standing" meta={`${data.owned.length} held`} wide>
-      <div className="stat-cards">
-        <RarityCard exhibits={exhibits} loading={!myMh} />
+      <div className={`stat-cards${reaperLive ? "" : " no-raffle"}`}>
         <WeightCard data={data} myMh={myMh} board={board} boardPhase={boardPhase} />
         <ProjectionCard myMh={myMh} />
-        <MilestonesCard mine={mine} board={board} boardPhase={boardPhase} contribution={contribution} reaperLive={reaperLive} />
+        {reaperLive ? <RaffleCard consumed={consumed} /> : null}
+        <RarityCard exhibits={exhibits} loading={!myMh} />
         <SpotlightCard exhibits={exhibits} imgFor={imgFor} loading={!myMh} />
+        <MilestonesCard mine={mine} board={board} boardPhase={boardPhase} contribution={contribution} reaperLive={reaperLive} />
         <MemberSinceCard myMh={myMh} />
         <CohortsCard exhibits={exhibits} loading={!myMh} reaperLive={reaperLive} />
       </div>
@@ -96,7 +104,7 @@ function RarityCard({ exhibits, loading }: { exhibits: MHExhibit[]; loading: boo
   }
   const max = Math.max(1, ...counts);
   return (
-    <div className="stat">
+    <div className="stat st-rarity">
       <div className="stat-h">📜 By rarity</div>
       {loading ? (
         <SkelLines n={3} />
@@ -140,7 +148,7 @@ function WeightCard({
   const supplyPct = data.totalSupply > 0 ? (data.owned.length / data.totalSupply) * 100 : null;
   const ratePct = board && board.totalRate > 0 && myMh ? (myMh.me.rate / board.totalRate) * 100 : null;
   return (
-    <div className="stat">
+    <div className="stat st-weight">
       <div className="stat-h">🏛️ Your weight</div>
       <div className="wt-two">
         <div className="wt-cell">
@@ -166,7 +174,7 @@ function WeightCard({
 function ProjectionCard({ myMh }: { myMh: MyMHResult | null }) {
   const rate = myMh?.me.rate ?? 0;
   return (
-    <div className="stat">
+    <div className="stat st-proj">
       <div className="stat-h">⏱️ Projection</div>
       {myMh ? (
         <>
@@ -249,7 +257,7 @@ function MilestonesCard({
 
   const shown = nudges.slice(0, 3);
   return (
-    <div className="stat">
+    <div className="stat st-next">
       <div className="stat-h">🎯 Next up</div>
       <ul className="ms-nudges">
         {shown.map((n, i) => (
@@ -275,7 +283,7 @@ function SpotlightCard({
   const top = exhibits.reduce<MHExhibit | null>((b, e) => (e.rate > (b?.rate ?? -1) ? e : b), null);
   const rarest = exhibits.filter((e) => e.rank != null).sort((a, b) => a.rank! - b.rank!)[0] ?? null;
   return (
-    <div className="stat spot">
+    <div className="stat spot st-spot">
       <div className="stat-h">⭐ Spotlight</div>
       {loading ? (
         <SkelLines n={2} />
@@ -307,7 +315,7 @@ function MemberSinceCard({ myMh }: { myMh: MyMHResult | null }) {
   const ms = myMh?.memberSince;
   const days = ms ? Math.max(0, Math.floor(Date.now() / 1000 - ms.ts) / 86400) : 0;
   return (
-    <div className="stat">
+    <div className="stat st-member">
       <div className="stat-h">🕯️ Member since</div>
       {ms ? (
         <>
@@ -330,7 +338,7 @@ function CohortsCard({ exhibits, loading, reaperLive }: { exhibits: MHExhibit[];
   const parts = counts.map((n, i) => (n > 0 ? `${MH_COHORT_NAME[i]} ×${n}` : null)).filter(Boolean) as string[];
   const og = counts[0];
   return (
-    <div className="stat">
+    <div className="stat st-cohorts">
       <div className="stat-h">🧬 Cohorts</div>
       {loading ? (
         <SkelLines n={2} />
