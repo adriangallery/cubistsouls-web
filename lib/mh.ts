@@ -82,7 +82,13 @@ export type MHBoardRow = { rank: number; addr: string; mh: number; isMe: boolean
 // The board pass also resolves the deck's rank/tier by TOTAL contribution
 // (freed + consumed) — see buildBoard. Returned alongside the rows so my-souls
 // upgrades the plaque from the instant freed-based rank to the exact one.
-export type MHBoardResult = { rows: MHBoardRow[]; myRank: number; totalLibs: number; myContribution: number };
+export type MHBoardResult = {
+  rows: MHBoardRow[];
+  myRank: number;
+  totalLibs: number;
+  myContribution: number;
+  totalRate: number; // Σ MH/h across every wallet — for "your share of the museum's emission"
+};
 export type MHAchievement = { ic: string; nm: string; ds: string; state: "earned" | "locked" | "" };
 export type MHMe = {
   mh: number;
@@ -104,6 +110,9 @@ export type MyMHResult = {
   ownedCount: number;
   exhibits: MHExhibit[];
   achievements: MHAchievement[];
+  // Oldest acquisition among held souls (the block timestamps are already fetched
+  // for the MH math, so this costs no extra RPC) — powers "member since".
+  memberSince: { id: number; block: number; ts: number } | null;
 };
 
 async function getRarity(): Promise<Rarity> {
@@ -269,6 +278,26 @@ export async function buildMyMH(
     };
   });
 
+  // Member since = the oldest acquisition block among held souls (ties → lowest id).
+  // Reuses the block timestamps already fetched above — zero extra RPC.
+  let memberSince: MyMHResult["memberSince"] = null;
+  {
+    let minBlock = Infinity;
+    let minId = Infinity;
+    for (const id of owned) {
+      const b = acq[id];
+      if (b == null) continue;
+      if (b < minBlock || (b === minBlock && id < minId)) {
+        minBlock = b;
+        minId = id;
+      }
+    }
+    if (minBlock !== Infinity) {
+      const ts = blockTs.get(minBlock);
+      if (ts != null) memberSince = { id: minId, block: minBlock, ts };
+    }
+  }
+
   const ownsOG = owned.some((id) => (cohorts.get(id) ?? 3) === 0);
   const ownsMaster = !!rarity && owned.some((id) => tierOfId(id) === 4);
   const oldest = owned.length ? Math.max(...owned.map((id) => now - acqTs(id))) : 0;
@@ -287,7 +316,7 @@ export async function buildMyMH(
     .filter((a) => !a.hide)
     .map((a) => ({ ic: a.ic, nm: a.nm, ds: a.ds, state: a.locked ? "locked" : a.earned ? "earned" : "" }));
 
-  return { me, ownedCount: owned.length, exhibits, achievements };
+  return { me, ownedCount: owned.length, exhibits, achievements, memberSince };
 }
 
 /**
@@ -378,6 +407,9 @@ export async function buildBoard(
     .map(([w, ids]) => ({ w, ...compute(ids, freedBy.get(w) || 0) }))
     .sort((a, b) => b.mh - a.mh);
   const meIdx = boardAll.findIndex((r) => r.w === acct);
+  // Σ MH/h across the whole museum — the denominator for "your share of the
+  // museum's hourly emission". Self-consistent with the same tally that ranks.
+  const totalRate = boardAll.reduce((s, r) => s + r.rate, 0);
 
   // top 20 + connected wallet's own row (with gap if beyond 20). The me row's MH
   // is the value from the cheap pass so hero and board never disagree.
@@ -410,5 +442,5 @@ export async function buildBoard(
   const myRank = contribRanked.findIndex(([w]) => w === acct) + 1;
   const totalLibs = contribRanked.length;
 
-  return { rows, myRank: myRank || totalLibs + 1, totalLibs, myContribution };
+  return { rows, myRank: myRank || totalLibs + 1, totalLibs, myContribution, totalRate };
 }

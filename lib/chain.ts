@@ -8,7 +8,17 @@
 // Callers use these inside pages that declare `export const revalidate = 60`, so
 // the RPC round-trips only happen at most once per minute per instance.
 
-const RPC = "https://gateway.tenderly.co/public/mainnet";
+// Server-side RPC providers, tried in order with a short per-provider timeout.
+// Tenderly answers a full-range getLogs in one shot, but the mini's datacenter IP
+// gets rate-limited by it intermittently — which used to degrade /reapers. drpc +
+// publicnode are the failover. NOTE: drpc caps getLogs at 10k blocks on the free
+// tier, so every getLogs path keeps a ≤9000-block chunk fallback below; eth_call /
+// eth_getBlock / receipts work on any provider.
+const RPCS = [
+  "https://gateway.tenderly.co/public/mainnet",
+  "https://eth.drpc.org",
+  "https://ethereum-rpc.publicnode.com",
+];
 export const SOULS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 export const DEPLOY_BLOCK = 25518546;
 
@@ -45,8 +55,8 @@ const SEL_OWNER_OF = "0x6352211e"; // ownerOf(uint256)
 const REAPER_ASCENDED_TOPIC =
   "0x7468b682" + "16e6ee5a6999f72463d57ea56416af51fe08ea58c131b86cd13cc455";
 
-async function rpc(method: string, params: unknown[], timeout = 9000): Promise<any> {
-  const r = await fetch(RPC, {
+async function rpcOne(url: string, method: string, params: unknown[], timeout: number): Promise<any> {
+  const r = await fetch(url, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
@@ -58,13 +68,46 @@ async function rpc(method: string, params: unknown[], timeout = 9000): Promise<a
   return j.result;
 }
 
-// ---- module-level last-good caches (survive within a warm instance) ----
-let lastSupply: number | null = null;
-let lastPricing: Pricing | null = null;
-let lastFreed: FreedEntry[] | null = null;
-let lastReapers: ReaperOrderEntry[] | null = null;
-let lastRising: RisingEntry[] | null = null;
-let lastConsumed: ConsumedData | null = null;
+// Per-CALL failover: try each provider in turn with a short timeout so a stalled
+// or rate-limiting provider hands off fast. Throws only if EVERY provider fails —
+// callers turn that into last-good-cache reuse, never fabricated data.
+async function rpc(method: string, params: unknown[], timeout = 4000): Promise<any> {
+  let lastErr: unknown;
+  for (const url of RPCS) {
+    try {
+      return await rpcOne(url, method, params, timeout);
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+  throw lastErr ?? new Error("all rpc providers failed");
+}
+
+// ---- module-level caches (survive within a warm instance) ----
+// TWO dials, documented in NOTES.md:
+//   • ISR `revalidate` per page (home 60s, /reapers + /gallery 300s) — how often
+//     Next regenerates the HTML.
+//   • READER_TTL_MS here — how long a good reader result is reused WITHOUT touching
+//     RPC. Single container on the mini, so this module-level memo is shared across
+//     every concurrent regeneration: home + gallery reuse one getFreed, and back-
+//     to-back /reapers reloads don't fan out RPC bursts.
+// The memo is BOTH layers at once: `.ts` fresh (< TTL) → serve free of RPC; stale →
+// try RPC with failover; on failure fall back to `.value` (the last-good). So a
+// value is only dropped when a fresh RPC read genuinely succeeds.
+const READER_TTL_MS = 240_000; // 4 min — under the 5-min ISR so a regen usually serves the memo
+type Memo<T> = { value: T; ts: number };
+// Plain boolean (NOT a type predicate) on purpose: a `m is Memo<T>` guard would
+// narrow the module-level `let` to `null` for the rest of the function. Callers
+// use `memoX!.value` right after a true check.
+function fresh(m: { ts: number } | null): boolean {
+  return m !== null && Date.now() - m.ts < READER_TTL_MS;
+}
+let memoSupply: Memo<number> | null = null;
+let memoPricing: Memo<Pricing> | null = null;
+let memoFreed: Memo<FreedEntry[]> | null = null;
+let memoReapers: Memo<ReaperOrderEntry[]> | null = null;
+let memoRising: Memo<RisingEntry[]> | null = null;
+let memoConsumed: Memo<ConsumedData> | null = null;
 
 export type Pricing = {
   free: boolean;
@@ -79,7 +122,14 @@ export type FreedEntry = { id: number; block: number };
 
 // A member of THE ORDER — a soul that crossed 30 souls consumed (renamed a
 // "Soul Reaper"). Derived from ReaperAscended events + fresh soulsConsumed/marks.
-export type ReaperOrderEntry = { id: number; consumed: number; marks: number[]; holder: string };
+export type ReaperOrderEntry = {
+  id: number;
+  consumed: number;
+  marks: number[];
+  holder: string;
+  ascendedBlock: number; // block of the ReaperAscended event — tiebreak for equal consumed
+  ascendedAt: number | null; // unix seconds of that block (discreet "ASCENDED <date>" line)
+};
 
 // A RISING soul — one already burning canvases (0 < soulsConsumed < 30) but not
 // yet ascended (no rename). The aspirants of THE ORDER. Derived from the same
@@ -95,16 +145,18 @@ export type ConsumedData = { total: number; canvases: ConsumedCanvas[] };
 
 /** totalSupply() — how many souls have been freed on-chain. */
 export async function getSupply(): Promise<number | null> {
+  if (fresh(memoSupply)) return memoSupply!.value;
   try {
     const res = await rpc("eth_call", [{ to: SOULS, data: SEL_TOTAL_SUPPLY }, "latest"]);
     const n = parseInt(res, 16);
-    if (Number.isFinite(n)) { lastSupply = n; return n; }
+    if (Number.isFinite(n)) { memoSupply = { value: n, ts: Date.now() }; return n; }
   } catch {}
-  return lastSupply;
+  return memoSupply?.value ?? null;
 }
 
 /** priceNow() + pricing() → tiered burn pricing, decoded like the prod page. */
 export async function getPricing(): Promise<Pricing | null> {
+  if (fresh(memoPricing)) return memoPricing!.value;
   try {
     const [pnRes, prRes] = await Promise.all([
       rpc("eth_call", [{ to: SOULS, data: SEL_PRICE_NOW }, "latest"]),
@@ -133,10 +185,10 @@ export async function getPricing(): Promise<Pricing | null> {
       else if (e < b2) { nextAt = ss + b2; nextPriceWei = p2.toString(); }
       out = { free: false, priceWei: priceWei.toString(), freeUntil: null, firstPriceWei: first, nextPriceWei, nextAt };
     }
-    lastPricing = out;
+    memoPricing = { value: out, ts: Date.now() };
     return out;
   } catch {}
-  return lastPricing;
+  return memoPricing?.value ?? null;
 }
 
 /**
@@ -145,6 +197,7 @@ export async function getPricing(): Promise<Pricing | null> {
  * Tenderly answers the full range in one call; we chunk only as a fallback.
  */
 export async function getFreed(): Promise<FreedEntry[]> {
+  if (fresh(memoFreed)) return memoFreed!.value;
   const filter = { address: SOULS, topics: [TRANSFER_TOPIC, ZERO_TOPIC] };
   try {
     let logs: any[];
@@ -165,10 +218,10 @@ export async function getFreed(): Promise<FreedEntry[]> {
     entries.sort((a, b) => b.block - a.block);
     const seen = new Set<number>();
     const out = entries.filter((e) => (seen.has(e.id) ? false : (seen.add(e.id), true)));
-    lastFreed = out;
+    memoFreed = { value: out, ts: Date.now() };
     return out;
   } catch {
-    return lastFreed ?? [];
+    return memoFreed?.value ?? [];
   }
 }
 
@@ -181,6 +234,7 @@ export async function getFreed(): Promise<FreedEntry[]> {
  * last-good cached. Returns [] when the facet isn't live yet (no events).
  */
 export async function getReapers(): Promise<ReaperOrderEntry[]> {
+  if (fresh(memoReapers)) return memoReapers!.value;
   const filter = { address: SOULS, topics: [REAPER_ASCENDED_TOPIC] };
   try {
     let logs: any[];
@@ -194,13 +248,34 @@ export async function getReapers(): Promise<ReaperOrderEntry[]> {
         logs = logs.concat(await rpc("eth_getLogs", [{ ...filter, fromBlock: hex(f), toBlock: hex(to) }], 20000));
       }
     }
-    // unique reaper ids from the indexed topic[1]
-    const ids = [...new Set(logs.map((l) => Number(BigInt(l.topics[1]))))].filter((id) => id >= 1 && id <= 10000);
-    if (!ids.length) { lastReapers = []; return []; }
+    // unique reaper ids from the indexed topic[1], each tagged with the EARLIEST
+    // block it ascended at (a soul crosses 30 once; guard against dup events).
+    const ascBlock = new Map<number, number>();
+    for (const l of logs) {
+      const id = Number(BigInt(l.topics[1]));
+      if (id < 1 || id > 10000) continue;
+      const b = parseInt(l.blockNumber, 16);
+      const prev = ascBlock.get(id);
+      if (prev == null || b < prev) ascBlock.set(id, b);
+    }
+    const ids = [...ascBlock.keys()];
+    if (!ids.length) { memoReapers = { value: [], ts: Date.now() }; return []; }
 
+    // Timestamps for the (few) ascension blocks → the discreet "ASCENDED <date>"
+    // line. One getBlock per ascended soul; the whole result is last-good cached.
+    const ascTimes = await getBlockTimes([...new Set(ascBlock.values())]);
+
+    // last-good entries by id — the fallback when a per-id read fails. NEVER
+    // fabricate (the old `catch → {consumed:30, marks:[], holder:""}` was the
+    // "arte plano / HELD BY —" bug). If there's no last-good for a failing id,
+    // EXCLUDE it this cycle: better absent for one regeneration than a lie.
+    const prevById = new Map<number, ReaperOrderEntry>((memoReapers?.value ?? []).map((e) => [e.id, e]));
     const pad = (id: number) => id.toString(16).padStart(64, "0");
-    const entries = await Promise.all(
-      ids.map(async (id) => {
+    const settled = await Promise.all(
+      ids.map(async (id): Promise<ReaperOrderEntry | null> => {
+        const ascendedBlock = ascBlock.get(id)!;
+        const prev = prevById.get(id);
+        const ascendedAt = ascTimes[ascendedBlock] ?? prev?.ascendedAt ?? null;
         try {
           const [cRes, mRes, oRes] = await Promise.all([
             rpc("eth_call", [{ to: SOULS, data: SEL_SOULS_CONSUMED + pad(id) }, "latest"]),
@@ -209,17 +284,25 @@ export async function getReapers(): Promise<ReaperOrderEntry[]> {
           ]);
           const consumed = parseInt(cRes, 16) || 0;
           const holder = "0x" + oRes.slice(-40);
-          return { id, consumed, marks: decodeMarksBitmask(mRes), holder };
+          const marks = decodeMarksBitmask(mRes);
+          // A read that comes back empty (holder 0x0 / marks 0 / consumed 0) is a
+          // degraded answer, not truth — prefer last-good over a hollow entry.
+          if ((!holder || /^0x0+$/.test(holder)) && prev) return prev;
+          return { id, consumed, marks, holder, ascendedBlock, ascendedAt };
         } catch {
-          return { id, consumed: 30, marks: [], holder: "" };
+          return prev ? { ...prev, ascendedBlock, ascendedAt } : null;
         }
       }),
     );
-    const out = entries.sort((a, b) => b.consumed - a.consumed || a.id - b.id);
-    lastReapers = out;
+    const entries = settled.filter((e): e is ReaperOrderEntry => e !== null);
+    if (!entries.length) return memoReapers?.value ?? [];
+    // Rank by consumption desc; ties broken by ASCENSION ORDER (earliest block
+    // first) so the first Soul Reaper in history leads, not the lowest tokenId.
+    const out = entries.sort((a, b) => b.consumed - a.consumed || a.ascendedBlock - b.ascendedBlock);
+    memoReapers = { value: out, ts: Date.now() };
     return out;
   } catch {
-    return lastReapers ?? [];
+    return memoReapers?.value ?? [];
   }
 }
 
@@ -232,6 +315,7 @@ export async function getReapers(): Promise<ReaperOrderEntry[]> {
  * consumption desc, server-only (Tenderly), last-good cached.
  */
 export async function getRising(): Promise<RisingEntry[]> {
+  if (fresh(memoRising)) return memoRising!.value;
   try {
     const [offered, forged] = await Promise.all([
       getLogsRanged({ address: SOULS, topics: [SOULS_OFFERED_TOPIC] }),
@@ -242,9 +326,10 @@ export async function getRising(): Promise<RisingEntry[]> {
       const id = Number(BigInt(l.topics[1]));
       if (id >= 1 && id <= 10000) ids.add(id);
     }
-    if (!ids.size) { lastRising = []; return []; }
+    if (!ids.size) { memoRising = { value: [], ts: Date.now() }; return []; }
 
     const pad = (id: number) => id.toString(16).padStart(64, "0");
+    let failed = false; // any per-id read failed → the roster is partial, don't publish it
     const entries = await Promise.all(
       [...ids].map(async (id) => {
         try {
@@ -254,18 +339,22 @@ export async function getRising(): Promise<RisingEntry[]> {
           ]);
           return { id, consumed: parseInt(cRes, 16) || 0, marks: decodeMarksBitmask(mRes) };
         } catch {
+          failed = true;
           return { id, consumed: 0, marks: [] as number[] };
         }
       }),
     );
+    // A partial read would silently DROP aspirants (consumed came back 0) — serve
+    // the previous complete roster instead of a shrunken one.
+    if (failed && memoRising) return memoRising.value;
     // aspirants only: has burned something, hasn't crossed 30 yet.
     const out = entries
       .filter((e) => e.consumed > 0 && e.consumed < 30)
       .sort((a, b) => b.consumed - a.consumed || a.id - b.id);
-    lastRising = out;
+    memoRising = { value: out, ts: Date.now() };
     return out;
   } catch {
-    return lastRising ?? [];
+    return memoRising?.value ?? [];
   }
 }
 
@@ -297,12 +386,14 @@ function decodeMarksBitmask(data: string): number[] {
  * Server-only (Tenderly), last-good cached like getFreed/getReapers.
  */
 export async function getConsumed(): Promise<ConsumedData> {
+  if (fresh(memoConsumed)) return memoConsumed!.value;
   try {
     const [offered, forged] = await Promise.all([
       getLogsRanged({ address: SOULS, topics: [SOULS_OFFERED_TOPIC] }),
       getLogsRanged({ address: SOULS, topics: [MARK_FORGED_TOPIC] }),
     ]);
 
+    let failed = false; // any per-reaper / per-receipt read failed → total is partial
     const reaperIds = new Set<number>();
     const canvases: ConsumedCanvas[] = [];
 
@@ -339,7 +430,9 @@ export async function getConsumed(): Promise<ConsumedData> {
               if (id >= 1 && id <= 10000) canvases.push({ id, reaperId, block });
             }
           }
-        } catch {}
+        } catch {
+          failed = true;
+        }
       }),
     );
 
@@ -351,9 +444,15 @@ export async function getConsumed(): Promise<ConsumedData> {
         try {
           const res = await rpc("eth_call", [{ to: SOULS, data: SEL_SOULS_CONSUMED + pad(id) }, "latest"]);
           total += parseInt(res, 16) || 0;
-        } catch {}
+        } catch {
+          failed = true;
+        }
       }),
     );
+
+    // A partial sum (some reaper read failed) is a LIE — it renders "30" instead of
+    // the real ~102. Serve the previous complete memorial rather than the shortfall.
+    if (failed && memoConsumed) return memoConsumed.value;
 
     // newest first, de-duped by canvas id (a Pikkazo burns once)
     canvases.sort((a, b) => b.block - a.block || b.id - a.id);
@@ -361,10 +460,10 @@ export async function getConsumed(): Promise<ConsumedData> {
     const uniq = canvases.filter((c) => (seen.has(c.id) ? false : (seen.add(c.id), true)));
 
     const out: ConsumedData = { total, canvases: uniq };
-    lastConsumed = out;
+    memoConsumed = { value: out, ts: Date.now() };
     return out;
   } catch {
-    return lastConsumed ?? { total: 0, canvases: [] };
+    return memoConsumed?.value ?? { total: 0, canvases: [] };
   }
 }
 

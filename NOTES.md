@@ -149,6 +149,34 @@ wallet.js, tele.js, traits-svg, test-traits) for the future design/pages waves.
   redirects for the still-legacy /public HTML pages. The site is PUBLIC (no global
   noindex; only the legacy secret pages keep inline `<meta robots noindex>`).
 
+## Caching dials (mini efficiency — Adrian 28-jul)
+
+Two independent dials keep RPC pressure low on the single mini container. Tune them
+here; they compose (ISR decides how often the HTML regenerates, the reader TTL
+decides whether that regeneration actually touches RPC).
+
+1. **ISR `revalidate` per page** (the `export const revalidate` in each `page.tsx`):
+   - `app/page.tsx` (home) — **60s**. Kept short on purpose: the freed counter right
+     after a burn is burn-flow UX (the ticker is also client-side).
+   - `app/reapers/page.tsx` — **300s** (5 min). It's a museum; minute-fresh adds
+     nothing and 5×'s RPC pressure.
+   - `app/gallery/page.tsx` — **300s** (5 min).
+2. **Reader TTL in `lib/chain.ts`** — `READER_TTL_MS = 240_000` (4 min). Every heavy
+   reader (`getFreed`, `getReapers`, `getConsumed`, `getRising`, `getSupply`,
+   `getPricing`) memoizes its last GOOD result with a timestamp: if it's younger than
+   the TTL, it's served WITHOUT any RPC, even across concurrent regenerations. So
+   home + gallery share one `getFreed` in practice, and back-to-back `/reapers`
+   reloads don't fan out RPC bursts. TTL sits just under the 5-min ISR so a scheduled
+   regen usually rides the memo.
+   - The same memo is ALSO the last-good fallback: fresh (<TTL) → serve; stale → try
+     RPC (with the multi-provider failover, Tenderly → drpc → publicnode); on total
+     failure → serve the stored `.value`. A value is dropped only when a fresh read
+     genuinely succeeds. No reader ever fabricates data (the old `/reapers` "flat art
+     / HELD BY — / total 30" bug was a hardcoded `catch` return — now removed).
+
+Verify after deploy: repeated `/reapers` reloads should NOT produce RPC bursts in
+`sudo dokku logs cubistsouls-web` (the memo absorbs them within the TTL window).
+
 ## Docker / mini deploy
 
 - **`Dockerfile`** — multi-stage `node:20-slim` (deps → builder → runner). Emits

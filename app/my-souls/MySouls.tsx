@@ -8,6 +8,7 @@ import Footer from "../components/Footer";
 import CollabGrid from "./CollabGrid";
 import Panel from "../components/Panel";
 import MyReapers, { mineFrom, type MineEntry } from "./MyReapers";
+import Standing, { RaffleCard } from "./Standing";
 import MobileWalletSheet, { useIsMobileNoInjected } from "../components/MobileWalletSheet";
 import { loadSouls, tierOf, type SoulsData } from "@/lib/souls";
 import { buildMyMH, buildBoard, type MyMHResult, type MHBoardResult, type MHBoardRow } from "@/lib/mh";
@@ -407,10 +408,28 @@ function Dashboard({
           <BoardBody board={board?.rows ?? null} boardPhase={boardPhase} />
         </Panel>
 
+        {/* ---- RAFFLE tickets — small, highlighted, next to YOUR REAPERS (a
+             reaper perk: 1 ticket per soul consumed, forever). ---- */}
+        {REAPER_LIVE ? <RaffleCard consumed={consumed} /> : null}
+
         {/* ---- YOUR REAPERS — moved here (low-left slot, where "Your standing"
              used to sit) per Adrian 26-jul. As a grid item it sizes to its
              content instead of floating one card in an oversized band over MH. ---- */}
         {REAPER_LIVE ? <MyReapers mine={mine} /> : null}
+
+        {/* ---- YOUR STANDING — the 8-card read-out (rarity, weight, projection,
+             milestones, spotlight, member-since, cohorts). Full-width panel;
+             board-dependent numbers fill in on the two-phase pass. ---- */}
+        <Standing
+          data={data}
+          myMh={myMh}
+          board={board}
+          boardPhase={boardPhase}
+          mine={mine}
+          consumed={consumed}
+          contribution={contribution}
+          reaperLive={REAPER_LIVE}
+        />
 
         {/* "Your standing" (the MH achievement badges) — RETIRADO 26-jul por
             Adrian ("quita Your standing de momento"), PUEDE VOLVER. The badge

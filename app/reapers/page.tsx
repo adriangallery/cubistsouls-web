@@ -13,7 +13,10 @@ import styles from "./reapers.module.css";
 // diamond's ReaperFacet cut. The flag is read at build time (flipping it is a
 // deploy anyway — see the launch runbook in the worker report). The rite itself is
 // a client component; The Order is derived from chain server-side (ISR).
-export const revalidate = 60;
+// 5-min ISR (Adrian 28-jul: it's a museum — minute-fresh adds nothing and 5×'s the
+// RPC pressure). The reader TTL in lib/chain.ts (240s) means back-to-back reloads
+// reuse the memo instead of fanning out RPC. HOME stays at 60 (post-burn counter UX).
+export const revalidate = 300;
 
 const REAPER_LIVE = (flags as { reaperLive?: boolean }).reaperLive === true;
 

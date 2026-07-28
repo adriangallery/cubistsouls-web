@@ -4,7 +4,9 @@ import Footer from "../components/Footer";
 import GalleryGrid from "./GalleryGrid";
 import { getFreed, getSupply, getConsumed } from "@/lib/chain";
 
-export const revalidate = 60;
+// 5-min ISR (Adrian 28-jul) — a museum gallery; shares getFreed's 240s reader TTL
+// with the home so the two pages don't double the RPC. HOME stays at 60.
+export const revalidate = 300;
 
 // Real soul art via the site's own image route (same-origin, relative).
 const IMG = (id: number) => `/api/img?id=${id}`;

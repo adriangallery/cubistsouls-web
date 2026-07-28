@@ -20,13 +20,21 @@ import styles from "./reapers.module.css";
 // Beneath it, RISING — real souls already burning canvases (0<consumed<30) but not
 // yet renamed — appear as a compact, less-prominent row of aspirants.
 
-export type OrderEntry = { id: number; consumed: number; marks: number[]; holder: string };
+export type OrderEntry = {
+  id: number;
+  consumed: number;
+  marks: number[];
+  holder: string;
+  ascendedAt?: number | null;
+};
 export type RisingEntry = { id: number; consumed: number; marks: number[] };
 
 const IMG = (id: number) => `/api/img?id=${id}`;
 const SOULS_OS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
+const ascDate = (ts?: number | null) =>
+  ts ? new Date(ts * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" }) : null;
 
 export default function TheOrder({
   live = false,
@@ -148,6 +156,9 @@ function OrderGrid({ list, layerData }: { list: OrderEntry[]; layerData: LayerDa
               >
                 held by {short(r.holder)}
               </a>
+              {ascDate(r.ascendedAt) ? (
+                <div className={styles.orderAscended}>Ascended {ascDate(r.ascendedAt)}</div>
+              ) : null}
             </div>
           </article>
         );

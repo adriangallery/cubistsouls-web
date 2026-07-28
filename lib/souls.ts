@@ -31,6 +31,7 @@ export type SoulsData = {
   totalLibs: number; // number of distinct liberators
   owned: number[]; // token ids currently held, ascending
   acq: Record<number, number>; // owned id -> acquisition block (for the cheap MH pass)
+  totalSupply: number; // total souls freed across the whole museum (all mints) — for "your weight" %
 };
 
 // Decoded Transfer log — only the fields the page consumes (viem's full generic
@@ -110,6 +111,10 @@ export async function loadSouls(client: PublicClient, account: string): Promise<
   const ranked = [...tally.entries()].sort((a, b) => b[1] - a[1]);
   const rank = ranked.findIndex((r) => r[0] === acct) + 1;
   const totalLibs = ranked.length;
+  // total souls freed museum-wide = every mint from 0x0 (each soul minted once).
+  // Already loaded here, so it costs no extra RPC — powers the "% of the museum
+  // you hold" weight on /my-souls.
+  const totalSupply = mintLogs.length;
 
   // souls currently held (received here, still owned per ownerOf)
   const candidates = [...new Set(inLogs.map((l) => Number(l.args.tokenId)))];
@@ -136,5 +141,5 @@ export async function loadSouls(client: PublicClient, account: string): Promise<
     if (a) acq[id] = a.block;
   }
 
-  return { freed, rank, totalLibs, owned, acq };
+  return { freed, rank, totalLibs, owned, acq, totalSupply };
 }
