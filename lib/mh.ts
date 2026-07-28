@@ -21,23 +21,22 @@ export const MH_COHORT_MULT = [2.0, 1.5, 1.25, 1.0, 1.0]; // OG · Era I · II �
 export const MH_COHORT_NAME = ["OG", "Era I", "Era II", "Era III", "Era IV"];
 const MH_RARITY_FALLBACK_MULT = [1.0, 1.15, 1.3, 1.5, 2.0];
 
-// ── LAUNCH FACTORS (Adrian 26-jul, ratified) — ADDED on top of the intact base
-// formula; NEVER replace cohortMult/rarityMult. Applied per soul, CONSISTENTLY in
-// buildMyMH (hero) and buildBoard (leaderboard) so a wallet's number matches (Δ=0).
+// ── LAUNCH FACTORS (Adrian, ratified) — ADDED on top of the intact base formula;
+// NEVER replace cohortMult/rarityMult. Applied per soul, CONSISTENTLY in buildMyMH
+// (hero) and buildBoard (leaderboard) so a wallet's number matches (Δ=0).
 //
-//  Reaper multiplier by that soul's OWN souls-consumed: ≥6 ×1.5 · ≥18 ×2.0 · ≥30 ×4.0.
-//  (Raised by Adrian 26-jul noche — "más bestia": the old 1.2/1.5/2.0 left a full Soul
-//   Reaper below a passive Masterpiece. With ×4 a #8777 full = 9.66 MH/h/soul, dominant.)
-//  (Consumed souls "pay" the wallet's contribution via THIS multiplier — MH does not
-//   also count them in the liberator tier, which stays on freed. No double-count.)
-const MH_REAPER_TIERS = [
-  { min: 30, mult: 4.0 },
-  { min: 18, mult: 2.0 },
-  { min: 6, mult: 1.5 },
-];
-export function reaperMultOf(consumed: number): number {
-  for (const t of MH_REAPER_TIERS) if (consumed >= t.min) return t.mult;
-  return 1.0;
+//  INHERITANCE (Adrian 28-jul, AskUserQuestion, on the accountant's model) — ADDITIVE,
+//  REPLACES the old ×1.5/×2/×4 Reaper multiplier. A reaper KEEPS the hours of the souls
+//  it consumed: +1.0 MH/h per soul consumed, capped at 60. Reasons: under ×4, ascending
+//  gave +6.8 MH/h vs +42.4 for converting (6× worse — nobody ascended), and the ×4 mult
+//  degenerated with rare OGs (a full Masterpiece won a 20 MH/h lottery). Inheritance is
+//  flat, effort-linked, fair. HARD CEILING documented by the accountant: λ must NEVER
+//  exceed 1.41 (the Era II rate) — above it, burning Pikkazos would be the cheapest MH,
+//  a degenerate sink. Consumption over 60 still counts for Order/rank but yields no more MH.
+export const INHERIT_PER_SOUL = 1.0;
+export const INHERIT_CAP = 60;
+export function inheritedMHOf(consumed: number): number {
+  return Math.min(consumed, INHERIT_CAP) * INHERIT_PER_SOUL;
 }
 //  Provenance bonus by the soul's FROZEN (born) rarity tier — applied as a factor:
 //  Collection 0 · Catalogued +5% · Featured +10% · Exhibition +15% · Masterpiece +25%.
@@ -92,8 +91,8 @@ export type MHMe = {
   lib: { name: string; mult: number };
   freed: number;
   // launch-factor summary for the hero chips (only shown when they apply)
-  reaperCount: number; // owned souls empowered by a Reaper mult (consumed ≥6)
-  maxReaperMult: number; // top Reaper mult among owned (1.0 = none)
+  reaperCount: number; // owned souls carrying the fire (consumed > 0)
+  inheritedMH: number; // Σ min(consumed, 60) over owned — the additive MH/h inherited
   maxProvBonus: number; // top Provenance bonus among owned, as a % (0 = none)
 };
 
@@ -199,15 +198,16 @@ export async function buildMyMH(
   const tierOfId = (id: number) => (rarity ? Number(rarity.tiers![id - 1]) || 0 : 0);
   const consumedOf = (id: number) => consumedById?.get(id) ?? 0;
   // ratified launch factors, applied only once the fire is lit (launch flag).
-  const reaperMult = (id: number) => (launch ? reaperMultOf(consumedOf(id)) : 1.0);
+  const inheritOf = (id: number) => (launch ? inheritedMHOf(consumedOf(id)) : 0);
   const provBonus = (id: number) => (launch ? provenanceBonusOf(tierOfId(id)) : 1.0);
-  // base formula (cohort × rarity) × the ratified launch factors (reaper × provenance)
+  // base formula (cohort × rarity × provenance) PLUS the additive inheritance term.
+  // (* binds tighter than +, so the base product is formed first, then inheritance added.)
   const tokenRate = (id: number) =>
     MH_BASE *
-    (MH_COHORT_MULT[cohorts.get(id) ?? 3] ?? 1.0) *
-    (rMult[tierOfId(id)] ?? 1.0) *
-    reaperMult(id) *
-    provBonus(id);
+      (MH_COHORT_MULT[cohorts.get(id) ?? 3] ?? 1.0) *
+      (rMult[tierOfId(id)] ?? 1.0) *
+      provBonus(id) +
+    inheritOf(id);
   const acqTs = (id: number) => {
     const b = acq[id];
     const ts = b != null ? blockTs.get(b) : null;
@@ -224,13 +224,13 @@ export async function buildMyMH(
   const lib = mhLibOf(freed || 0);
   // launch-factor summary for the hero chips (only rendered when they apply)
   let reaperCount = 0;
-  let maxReaperMult = 1.0;
+  let inheritedMH = 0;
   let maxProvBonus = 0;
   if (launch) {
     for (const id of owned) {
-      const rm = reaperMultOf(consumedOf(id));
-      if (rm > 1) reaperCount++;
-      if (rm > maxReaperMult) maxReaperMult = rm;
+      const c = consumedOf(id);
+      if (c > 0) reaperCount++;
+      inheritedMH += inheritedMHOf(c);
       const pb = Math.round((provenanceBonusOf(tierOfId(id)) - 1) * 100);
       if (pb > maxProvBonus) maxProvBonus = pb;
     }
@@ -242,7 +242,7 @@ export async function buildMyMH(
     lib,
     freed: freed || 0,
     reaperCount,
-    maxReaperMult,
+    inheritedMH,
     maxProvBonus,
   };
 
@@ -347,14 +347,15 @@ export async function buildBoard(
   const tierOfId = (id: number) => (rarity ? Number(rarity.tiers![id - 1]) || 0 : 0);
   const consumedOf = (id: number) => consumedById.get(id) ?? 0;
   // launch factors gated by the same flag as the hero (Δ=0 between the two views).
-  const reaperMult = (id: number) => (reaperLive ? reaperMultOf(consumedOf(id)) : 1.0);
+  const inheritOf = (id: number) => (reaperLive ? inheritedMHOf(consumedOf(id)) : 0);
   const provBonus = (id: number) => (reaperLive ? provenanceBonusOf(tierOfId(id)) : 1.0);
+  // base formula (cohort × rarity × provenance) PLUS the additive inheritance term.
   const tokenRate = (id: number) =>
     MH_BASE *
-    (MH_COHORT_MULT[cohorts.get(id) ?? 3] ?? 1.0) *
-    (rMult[tierOfId(id)] ?? 1.0) *
-    reaperMult(id) *
-    provBonus(id);
+      (MH_COHORT_MULT[cohorts.get(id) ?? 3] ?? 1.0) *
+      (rMult[tierOfId(id)] ?? 1.0) *
+      provBonus(id) +
+    inheritOf(id);
   const acqTs = (id: number) => {
     const x = lastXfer.get(id);
     const ts = x ? blockTs.get(x.block) : null;

@@ -7,6 +7,7 @@ import { mainnet } from "wagmi/chains";
 import MobileWalletSheet, { useIsMobileNoInjected } from "../components/MobileWalletSheet";
 import { loadSouls } from "@/lib/souls";
 import { loadPikkazos, approvalsNeeded, PIKKAZO_ABI } from "@/lib/pikkazo";
+import { inheritedMHOf } from "@/lib/mh";
 import {
   REAPER_ABI,
   SOULS,
@@ -437,10 +438,9 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   // the immediate next milestone from where the soul stands now (for the "⟶ next" card).
   const nextFromNow = MARK_THRESHOLDS.find((t) => t.at > already && !unlockedNowSet.has(t.markId)) ?? null;
 
-  // perks reflect the resulting reaper (best multiplier + total +MH/hr of worn marks).
-  const afterMarks = unlockedAfter.map((id) => MARK_BY_ID.get(id)!).filter(Boolean);
-  const mhBonus = afterMarks.reduce((s, m) => s + m.mh, 0);
-  const mult = afterMarks.reduce((mx, m) => Math.max(mx, m.mult), 0);
+  // perks reflect the resulting reaper: MH is INHERITED additively — every soul this
+  // reaper has consumed keeps counting +1 MH/h (capped at 60). Shown for the batch total.
+  const inheritedMH = inheritedMHOf(consumedAfter);
 
   // progress-bar geometry (over-30 keeps counting; the bar celebrates and stays full)
   const basePct = Math.min(100, (already / ASCEND_AT) * 100);
@@ -757,8 +757,8 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
             {/* perks of the resulting reaper (shown when this batch unlocks a mark) */}
             {unlocksNow && (
               <div className="perk-chips" style={{ marginTop: ".7rem" }}>
-                <span className="rk-chip"><span className="ico">⏳</span>MH <b>×{mult.toFixed(1)}</b></span>
-                <span className="rk-chip"><span className="ico">✦</span><b>+{mhBonus}</b> MH/hr</span>
+                <span className="rk-chip"><span className="ico">⏳</span><b>+{inheritedMH}</b> MH/h inherited</span>
+                <span className="rk-chip"><span className="ico">✦</span>each soul consumed = +1 MH/h</span>
                 <span className="rk-chip"><span className="ico">🜂</span>{rankName(consumedAfter)}</span>
               </div>
             )}

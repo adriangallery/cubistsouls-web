@@ -129,7 +129,9 @@ export default async function ReapersPage() {
               <li>The fire burns <b>Pikkazos</b> (canvases), never freed Souls. Their souls are consumed by your reaper.</li>
               <li>Every Pikkazo burned = <b>+1</b>. Burn an <b>exact batch</b> and it also forges that mark: <b>Orange 6 · Flame Crown 12 · Phoenix 18 · Burning Soul 30</b>. Any other number is a pure feed.</li>
               <li>Every burn adds to <b>Souls Consumed</b>. At <b>30</b>, the museum renames your Soul to <b>Soul Reaper</b>.</li>
-              <li>Marks add Museum Hours perks — a higher multiplier and more MH per hour.</li>
+              <li>Your reaper <b>inherits</b> the hours of every soul it consumes — <b>+1 Museum Hour per hour</b> each, kept forever (up to 60).</li>
+              <li><b>Every soul consumed = 1 raffle ticket. Forever.</b></li>
+              <li><b>Reapers get first access to the trait shop.</b></li>
               <li><b>The museum never forgets what you were born as</b> — it only lets you become more.</li>
               <li>Burning is <b>irreversible</b>. Offerings and rewards may shift before launch.</li>
             </ul>

@@ -83,19 +83,17 @@ export type Mark = {
   kind: string;
   slot: Slot | "fx";
   cost: number; // default; may be overwritten by markPrice()
-  mult: number; // MH Reaper multiplier at that mark's tier
-  mh: number; // illustrative +MH/hr
 };
 
-// `mult` = the MH Reaper multiplier of the CONSUMPTION TIER that mark's threshold
-// lands in (raised by Adrian 26-jul noche): Initiate ≥6 ×1.5 · Ember ≥18 ×2.0 ·
-// Soul Reaper ≥30 ×4.0. Orange(6) & Flame Crown(12) sit in the Initiate tier (×1.5),
-// Phoenix(18) in Ember (×2.0), Burning Soul(30) is the Soul Reaper prize (×4.0).
+// Marks are the visual milestones of cumulative consumption (Orange 6 · Flame Crown
+// 12 · Phoenix 18 · Burning Soul 30). They carry NO MH multiplier anymore: MH is now
+// INHERITED additively (+1 MH/h per soul consumed, cap 60 — see lib/mh.ts). The old
+// per-mark `mult`/`mh` display fields were retired with the ×1.5/×2/×4 model.
 export const REAPER_MARKS: Mark[] = [
-  { id: "orange", markId: 0, file: `${T}/art-background/bc-orange.svg`, name: "★ Orange", kind: "Art Background", slot: "ab", cost: 6, mult: 1.5, mh: 2 },
-  { id: "crown", markId: 1, file: `${T}/head/bc-flame-crown.svg`, name: "★ Flame Crown", kind: "Head", slot: "head", cost: 12, mult: 1.5, mh: 6 },
-  { id: "phoenix", markId: 2, file: `${T}/burn-fx/phoenix.svg`, name: "★ Phoenix", kind: "Burn FX", slot: "fx", cost: 18, mult: 2.0, mh: 8 },
-  { id: "burning", markId: 3, file: `${T}/base/bc-burning-soul.svg`, name: "★ Burning Soul", kind: "Base · skin", slot: "base", cost: 30, mult: 4.0, mh: 10 },
+  { id: "orange", markId: 0, file: `${T}/art-background/bc-orange.svg`, name: "★ Orange", kind: "Art Background", slot: "ab", cost: 6 },
+  { id: "crown", markId: 1, file: `${T}/head/bc-flame-crown.svg`, name: "★ Flame Crown", kind: "Head", slot: "head", cost: 12 },
+  { id: "phoenix", markId: 2, file: `${T}/burn-fx/phoenix.svg`, name: "★ Phoenix", kind: "Burn FX", slot: "fx", cost: 18 },
+  { id: "burning", markId: 3, file: `${T}/base/bc-burning-soul.svg`, name: "★ Burning Soul", kind: "Base · skin", slot: "base", cost: 30 },
 ];
 
 export const MARK_BY_ID = new Map(REAPER_MARKS.map((m) => [m.markId, m]));

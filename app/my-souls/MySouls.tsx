@@ -537,7 +537,7 @@ function MHHero({ myMh, mhPhase, heldNone }: { myMh: MyMHResult | null; mhPhase:
           </span>
           {myMh.me.reaperCount > 0 ? (
             <span className="mh-chip reaper">
-              🜃 Reaper <b>{myMh.me.reaperCount}</b> ×{myMh.me.maxReaperMult.toFixed(1)}
+              🜃 Inherited <b>+{myMh.me.inheritedMH}</b> MH/h
             </span>
           ) : null}
           {myMh.me.maxProvBonus > 0 ? (
