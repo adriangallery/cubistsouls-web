@@ -57,8 +57,8 @@ export default function Extrude3D() {
   const [tokenInput, setTokenInput] = useState("136");
   const [status, setStatus] = useState("warming up the workshop…");
   const [traits, setTraits] = useState<{ cat: string; label: string }[]>([]);
-  const [depth, setDepth] = useState(12);
-  const [gap, setGap] = useState(16);
+  const [depth, setDepth] = useState(14);
+  const [gap, setGap] = useState(45);
   const [spin, setSpin] = useState(true);
 
   // Long-lived three objects + loaded layer cache, owned outside React state.
@@ -73,7 +73,7 @@ export default function Extrude3D() {
     traitsIdx?: any;
     disposed?: boolean;
   }>({});
-  const wanted = useRef({ depth: 12, gap: 16 });
+  const wanted = useRef({ depth: 14, gap: 45 });
 
   // ------- scene bootstrap (once) -------
   useEffect(() => {
@@ -94,8 +94,9 @@ export default function Extrude3D() {
     scene.background = new THREE.Color("#120a0b");
     scene.fog = new THREE.Fog("#120a0b", 70, 160);
 
+    // Start on a 3/4 view so the slabs read as depth on first paint.
     const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 400);
-    camera.position.set(0, 7, 40);
+    camera.position.set(19, 8, 34);
 
     // Soft studio reflections without an HDR file.
     const pmrem = new THREE.PMREMGenerator(renderer);
