@@ -25,6 +25,42 @@ import {
 } from "./mh";
 
 // ── Params ───────────────────────────────────────────────────────────────────
+
+/// A layer-decomposed power figure (Order crown / cohort base / seniority stars),
+/// so a tally can be drawn as "the pyramid voting" rather than one flat number.
+export type LayerPower = { order: number; cohort: number; senior: number };
+
+export type BallotOption = {
+  label: string;
+  sub?: string;
+  value: number | string;
+  seed?: LayerPower; // demo tally while votes are local-only
+};
+
+/// A STANDING VOTE: a question the pyramid answers again and again on a cadence,
+/// over a set of options the museum wrote. The pyramid picks BETWEEN options — it
+/// never writes a value — which is what keeps a bad night from breaking anything.
+/// Defining one is an edit to govern-params.json: no redeploy, no cut.
+export type Ballot = {
+  key: string;
+  question: string;
+  cadence: string;
+  options: BallotOption[];
+  applies?: string; // public documentation of the exact call the museum will make
+  onchain?: boolean; // true when applying it produces a transaction (default: true)
+  seedSouls?: number;
+};
+
+/// One applied result, with the transaction that applied it. This is what turns
+/// "the museum executes the result" into something auditable.
+export type LedgerEntry = {
+  key: string;
+  date: string;
+  winner: string;
+  souls?: number;
+  tx?: string;
+};
+
 export type GovernParams = {
   version: number;
   cohortPts: { og: number; eraI: number; eraII: number };
@@ -34,7 +70,52 @@ export type GovernParams = {
   secondsRequired: number;
   salonCadence: string;
   brakeHours: number;
+  ballots: Ballot[];
+  ledger: LedgerEntry[];
 };
+
+/// Drop anything malformed rather than rendering NaNs or empty ballots: this JSON
+/// is hand-edited in another repo, so the page must survive a typo.
+function sanitizeBallots(raw: unknown): Ballot[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((b) => {
+    if (!b || typeof b !== "object") return [];
+    const o = b as Partial<Ballot>;
+    const options = Array.isArray(o.options)
+      ? o.options.filter((x) => x && typeof x.label === "string" && x.value !== undefined)
+      : [];
+    if (!o.key || !o.question || options.length < 2) return [];
+    return [
+      {
+        key: String(o.key),
+        question: String(o.question),
+        cadence: String(o.cadence ?? ""),
+        options,
+        applies: o.applies ? String(o.applies) : undefined,
+        onchain: o.onchain !== false,
+        seedSouls: Number(o.seedSouls) || 0,
+      },
+    ];
+  });
+}
+
+function sanitizeLedger(raw: unknown): LedgerEntry[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((e) => {
+    if (!e || typeof e !== "object") return [];
+    const o = e as Partial<LedgerEntry>;
+    if (!o.key || !o.winner) return [];
+    return [
+      {
+        key: String(o.key),
+        date: String(o.date ?? ""),
+        winner: String(o.winner),
+        souls: Number(o.souls) || undefined,
+        tx: o.tx ? String(o.tx) : undefined,
+      },
+    ];
+  });
+}
 
 // Ratified defaults (PLAN §pirámide). Used verbatim as the fallback if the remote
 // JSON is ever unreachable, so the page always renders sane numbers.
@@ -47,6 +128,8 @@ export const DEFAULT_PARAMS: GovernParams = {
   secondsRequired: 2,
   salonCadence: "monthly",
   brakeHours: 72,
+  ballots: [],
+  ledger: [],
 };
 
 const PARAMS_URL =
@@ -66,6 +149,8 @@ export async function fetchGovernParams(): Promise<GovernParams> {
       ...j,
       cohortPts: { ...DEFAULT_PARAMS.cohortPts, ...(j.cohortPts || {}) },
       seniorityTiers: Array.isArray(j.seniorityTiers) ? j.seniorityTiers : DEFAULT_PARAMS.seniorityTiers,
+      ballots: sanitizeBallots(j.ballots),
+      ledger: sanitizeLedger(j.ledger),
     };
   } catch {
     return DEFAULT_PARAMS;

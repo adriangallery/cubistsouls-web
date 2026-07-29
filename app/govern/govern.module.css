@@ -707,3 +707,194 @@
 .paramTag b {
   color: var(--gild);
 }
+
+/* ── standing votes — the recurring ballots (params-driven, PLAN_CUBISTSOULS_GOVPARAMS)
+   Same card language as the proposal ballot above, but the vote is a CHOICE between
+   museum-written options, so each option is its own bar+button instead of FOR/AGAINST. */
+.stHead {
+  text-align: center;
+  margin-bottom: clamp(0.8rem, 3vw, 1.2rem);
+}
+.stTitle {
+  font-family: var(--disp);
+  font-size: clamp(1.2rem, 5vw, 1.7rem);
+  color: var(--bone);
+  margin: 0 0 0.3rem;
+  letter-spacing: 0.02em;
+}
+.stLead {
+  font-family: var(--serif);
+  font-size: 0.92rem;
+  color: var(--mute);
+  margin: 0;
+}
+
+.stBallot {
+  border: 1px solid rgba(167, 101, 209, 0.28);
+  border-radius: 16px;
+  padding: clamp(0.9rem, 4vw, 1.4rem);
+  background: linear-gradient(180deg, rgba(58, 15, 22, 0.34), rgba(26, 6, 8, 0.34));
+  margin-bottom: 0.9rem;
+}
+.stTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.45rem;
+}
+.stKey {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  color: var(--order);
+}
+.stCadence {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 999px;
+  padding: 0.12rem 0.5rem;
+  white-space: nowrap;
+}
+
+.stOpts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin: 0.7rem 0 0.9rem;
+}
+.stOpt {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  overflow: hidden;
+  text-align: left;
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.22);
+  padding: 0.6rem 0.75rem;
+  cursor: pointer;
+  color: inherit;
+  transition: border-color 0.15s ease, transform 0.08s ease;
+}
+.stOpt:hover {
+  border-color: rgba(167, 101, 209, 0.5);
+}
+.stOpt:active {
+  transform: translateY(1px);
+}
+.stOptOn {
+  border-color: var(--order);
+  box-shadow: 0 0 22px -14px var(--order);
+}
+.stFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, rgba(167, 101, 209, 0.3), rgba(167, 101, 209, 0.08));
+  transition: width 0.35s ease;
+  pointer-events: none;
+}
+.stFillLead {
+  background: linear-gradient(90deg, rgba(224, 165, 32, 0.34), rgba(224, 165, 32, 0.08));
+}
+.stOptTxt {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+.stOptTxt b {
+  font-family: var(--serif);
+  font-size: 1rem;
+  color: var(--bone);
+  font-weight: 600;
+}
+.stOptTxt em {
+  font-family: var(--mono);
+  font-style: normal;
+  font-size: 0.68rem;
+  color: var(--mute);
+}
+.stOptPct {
+  position: relative;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--bone);
+  white-space: nowrap;
+}
+
+.stApplies {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--mute);
+  margin: 0.7rem 0 0;
+}
+.stApplies code {
+  color: var(--gild);
+  word-break: break-word;
+}
+.stGuard {
+  font-family: var(--serif);
+  font-size: 0.84rem;
+  line-height: 1.55;
+  color: var(--mute);
+  border-left: 2px solid rgba(167, 101, 209, 0.4);
+  padding-left: 0.7rem;
+  margin: 1rem 0 0;
+}
+
+/* ── the ledger ── */
+.ledEmpty {
+  font-family: var(--serif);
+  font-size: 0.88rem;
+  color: var(--mute);
+  text-align: center;
+  margin: 0;
+}
+.ledList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.ledRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--mute);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  padding: 0.5rem 0.1rem;
+}
+.ledKey {
+  color: var(--order);
+  letter-spacing: 0.1em;
+}
+.ledWinner {
+  color: var(--bone);
+  flex: 1;
+  min-width: 6rem;
+}
+.ledTx {
+  color: var(--gild);
+  text-decoration: none;
+}
+.ledTx:hover {
+  text-decoration: underline;
+}
+.ledTxNone {
+  opacity: 0.5;
+}
