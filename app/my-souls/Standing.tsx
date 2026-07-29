@@ -91,14 +91,15 @@ export default function Standing({
         <SpotlightCard exhibits={exhibits} imgFor={imgFor} loading={!myMh} />
         <MilestonesCard mine={mine} board={board} boardPhase={boardPhase} contribution={contribution} reaperLive={reaperLive} mode={mode} />
         <MemberSinceCard myMh={myMh} />
-        <CohortsCard exhibits={exhibits} loading={!myMh} reaperLive={reaperLive} mode={mode} />
-
-        {/* The panel closes with the two museum readouts, full width. They used to
-            open the page as separate panels; down here the live counter reads as
-            the conclusion of your standing, and the board — the slowest thing on
-            the page — can no longer hold up the first thing you see. */}
+        {/* The panel closes on ONE row: the live hour counter at two thirds, the
+            curators' board at one third. The counter keeps its size because it is
+            the payoff of the whole section; the board only ever needed ~257px of
+            the 321 a third gives it. Cohorts used to be a full-width band of its
+            own — it is chip-shaped metadata like everything else in the counter's
+            footer, so it moved in there. */}
         <div className="stat st-mh">
           <MHHero mode={mode} myMh={myMh} mhPhase={mhPhase} heldNone={!data.owned.length} />
+          <CohortChips exhibits={exhibits} loading={!myMh} reaperLive={reaperLive} mode={mode} />
         </div>
         <div className="stat st-board">
           <div className="stat-h">🏛 Curators&apos; board</div>
@@ -358,27 +359,29 @@ function MemberSinceCard({ myMh }: { myMh: MyMHResult | null }) {
 }
 
 /* ---- 8 · cohorts ----------------------------------------------------------- */
-function CohortsCard({ exhibits, loading, reaperLive, mode = "self" }: { exhibits: MHExhibit[]; loading: boolean; reaperLive: boolean; mode?: "self" | "public" }) {
+/* What you hold, by era — a second chip row under the hour counter's multipliers.
+   Same shape of fact, so it reads as one footer instead of two stacked bands. */
+function CohortChips({ exhibits, loading, reaperLive, mode = "self" }: { exhibits: MHExhibit[]; loading: boolean; reaperLive: boolean; mode?: "self" | "public" }) {
   const counts = [0, 0, 0, 0, 0];
   for (const e of exhibits) counts[e.cohort]++;
-  const parts = counts.map((n, i) => (n > 0 ? `${MH_COHORT_NAME[i]} ×${n}` : null)).filter(Boolean) as string[];
+  const parts = counts.map((n, i) => (n > 0 ? { name: MH_COHORT_NAME[i], n } : null)).filter(Boolean) as { name: string; n: number }[];
   const og = counts[0];
+  if (loading) return <div className="mh-cohorts"><SkelLines n={1} /></div>;
+  if (!parts.length) return null;
   return (
-    <div className="stat st-cohorts">
-      <div className="stat-h">🧬 Cohorts</div>
-      {loading ? (
-        <SkelLines n={2} />
-      ) : (
-        <>
-          <div className="cohort-line">{parts.length ? parts.join(" · ") : "—"}</div>
-          {/* the scythe CTA is an action — only on your own page */}
-          {mode === "self" && reaperLive && og > 0 ? (
-            <a className="cohort-note" href="/reapers#rite">
-              OG souls can take the scythe →
-            </a>
-          ) : null}
-        </>
-      )}
+    <div className="mh-cohorts">
+      <span className="mh-cohorts-k">Cohorts</span>
+      {parts.map((p) => (
+        <span className="mh-chip" key={p.name}>
+          {p.name} <b>×{p.n}</b>
+        </span>
+      ))}
+      {/* the scythe CTA is an action — only on your own page */}
+      {mode === "self" && reaperLive && og > 0 ? (
+        <a className="mh-cohorts-cta" href="/reapers#rite">
+          OG souls can take the scythe →
+        </a>
+      ) : null}
     </div>
   );
 }

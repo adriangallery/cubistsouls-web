@@ -389,9 +389,9 @@ button{font:inherit}
    Cards stretch to their row so a taller neighbour never leaves a hole. ---- */
 .stat-cards{display:grid;gap:clamp(.7rem,2vw,1rem);align-items:stretch;
   grid-template-columns:1fr;
-  grid-template-areas:"weight" "proj" "raffle" "rarity" "next" "spot" "member" "cohorts" "mh" "board"}
+  grid-template-areas:"weight" "proj" "raffle" "rarity" "next" "spot" "member" "mh" "board"}
 .stat-cards.no-raffle{
-  grid-template-areas:"weight" "proj" "next" "rarity" "spot" "member" "cohorts" "mh" "board"}
+  grid-template-areas:"weight" "proj" "next" "rarity" "spot" "member" "mh" "board"}
 /* tablet — 2 columns, explicit order */
 @media(min-width:600px){
   .stat-cards{grid-template-columns:1fr 1fr;
@@ -400,7 +400,6 @@ button{font:inherit}
       "raffle  next"
       "rarity  spot"
       "member  spot"
-      "cohorts cohorts"
       "mh      mh"
       "board   board"}
   .stat-cards.no-raffle{
@@ -409,7 +408,6 @@ button{font:inherit}
       "next    next"
       "rarity  spot"
       "member  spot"
-      "cohorts cohorts"
       "mh      mh"
       "board   board"}
 }
@@ -421,17 +419,13 @@ button{font:inherit}
       "weight  proj    raffle"
       "rarity  spot    next"
       "rarity  spot    member"
-      "cohorts cohorts cohorts"
-      "mh      mh      mh"
-      "board   board   board"}
+      "mh      mh      board"}
   .stat-cards.no-raffle{
     grid-template-areas:
       "weight  proj    next"
       "rarity  spot    next"
       "rarity  spot    member"
-      "cohorts cohorts cohorts"
-      "mh      mh      mh"
-      "board   board   board"}
+      "mh      mh      board"}
 }
 .st-weight{grid-area:weight}
 .st-proj{grid-area:proj}
@@ -440,16 +434,29 @@ button{font:inherit}
 .st-spot{grid-area:spot}
 .st-next{grid-area:next}
 .st-member{grid-area:member}
-.st-cohorts{grid-area:cohorts}
-/* The two museum readouts that close the standing panel. The board keeps its own
-   scroll so twenty curators never stretch the panel down the page. */
+/* The row that closes the standing panel: the live hour counter beside the
+   curators' board. Both stretch to the row, and the board scrolls INSIDE that
+   height so twenty curators can never drag the panel down the page. */
 .st-mh{grid-area:mh}
-.st-board{grid-area:board}
-.st-board .mh-board{max-height:min(52vh,420px);overflow:auto;overscroll-behavior:contain}
+.st-board{grid-area:board;display:flex;flex-direction:column;min-height:0}
+/* The board's twenty rows want ~924px; the hour counter's content needs ~328. Left
+   to itself the row sized to the board and left 660px of dead space under the
+   counter. Capping the scroller near the counter's own height makes the two cards
+   almost exactly the same size — the list keeps scrolling, nobody gets a void. */
+.st-board .mh-board{flex:1;min-height:0;max-height:min(44vh,360px);
+  overflow:auto;overscroll-behavior:contain}
+
+/* cohorts, folded into the counter's footer as a second chip row */
+.mh-cohorts{display:flex;align-items:center;gap:.5rem;justify-content:center;flex-wrap:wrap;
+  margin-top:.7rem;padding-top:.7rem;border-top:1px solid rgba(224,165,32,.16)}
+.mh-cohorts-k{font-family:var(--mono);font-size:.58rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--mute)}
+.mh-cohorts-cta{font-family:var(--mono);font-size:.62rem;letter-spacing:.06em;color:var(--gild);
+  text-decoration:none;white-space:nowrap}
+.mh-cohorts-cta:hover{text-decoration:underline}
 .stat{background:rgba(20,4,8,.42);border:1px solid rgba(224,165,32,.26);border-radius:10px;
   padding:clamp(.85rem,2.4vw,1.1rem)}
 /* cohorts reads as a thin full-width band: name + note on one baseline */
-.st-cohorts{display:flex;flex-direction:column;justify-content:center}
 .stat-h{font-family:var(--mono);font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;
   color:var(--gild);margin-bottom:.6rem}
 .stat-big{font-family:var(--disp);font-weight:800;font-size:clamp(1.6rem,4vw,2.1rem);color:var(--bone);
@@ -511,10 +518,6 @@ button{font:inherit}
 .spot-sub{font-family:var(--mono);font-size:.66rem;color:var(--flame);font-weight:700;margin-top:.2rem}
 
 /* 8 · cohorts */
-.cohort-line{font-family:var(--mono);font-size:.82rem;color:var(--bone);letter-spacing:.02em;line-height:1.5}
-.cohort-note{display:inline-block;margin-top:.55rem;font-family:var(--mono);font-size:.66rem;font-weight:700;
-  letter-spacing:.03em;color:#c98fe0;text-decoration:none}
-.cohort-note:hover{color:var(--flame)}
 
 @media(max-width:400px){
   .wt-two{grid-template-columns:1fr;gap:.5rem}
