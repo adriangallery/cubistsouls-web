@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
@@ -50,14 +50,14 @@ export default function GovernClient({ counts }: { counts: PyramidCounts }) {
       <Hero />
       <Pyramid counts={counts} params={params} />
       <PowerPanel params={params} onPower={setPower} />
-      <HowItWorks params={params} />
+      <Cycle />
       <DemoBallot params={params} power={power} />
       <FinePrint params={params} />
       <div className={styles.paramTag}>
         {paramsLoaded ? (
           params.version > 0 ? (
             <>
-              params <b>v{params.version}</b> · live from the museum ledger
+              params <b>v{params.version}</b> · live
             </>
           ) : (
             <>params <b>defaults</b> · ledger unreachable</>
@@ -70,7 +70,7 @@ export default function GovernClient({ counts }: { counts: PyramidCounts }) {
   );
 }
 
-// ── HERO ───────────────────────────────────────────────────────────────────────
+// ── HERO — the whole page in two lines ──────────────────────────────────────────
 function Hero() {
   return (
     <header className={styles.hero}>
@@ -78,34 +78,33 @@ function Hero() {
         <span className={styles.tri}>🜃</span> Soul-bound governance
       </span>
       <h1 className={styles.title}>THE PYRAMID</h1>
-      <p className={styles.lead}>Power lives in the souls — not the wallet.</p>
+      <p className={styles.lead}>Your souls carry the power.</p>
+      <p className={styles.lead2}>Reapers propose. The pyramid votes.</p>
     </header>
   );
 }
 
-// ── a. THE PYRAMID, drawn ───────────────────────────────────────────────────────
+// ── a. THE PYRAMID — the protagonist, explains itself ───────────────────────────
 function Pyramid({ counts, params }: { counts: PyramidCounts; params: GovernParams }) {
   const erasTxt = counts.eras ? fmtK(counts.eras) : "—";
   const ogTxt = counts.og ? fmt(counts.og) : "—";
   return (
     <section className={styles.section}>
       <div className={styles.pyramid}>
-        <div className={`${styles.tier} ${styles.tOrder}`} style={{ width: "62%" }}>
+        <div className={`${styles.tier} ${styles.tOrder}`} style={{ width: "64%" }}>
           <span className={styles.tierIco}>🜃</span>
           <div className={styles.tierTxt}>
             <b>The Order</b>
-            <span>
-              {counts.reapers} soul{counts.reapers === 1 ? "" : "s"} · reapers rule
-            </span>
+            <span>propose &amp; counsel</span>
           </div>
-          <span className={styles.tierMeta}>×{params.reaperCrown}</span>
+          <span className={styles.tierMeta}>{counts.reapers || "—"}</span>
         </div>
         <div className={`${styles.tier} ${styles.tCohort}`} style={{ width: "82%" }}>
           <span className={styles.tierIco}>◈</span>
           <div className={styles.tierTxt}>
             <b>Cohorts</b>
             <span>
-              {ogTxt} OG · {erasTxt} Eras
+              {ogTxt} OG · {erasTxt}
             </span>
           </div>
           <span className={styles.tierMeta}>
@@ -116,16 +115,16 @@ function Pyramid({ counts, params }: { counts: PyramidCounts; params: GovernPara
           <span className={styles.tierIco}>★</span>
           <div className={styles.tierTxt}>
             <b>Seniority</b>
-            <span>every hour counts</span>
+            <span>every hour held</span>
           </div>
-          <span className={styles.tierMeta}>0–5</span>
+          <span className={styles.tierMeta}>+5 max</span>
         </div>
       </div>
     </section>
   );
 }
 
-// ── b. YOUR POWER ───────────────────────────────────────────────────────────────
+// ── b. YOUR POWER — one giant number + three chips ──────────────────────────────
 type Phase = "idle" | "loading" | "loaded" | "error";
 
 function PowerPanel({
@@ -172,24 +171,19 @@ function PowerPanel({
 
   return (
     <section className={styles.section}>
-      <div className={styles.secHead}>
-        <span className={styles.eyebrow}>Your power</span>
-        <h2>WHAT YOUR SOULS CARRY</h2>
-      </div>
+      <span className={styles.eyebrow}>Your power</span>
 
       {!mounted || !connected ? (
         <div className={styles.connectCard}>
-          <p className={styles.connectLead}>Connect to weigh the souls in this wallet.</p>
+          <p className={styles.connectLead}>Connect to weigh your souls.</p>
           <ConnectButton chainStatus="none" showBalance={false} accountStatus="address" />
         </div>
       ) : phase === "loading" ? (
         <div className={styles.powerSkeleton}>Weighing your souls…</div>
       ) : phase === "error" ? (
-        <p className={styles.note}>Couldn&apos;t reach the chain — try again in a moment.</p>
+        <p className={styles.note}>Couldn&apos;t reach the chain — try again.</p>
       ) : power && power.heldCount === 0 ? (
-        <p className={styles.note}>
-          No souls in this wallet yet — power travels with the token, so you hold none.
-        </p>
+        <p className={styles.note}>No souls here yet — power travels with the token.</p>
       ) : power ? (
         <>
           <div className={styles.powerHero}>
@@ -208,31 +202,12 @@ function PowerPanel({
             </div>
           </div>
 
-          {/* simple additive breakdown — the three layers that sum to the total */}
-          <ul className={styles.breakdown}>
-            <BreakRow
-              label="Cohort points"
-              sub={cohortSub(power)}
-              value={power.cohortBase}
-              cls={styles.bCohort}
-            />
-            {power.crownBonus > 0 && (
-              <BreakRow
-                label="Reaper crowns"
-                sub={`${power.reaperCount} reaper × ${params.reaperCrown}`}
-                value={power.crownBonus}
-                cls={styles.bOrder}
-                plus
-              />
-            )}
-            <BreakRow
-              label="Seniority stars"
-              sub={`hours held, per soul (cap 5)`}
-              value={power.starTotal}
-              cls={styles.bSenior}
-              plus
-            />
-          </ul>
+          {/* three chips — the whole breakdown, no prose */}
+          <div className={styles.chips}>
+            <Chip label="cohorts" value={power.cohortBase} cls={styles.bCohort} />
+            <Chip label="crowns" value={power.crownBonus} cls={styles.bOrder} plus />
+            <Chip label="stars" value={power.starTotal} cls={styles.bSenior} plus />
+          </div>
 
           <button className={styles.seeSoul} onClick={() => setExpanded((e) => !e)}>
             {expanded ? "Hide per-soul" : "See per-soul →"}
@@ -268,73 +243,61 @@ function PowerPanel({
   );
 }
 
-function cohortSub(p: WalletPower): string {
-  const parts: string[] = [];
-  if (p.byCohort.og) parts.push(`${p.byCohort.og} OG`);
-  if (p.byCohort.eraI) parts.push(`${p.byCohort.eraI} Era I`);
-  if (p.byCohort.eraII) parts.push(`${p.byCohort.eraII} Era II+`);
-  return parts.join(" · ") || "—";
-}
-
-function BreakRow({
+function Chip({
   label,
-  sub,
   value,
   cls,
   plus,
 }: {
   label: string;
-  sub: string;
   value: number;
   cls: string;
   plus?: boolean;
 }) {
   return (
-    <li className={styles.breakRow}>
+    <div className={styles.chip}>
       <span className={`${styles.breakDot} ${cls}`} />
-      <div className={styles.breakTxt}>
-        <b>{label}</b>
-        <span>{sub}</span>
-      </div>
-      <span className={styles.breakVal}>
+      <span className={styles.chipVal}>
         {plus ? "+" : ""}
         {fmt(value)}
       </span>
-    </li>
+      <span className={styles.chipLabel}>{label}</span>
+    </div>
   );
 }
 
-// ── c. HOW IT WORKS — the cycle in 5 steps ──────────────────────────────────────
-function HowItWorks({ params }: { params: GovernParams }) {
+// ── c. THE CYCLE — one horizontal strip of icons ────────────────────────────────
+function Cycle() {
   const steps = [
-    { ic: "🜃", t: "A reaper proposes", d: "Only the Order can open a proposal." },
-    { ic: "🤝", t: `${params.secondsRequired} second it`, d: `${params.secondsRequired} other reapers must back it.` },
-    { ic: "🏛️", t: "The Salon", d: `It goes to the ${params.salonCadence} vote.` },
-    { ic: "▦", t: "The pyramid votes", d: `Quorum ${fmt(params.quorumSouls)} souls · majority of power.` },
-    { ic: "⏸️", t: `Order may brake ${params.brakeHours}h`, d: "One pause forces a re-vote." },
-    { ic: "✓", t: "It executes", d: "The result ships, in the open." },
+    { ic: "🜃", t: "propose" },
+    { ic: "🤝", t: "second" },
+    { ic: "🏛️", t: "salon" },
+    { ic: "▦", t: "vote" },
+    { ic: "✓", t: "execute" },
   ];
   return (
     <section className={styles.section}>
-      <div className={styles.secHead}>
-        <span className={styles.eyebrow}>The cycle</span>
-        <h2>HOW IT WORKS</h2>
-      </div>
-      <ol className={styles.steps}>
+      <span className={styles.eyebrow}>The cycle</span>
+      <ol className={styles.cycle}>
         {steps.map((s, i) => (
-          <li className={styles.step} key={i}>
-            <span className={styles.stepNum}>{i + 1}</span>
-            <span className={styles.stepIco}>{s.ic}</span>
-            <b className={styles.stepTitle}>{s.t}</b>
-            <span className={styles.stepDesc}>{s.d}</span>
-          </li>
+          <Fragment key={s.t}>
+            <li className={styles.cycleStep}>
+              <span className={styles.cycleIco}>{s.ic}</span>
+              <span className={styles.cycleTxt}>{s.t}</span>
+            </li>
+            {i < steps.length - 1 && (
+              <span className={styles.cycleArrow} aria-hidden>
+                →
+              </span>
+            )}
+          </Fragment>
         ))}
       </ol>
     </section>
   );
 }
 
-// ── d. DEMO BALLOT — a fake vote, clearly marked, LOCAL only ─────────────────────
+// ── d. DEMO BALLOT — teaches by doing, LOCAL only ───────────────────────────────
 type Vote = "for" | "against" | "abstain";
 const VOTE_STORE = "cs-govern-demo-vote";
 
@@ -403,23 +366,18 @@ function DemoBallot({ params, power }: { params: GovernParams; power: WalletPowe
 
   return (
     <section className={styles.section}>
-      <div className={styles.secHead}>
-        <span className={styles.eyebrow}>See it vote</span>
-        <h2>A BALLOT</h2>
-      </div>
-
       <article className={styles.ballot}>
-        <div className={styles.demoBadge}>DEMO — not a real vote</div>
-        <h3 className={styles.ballotTitle}>Should the museum host a summer raffle?</h3>
+        <div className={styles.demoBadge}>DEMO</div>
+        <h3 className={styles.ballotTitle}>Host a summer raffle?</h3>
         <div className={styles.ballotMeta}>
           <span className={styles.metaChip}>
-            🜃 proposed by <b>Soul Reaper #8777</b>
+            🜃 <b>Soul Reaper #8777</b>
           </span>
           <span className={styles.metaSeal}>
             seconded <b>{params.secondsRequired}/{params.secondsRequired}</b> ✓
           </span>
           <span className={styles.metaCouncil}>
-            The Order counsels: <b>FOR</b> · 3/3
+            Order counsels <b>FOR</b> · 3/3
           </span>
         </div>
 
@@ -438,16 +396,10 @@ function DemoBallot({ params, power }: { params: GovernParams; power: WalletPowe
         </div>
         {vote && (
           <div className={styles.voteNote}>
-            You voted <b>{vote.toUpperCase()}</b>
-            {power ? (
-              <>
-                {" "}
-                with <b>{fmt(power.total)}</b> power
-              </>
-            ) : (
-              <> (connect a wallet above to add your real power)</>
-            )}
-            . <button className={styles.clearBtn} onClick={clear}>reset</button>
+            You voted <b>{vote.toUpperCase()}</b>.{" "}
+            <button className={styles.clearBtn} onClick={clear}>
+              reset
+            </button>
           </div>
         )}
 
@@ -460,7 +412,6 @@ function DemoBallot({ params, power }: { params: GovernParams; power: WalletPowe
         </div>
 
         {/* the pyramid votes — power contributed by each layer (FOR vs AGAINST) */}
-        <div className={styles.tallyHead}>How the pyramid voted</div>
         <div className={styles.layerTally}>
           {(
             [
@@ -490,7 +441,7 @@ function DemoBallot({ params, power }: { params: GovernParams; power: WalletPowe
           <div className={styles.quorumTop}>
             <span>Quorum</span>
             <span className={quorumMet ? styles.qMet : undefined}>
-              {fmt(souls)} / {fmt(params.quorumSouls)} souls {quorumMet ? "· met ✓" : ""}
+              {fmt(souls)} / {fmt(params.quorumSouls)} {quorumMet ? "· met ✓" : ""}
             </span>
           </div>
           <div className={styles.quorumTrack}>
@@ -505,19 +456,22 @@ function DemoBallot({ params, power }: { params: GovernParams; power: WalletPowe
   );
 }
 
-// ── e. FINE PRINT ────────────────────────────────────────────────────────────────
+// ── e. FINE PRINT — everything else, closed by default ──────────────────────────
 function FinePrint({ params }: { params: GovernParams }) {
   return (
     <section className={styles.section}>
-      <ul className={styles.fine}>
-        <li>
-          <b>Quorum {fmt(params.quorumSouls)} souls</b> — counted in souls, never wallets.
-        </li>
-        <li>
-          <b>Snapshot at proposal</b> — power is frozen the moment a ballot opens.
-        </li>
-        <li>Your souls carry the power — not your wallet.</li>
-      </ul>
+      <details className={styles.fine}>
+        <summary className={styles.fineSummary}>The fine print</summary>
+        <ul className={styles.fineList}>
+          <li>Power lives in the souls, never the wallet.</li>
+          <li>Only reapers open a proposal.</li>
+          <li>{params.secondsRequired} more reapers must second it.</li>
+          <li>Quorum {fmt(params.quorumSouls)} souls — counted in souls.</li>
+          <li>Power is frozen when the ballot opens.</li>
+          <li>The Order may brake {params.brakeHours}h — one re-vote.</li>
+          <li>Sell the soul, the power leaves with it.</li>
+        </ul>
+      </details>
     </section>
   );
 }

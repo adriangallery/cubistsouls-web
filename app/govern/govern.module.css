@@ -46,17 +46,22 @@
 }
 .lead {
   font-family: var(--serif);
-  font-size: clamp(0.98rem, 3.4vw, 1.2rem);
-  color: var(--mute);
+  font-size: clamp(1.05rem, 4vw, 1.35rem);
+  color: var(--bone);
   margin: 0;
+  line-height: 1.25;
+}
+.lead2 {
+  font-family: var(--serif);
+  font-size: clamp(1.05rem, 4vw, 1.35rem);
+  color: var(--mute);
+  margin: 0.15rem 0 0;
+  line-height: 1.25;
 }
 
 /* ── sections ── */
 .section {
-  padding: clamp(1.1rem, 4vw, 1.8rem) 0;
-}
-.secHead {
-  margin-bottom: clamp(0.8rem, 2.5vw, 1.1rem);
+  padding: clamp(0.9rem, 3vw, 1.4rem) 0;
 }
 .eyebrow {
   display: block;
@@ -65,15 +70,7 @@
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--gild);
-  margin-bottom: 0.25rem;
-}
-.secHead h2 {
-  font-family: var(--disp);
-  font-weight: 800;
-  font-size: clamp(1.2rem, 5vw, 1.8rem);
-  letter-spacing: 0.01em;
-  margin: 0;
-  color: var(--bone);
+  margin-bottom: 0.6rem;
 }
 
 /* ── a. the pyramid ── */
@@ -229,22 +226,39 @@
   color: var(--bone);
 }
 
-.breakdown {
-  list-style: none;
+.chips {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
   margin: 0 0 0.9rem;
-  padding: 0;
+}
+.chip {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-}
-.breakRow {
-  display: flex;
   align-items: center;
-  gap: 0.7rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: 10px;
+  gap: 0.15rem;
+  padding: 0.7rem 0.4rem 0.6rem;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(224, 165, 32, 0.12);
+  border: 1px solid rgba(224, 165, 32, 0.14);
+  min-width: 0;
+}
+.chip .breakDot {
+  margin-bottom: 0.1rem;
+}
+.chipVal {
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: clamp(1.3rem, 6vw, 1.7rem);
+  color: var(--bone);
+  line-height: 1;
+}
+.chipLabel {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
 }
 .breakDot {
   width: 0.65rem;
@@ -260,33 +274,6 @@
 }
 .bSenior {
   background: var(--flame);
-}
-.breakTxt {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-width: 0;
-}
-.breakTxt b {
-  font-family: var(--disp);
-  font-weight: 700;
-  font-size: 0.95rem;
-  color: var(--bone);
-}
-.breakTxt span {
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  color: var(--mute);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.breakVal {
-  font-family: var(--disp);
-  font-weight: 900;
-  font-size: 1.3rem;
-  color: var(--bone);
-  flex: none;
 }
 
 .seeSoul {
@@ -378,66 +365,40 @@
   color: var(--flame);
 }
 
-/* ── c. how it works — 5(+1) steps ── */
-.steps {
+/* ── c. the cycle — one horizontal strip, icon over word ── */
+.cycle {
   list-style: none;
   margin: 0;
-  padding: 0;
-  display: grid;
-  gap: 0.6rem;
-  grid-template-columns: repeat(2, 1fr);
+  padding: 0.2rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.1rem;
 }
-@media (min-width: 560px) {
-  .steps {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-.step {
-  position: relative;
+.cycleStep {
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
-  gap: 0.35rem;
-  padding: clamp(0.8rem, 3vw, 1.1rem) 0.5rem;
-  border-radius: 12px;
-  border: 1px solid rgba(167, 101, 209, 0.28);
-  background: linear-gradient(180deg, rgba(122, 63, 160, 0.1), rgba(20, 4, 8, 0.35));
+  gap: 0.28rem;
+  flex: 0 0 auto;
+  min-width: 0;
 }
-.stepNum {
-  position: absolute;
-  top: 0.5rem;
-  left: 0.5rem;
-  width: 1.4rem;
-  height: 1.4rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: var(--order-deep);
-  color: var(--bone);
-  font-family: var(--disp);
-  font-weight: 900;
-  font-size: 0.75rem;
-}
-.stepIco {
-  font-size: clamp(1.6rem, 6vw, 2.1rem);
+.cycleIco {
+  font-size: clamp(1.4rem, 7vw, 1.9rem);
   line-height: 1;
-  margin-top: 0.4rem;
 }
-.stepTitle {
-  font-family: var(--disp);
-  font-weight: 800;
-  text-transform: uppercase;
-  font-size: clamp(0.78rem, 2.5vw, 0.95rem);
-  color: var(--bone);
-  line-height: 1.1;
-}
-.stepDesc {
+.cycleTxt {
   font-family: var(--mono);
-  font-size: 0.66rem;
-  color: var(--mute);
-  line-height: 1.25;
+  font-size: clamp(0.6rem, 2.6vw, 0.72rem);
+  letter-spacing: 0.02em;
+  color: var(--bone);
+}
+.cycleArrow {
+  flex: 1 1 auto;
+  text-align: center;
+  color: var(--order);
+  font-size: clamp(0.7rem, 3vw, 1rem);
+  opacity: 0.7;
 }
 
 /* ── d. demo ballot ── */
@@ -673,29 +634,62 @@
   background: linear-gradient(90deg, #4fb968, #78d68a);
 }
 
-/* ── e. fine print ── */
+/* ── e. fine print — closed disclosure ── */
 .fine {
+  background: rgba(26, 6, 8, 0.4);
+  border: 1px solid rgba(224, 165, 32, 0.2);
+  border-radius: 14px;
+  padding: 0 clamp(1rem, 3vw, 1.4rem);
+}
+.fineSummary {
+  cursor: pointer;
+  list-style: none;
+  padding: clamp(0.85rem, 3vw, 1.1rem) 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gild);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fineSummary::-webkit-details-marker {
+  display: none;
+}
+.fineSummary::after {
+  content: "+";
+  font-size: 1.1rem;
+  color: var(--order);
+}
+.fine[open] .fineSummary::after {
+  content: "–";
+}
+.fineList {
   list-style: none;
   margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 0.45rem;
+  padding: 0 0 clamp(0.9rem, 3vw, 1.2rem);
+  display: grid;
+  gap: 0.55rem;
 }
-.fine li {
+.fineList li {
   font-family: var(--serif);
-  font-size: 0.9rem;
   color: var(--mute);
-  padding-left: 1rem;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  padding-left: 1.1rem;
   position: relative;
 }
-.fine li::before {
-  content: "·";
+.fineList li::before {
+  content: "🜃";
   position: absolute;
-  left: 0.25rem;
-  color: var(--gild);
+  left: 0;
+  top: 0.05rem;
+  font-size: 0.62rem;
+  color: var(--order);
 }
-.fine b {
+.fineList li b {
   color: var(--bone-2, #e7dbc8);
 }
 
