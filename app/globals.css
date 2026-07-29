@@ -105,6 +105,27 @@ button{font:inherit}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--freed);
   box-shadow:0 0 0 0 rgba(55,214,122,.6);animation:pulse 2s infinite}
 @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(55,214,122,.55)}70%{box-shadow:0 0 0 8px rgba(55,214,122,0)}100%{box-shadow:0 0 0 0 rgba(55,214,122,0)}}
+
+/* ---------- CUBIST SOULS — the house display face ----------
+   Adrian's call (29-jul): "use sparingly in headlines and big stuff". It is a
+   DISPLAY face and the file proves it: no kerning (no GPOS), proportional figures,
+   one weight, no italic, and ten ASCII characters simply absent ($ % & + < = > @ | ~).
+   So it is scoped to the four biggest things on the site and nothing else — never
+   body copy, never mono labels, never a column of numbers.
+   font-synthesis:none because there is only a Regular: without it a browser fakes
+   the 900 the old display face used and smears the outlines. */
+@font-face{
+  font-family:"CubistSouls";
+  src:url("/fonts/CubistSouls.woff2") format("woff2"),
+      url("/fonts/CubistSouls.otf") format("opentype");
+  font-weight:400;font-style:normal;font-display:swap;
+}
+.cs-face{
+  font-family:"CubistSouls",var(--disp);
+  font-weight:400;font-synthesis:none;
+  letter-spacing:0;   /* the face is wide and unkerned — the old negative tracking collides */
+}
+
 .title{font-family:var(--disp);font-weight:900;line-height:.88;letter-spacing:-.015em;
   font-size:var(--fs-hero);color:var(--bone);text-shadow:0 3px 24px rgba(0,0,0,.6),0 0 60px rgba(255,91,24,.25)}
 .lead{font-family:var(--serif);font-style:italic;color:var(--bone-2);
@@ -1049,3 +1070,17 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
 @media(max-width:560px){.teaser-strip .ts-legal{flex-basis:100%}}
 
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* the four places the display face is allowed to appear */
+.title,.rp-title,.sec-head h2,.tally .num{
+  font-family:"CubistSouls",var(--disp);
+  font-weight:400;
+  font-synthesis:none;
+  letter-spacing:0;
+}
+.title,.rp-title{line-height:.95}
+.sec-head h2{line-height:1}
+/* "BORN & BECOMING" (gallery): the face has no ampersand, so that one glyph stays
+   in the old display face on purpose — better a deliberate pairing than a silent
+   fallback to whatever the browser picks. */
+.amp{font-family:var(--disp);font-weight:800;letter-spacing:-.01em}

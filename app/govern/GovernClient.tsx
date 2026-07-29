@@ -52,6 +52,8 @@ export default function GovernClient({ counts }: { counts: PyramidCounts }) {
       <PowerPanel params={params} onPower={setPower} />
       <Cycle />
       <DemoBallot params={params} power={power} />
+      <StandingVotes params={params} power={power} />
+      <Ledger params={params} />
       <FinePrint params={params} />
       <div className={styles.paramTag}>
         {paramsLoaded ? (
@@ -456,7 +458,197 @@ function DemoBallot({ params, power }: { params: GovernParams; power: WalletPowe
   );
 }
 
-// ── e. FINE PRINT — everything else, closed by default ──────────────────────────
+// ── e. STANDING VOTES — the recurring ones, over CLOSED options ─────────────────
+//
+// A proposal (above) is written by a reaper and is a one-off. A standing vote comes
+// back on a cadence and asks the same question over a set of options the museum
+// wrote. That distinction is the whole safety model: the pyramid picks BETWEEN
+// options, it never writes a value, so no single bad night can break the museum.
+//
+// Adding one is an edit to govern-params.json in the assets repo — no redeploy, no
+// contract change, no facet cut. Which is why this component renders whatever it
+// finds there instead of anything hardcoded.
+//
+// Votes are LOCAL (localStorage) while the design is frozen, exactly like the demo
+// ballot above — the EIP-191 engine lands with the first real Salón.
+const STANDING_STORE = "cs-govern-standing";
+
+function StandingVotes({ params, power }: { params: GovernParams; power: WalletPower | null }) {
+  const [picks, setPicks] = useState<Record<string, number>>({});
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STANDING_STORE);
+      if (raw) setPicks(JSON.parse(raw) as Record<string, number>);
+    } catch {}
+  }, []);
+  const pick = useCallback((key: string, idx: number) => {
+    setPicks((prev) => {
+      const next = prev[key] === idx ? { ...prev, [key]: -1 } : { ...prev, [key]: idx };
+      try {
+        localStorage.setItem(STANDING_STORE, JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
+  // What this wallet pours into whichever option it picks, split by pyramid layer.
+  const mine = useMemo(
+    () => ({
+      order: power?.crownBonus ?? 0,
+      cohort: power?.cohortBase ?? (power ? 0 : 12),
+      senior: power?.starTotal ?? 0,
+      souls: power?.heldCount ?? 1,
+    }),
+    [power],
+  );
+
+  if (!params.ballots.length) return null;
+
+  return (
+    <section className={styles.section}>
+      <div className={styles.stHead}>
+        <h2 className={styles.stTitle}>Standing votes</h2>
+        <p className={styles.stLead}>
+          The museum writes the options. The pyramid chooses between them — every time.
+        </p>
+      </div>
+
+      {params.ballots.map((b) => {
+        const chosen = picks[b.key] ?? -1;
+        const tallies = b.options.map((o, i) => {
+          const seed = o.seed ?? { order: 0, cohort: 0, senior: 0 };
+          const t = { ...seed };
+          if (chosen === i) {
+            t.order += mine.order;
+            t.cohort += mine.cohort;
+            t.senior += mine.senior;
+          }
+          return t.order + t.cohort + t.senior;
+        });
+        const total = tallies.reduce((a, n) => a + n, 0) || 1;
+        const top = Math.max(...tallies);
+        const souls = (b.seedSouls ?? 0) + (chosen >= 0 ? mine.souls : 0);
+        const quorumPct = Math.min(100, Math.round((souls / params.quorumSouls) * 100));
+        const quorumMet = souls >= params.quorumSouls;
+
+        return (
+          <article className={styles.stBallot} key={b.key}>
+            <div className={styles.stTop}>
+              <span className={styles.stKey}>{b.key}</span>
+              <span className={styles.stCadence}>{b.cadence}</span>
+            </div>
+            <h3 className={styles.ballotTitle}>{b.question}</h3>
+
+            <div className={styles.stOpts}>
+              {b.options.map((o, i) => {
+                const pct = Math.round((tallies[i] / total) * 100);
+                const leading = tallies[i] === top && top > 0;
+                return (
+                  <button
+                    key={String(o.value)}
+                    className={`${styles.stOpt} ${chosen === i ? styles.stOptOn : ""}`}
+                    onClick={() => pick(b.key, i)}
+                    aria-pressed={chosen === i}
+                  >
+                    <span
+                      className={`${styles.stFill} ${leading ? styles.stFillLead : ""}`}
+                      style={{ width: `${pct}%` }}
+                      aria-hidden
+                    />
+                    <span className={styles.stOptTxt}>
+                      <b>{o.label}</b>
+                      {o.sub ? <em>{o.sub}</em> : null}
+                    </span>
+                    <span className={styles.stOptPct}>
+                      {pct}%{chosen === i ? " ✓" : ""}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className={styles.quorum}>
+              <div className={styles.quorumTop}>
+                <span>Quorum</span>
+                <span className={quorumMet ? styles.qMet : undefined}>
+                  {fmt(souls)} / {fmt(params.quorumSouls)} {quorumMet ? "· met ✓" : ""}
+                </span>
+              </div>
+              <div className={styles.quorumTrack}>
+                <span
+                  className={`${styles.quorumFill} ${quorumMet ? styles.quorumFillMet : ""}`}
+                  style={{ width: `${quorumPct}%` }}
+                />
+              </div>
+            </div>
+
+            {b.applies && (
+              <p className={styles.stApplies}>
+                {b.onchain ? (
+                  <>
+                    If it wins, the museum calls <code>{b.applies}</code> — and the transaction
+                    goes in the ledger below.
+                  </>
+                ) : (
+                  <>
+                    If it wins, the museum applies it: <code>{b.applies}</code>. Recorded in the
+                    ledger below.
+                  </>
+                )}
+              </p>
+            )}
+          </article>
+        );
+      })}
+
+      <p className={styles.stGuard}>
+        Off the table, permanently: royalty enforcement, the renderer, the treasury, the transfer
+        validator, ownership, the pauses, and any diamond cut. That is the art and the safety of
+        the collection, not policy.
+      </p>
+    </section>
+  );
+}
+
+// ── f. LEDGER — what was voted, and the tx that applied it ──────────────────────
+function Ledger({ params }: { params: GovernParams }) {
+  return (
+    <section className={styles.section}>
+      <div className={styles.stHead}>
+        <h2 className={styles.stTitle}>The ledger</h2>
+        <p className={styles.stLead}>Every applied result, and the transaction that applied it.</p>
+      </div>
+      {params.ledger.length === 0 ? (
+        <p className={styles.ledEmpty}>Nothing applied yet. The first Salon writes the first line.</p>
+      ) : (
+        <ul className={styles.ledList}>
+          {params.ledger.map((e, i) => (
+            <li className={styles.ledRow} key={`${e.key}-${i}`}>
+              <span className={styles.ledDate}>{e.date}</span>
+              <span className={styles.ledKey}>{e.key}</span>
+              <span className={styles.ledWinner}>{e.winner}</span>
+              {e.souls ? <span className={styles.ledSouls}>{fmt(e.souls)} souls</span> : null}
+              {e.tx ? (
+                <a
+                  className={styles.ledTx}
+                  href={`https://etherscan.io/tx/${e.tx}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  tx ↗
+                </a>
+              ) : (
+                <span className={styles.ledTxNone}>no tx</span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+// ── g. FINE PRINT — everything else, closed by default ──────────────────────────
 function FinePrint({ params }: { params: GovernParams }) {
   return (
     <section className={styles.section}>

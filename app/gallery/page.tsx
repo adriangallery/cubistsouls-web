@@ -80,7 +80,7 @@ export default async function Gallery() {
           <div className="wrap">
             <div className="sec-head">
               <span className="eyebrow">Two rarities</span>
-              <h2>BORN <span className="rp-hot">&amp; BECOMING</span></h2>
+              <h2>BORN <span className="rp-hot"><span className="amp">&amp;</span> BECOMING</span></h2>
             </div>
 
             {/* one line per pill */}
