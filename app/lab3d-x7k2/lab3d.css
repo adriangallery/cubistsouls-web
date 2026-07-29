@@ -1,0 +1,143 @@
+/* EXTRUSION LAB — unlisted test page. Uses the artist's CubistSouls display
+   face (public/fonts/CubistSouls.otf) for the title only. */
+@font-face {
+  font-family: "CubistSouls";
+  src: url("/fonts/CubistSouls.otf") format("opentype");
+  font-display: swap;
+}
+
+.lab3d {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  padding: clamp(1.5rem, 4vw, 3rem) clamp(1rem, 5vw, 2.5rem) 4rem;
+}
+
+.lab3d-head {
+  text-align: center;
+  margin-bottom: var(--s6);
+}
+.lab3d-title {
+  font-family: "CubistSouls", var(--disp);
+  font-size: clamp(2.4rem, 8vw, 5.5rem);
+  letter-spacing: 0.04em;
+  line-height: 1.05;
+  background: linear-gradient(180deg, var(--flame) 0%, var(--ember) 55%, var(--blood) 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  margin: var(--s3) 0 var(--s2);
+}
+.lab3d-sub {
+  color: var(--mute);
+  font-style: italic;
+}
+
+.lab3d-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s4) var(--s6);
+  margin-bottom: var(--s4);
+  font-family: var(--mono);
+  font-size: var(--fs-data);
+}
+.lab3d-controls form {
+  display: flex;
+  align-items: center;
+  gap: var(--s3);
+}
+.lab3d-controls label {
+  display: flex;
+  align-items: center;
+  gap: var(--s2);
+  color: var(--bone-2);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-size: var(--fs-label);
+}
+.lab3d-controls input[type="text"],
+.lab3d-controls input:not([type]) {
+  width: 5.5rem;
+  background: var(--wall-deep);
+  border: 1px solid var(--brass);
+  border-radius: var(--r-sm);
+  color: var(--bone);
+  font: inherit;
+  padding: 0.4rem 0.6rem;
+  text-align: center;
+}
+.lab3d-btn {
+  background: linear-gradient(180deg, var(--flame), var(--ember));
+  color: var(--ink);
+  border: 0;
+  border-radius: var(--r-sm);
+  padding: 0.45rem 1.1rem;
+  font-family: var(--mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.lab3d-btn:hover {
+  filter: brightness(1.1);
+}
+.lab3d-slider input[type="range"] {
+  accent-color: var(--ember);
+  width: 9rem;
+}
+.lab3d-slider span {
+  color: var(--flame);
+  min-width: 2ch;
+  text-align: right;
+}
+.lab3d-check input {
+  accent-color: var(--ember);
+}
+
+.lab3d-stage {
+  width: 100%;
+  height: min(70vh, 720px);
+  border: 1px solid rgba(224, 165, 32, 0.35);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--sh-frame);
+  background: #120a0b;
+  touch-action: none;
+}
+.lab3d-stage canvas {
+  display: block;
+}
+
+.lab3d-status {
+  margin-top: var(--s3);
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  letter-spacing: 0.14em;
+  color: var(--mute);
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.lab3d-traits {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s2);
+  margin-top: var(--s4);
+  padding: 0;
+}
+.lab3d-traits li {
+  font-family: var(--mono);
+  font-size: var(--fs-label);
+  color: var(--bone-2);
+  border: 1px solid rgba(224, 165, 32, 0.3);
+  border-radius: var(--r-pill);
+  padding: 0.3rem 0.75rem;
+  letter-spacing: 0.06em;
+}
+.lab3d-traits li b {
+  color: var(--gild);
+  font-weight: 600;
+  margin-right: 0.4rem;
+}
