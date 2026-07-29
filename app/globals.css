@@ -509,12 +509,57 @@ button{font:inherit}
 }
 
 /* ---------- dashboard grid of collapsible panels ---------- */
-.dash{display:grid;gap:clamp(.8rem,2vw,1.1rem);align-items:start}
+/* ---- The dashboard frame — DETERMINISTIC template, same recipe as .stat-cards.
+   It used to be a 2-column auto-placed grid: the leaderboard spanned two rows on
+   the right while the left column grew with however many reapers a wallet owns.
+   Whoever held three reapers got a page-high hole next to the board; whoever held
+   none got a hole under Museum Hours. Named areas remove the guesswork — every
+   wallet gets the same skeleton and only the contents differ.
+   Reapers now take the FULL width, which also lets their cards sit in a row
+   instead of stacking in a half-width column. ---- */
+.dash{display:grid;gap:clamp(.8rem,2vw,1.1rem);align-items:start;
+  grid-template-columns:1fr;
+  grid-template-areas:"mh" "board" "reapers" "standing" "collection"}
+.dash.no-reapers{grid-template-areas:"mh" "board" "standing" "collection"}
 @media(min-width:980px){
-  .dash{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .panel.tall{grid-row:span 2}
+  .dash{grid-template-columns:repeat(2,minmax(0,1fr));
+    grid-template-areas:
+      "mh         board"
+      "reapers    reapers"
+      "standing   standing"
+      "collection collection"}
+  .dash.no-reapers{
+    grid-template-areas:
+      "mh         board"
+      "standing   standing"
+      "collection collection"}
+  /* the top row is one clean rectangle: both panels share a height, and whichever
+     runs long scrolls inside itself rather than dragging the page out of square */
+  .dash>.pn-mh,.dash>.pn-board{align-self:stretch}
+  .pn-mh{display:flex;flex-direction:column}
+  .pn-mh .panel-body{flex:1;display:flex;flex-direction:column;justify-content:center}
+  .pn-board{display:flex;flex-direction:column}
+  .pn-board .panel-body{flex:1;min-height:0}
   .panel.wide{grid-column:1 / -1}
 }
+.pn-mh{grid-area:mh}
+.pn-board{grid-area:board}
+.reapers-mine,.rm-none{grid-area:reapers}
+.pn-standing{grid-area:standing}
+.pn-collection{grid-area:collection}
+
+/* ---- The board's cached snapshot takes a moment. Reserve its shape so the arrival
+   is a fill-in, not a jump: the panel is already the right size and the rows are
+   already ruled, which reads as "being tallied" instead of "broken". ---- */
+.bd-skeleton{display:flex;flex-direction:column;gap:.55rem}
+.bd-skeleton .bd-sk-row{height:1.15rem;border-radius:4px;
+  background:linear-gradient(100deg,rgba(255,255,255,.035) 30%,rgba(224,165,32,.10) 50%,rgba(255,255,255,.035) 70%);
+  background-size:220% 100%;animation:sweep 1.6s infinite}
+.bd-skeleton .bd-sk-row:nth-child(2n){opacity:.72}
+.bd-skeleton .bd-sk-row:nth-child(3n){opacity:.5}
+.bd-sk-note{font-family:var(--mono);font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--mute);margin-top:.9rem;text-align:center}
+@media(prefers-reduced-motion:reduce){.bd-skeleton .bd-sk-row{animation:none}}
 .panel{background:rgba(20,4,8,.42);border:1px solid rgba(224,165,32,.3);border-radius:12px;
   overflow:hidden;box-shadow:0 14px 32px -22px rgba(0,0,0,.9)}
 .panel-head{margin:0}

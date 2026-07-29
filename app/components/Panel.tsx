@@ -18,6 +18,10 @@ export default function Panel({
   id: string;
   title: React.ReactNode;
   meta?: React.ReactNode;
+  // `pn-<id>` is emitted as a class so the dashboard can place each panel in a
+  // NAMED grid area instead of relying on auto-placement (which is what made the
+  // top of /my-souls ragged: a tall leaderboard next to a column that grows with
+  // however many reapers you happen to own).
   tall?: boolean; // spans two rows in the dashboard grid (the leaderboard)
   wide?: boolean; // spans both columns (the collection)
   children: React.ReactNode;
@@ -41,7 +45,7 @@ export default function Panel({
   }, [id]);
 
   return (
-    <section className={`panel${tall ? " tall" : ""}${wide ? " wide" : ""}${open ? "" : " folded"}`}>
+    <section className={`panel pn-${id}${tall ? " tall" : ""}${wide ? " wide" : ""}${open ? "" : " folded"}`}>
       <h2 className="panel-head">
         <button type="button" onClick={toggle} aria-expanded={open} aria-controls={`panel-${id}`}>
           <span className="ph-title">{title}</span>

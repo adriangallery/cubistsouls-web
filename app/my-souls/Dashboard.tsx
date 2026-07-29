@@ -71,6 +71,7 @@ export default function Dashboard({
 }) {
   const tier = tierOf(contribution);
   const boardTop = board ? Math.min(20, board.rows.filter((r) => !r.gap).length) : 0;
+  const hasReapers = reaperLive && (mine.length > 0 || mode === "self");
   const consumedById = new Map(mine.map((e) => [e.id, e.consumed]));
 
   return (
@@ -107,7 +108,7 @@ export default function Dashboard({
         {shareRow ? <div className="dk-actions">{shareRow}</div> : null}
       </div>
 
-      <div className="dash">
+      <div className={`dash${hasReapers ? "" : " no-reapers"}`}>
         <Panel
           id="mh"
           title="🏛 Museum Hours"
@@ -291,12 +292,21 @@ function BoardBody({
   updatedAt: number | null;
 }) {
   if (!board) {
+    if (boardPhase === "error") {
+      return <p className="mh-status">The full board couldn&apos;t load right now — the hours are current.</p>;
+    }
+    // The board is a 5-minute server-side snapshot, so it lands a beat after the
+    // rest. Draw the ruled rows now and let the numbers arrive into them: the panel
+    // never changes size, so the wait reads as tallying rather than as a broken page.
     return (
-      <p className="mh-status">
-        {boardPhase === "error"
-          ? "The full board couldn't load right now — the hours are current."
-          : "Tallying the curators' board…"}
-      </p>
+      <div aria-busy="true">
+        <div className="bd-skeleton" aria-hidden="true">
+          {Array.from({ length: 12 }).map((_, i) => (
+            <span className="bd-sk-row" key={i} />
+          ))}
+        </div>
+        <p className="bd-sk-note">Tallying the curators&apos; board…</p>
+      </div>
     );
   }
   const Row = ({ r }: { r: MHBoardRow }) => {
