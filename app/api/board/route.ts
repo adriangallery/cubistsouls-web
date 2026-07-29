@@ -51,6 +51,9 @@ const serverClient = createPublicClient({
 });
 
 const TTL_MS = 300_000; // 5 min — matches the /reapers ISR; the museum isn't real-time
+// Beyond this we stop serving the old snapshot and make the caller wait: a board
+// half an hour out of date is worse than a slow one.
+const MAX_STALE_MS = 1_800_000; // 30 min
 let memo: { value: BoardData; ts: number } | null = null;
 let inflight: Promise<BoardData> | null = null;
 
@@ -59,26 +62,45 @@ async function computeSnapshot(): Promise<BoardData> {
   return { ...core, updatedAt: Date.now() };
 }
 
-// Returns the cached snapshot when fresh; otherwise recomputes (deduped via inflight),
-// falling back to the last-good snapshot if the recompute fails.
-async function getSnapshot(): Promise<BoardData> {
-  if (memo && Date.now() - memo.ts < TTL_MS) return memo.value;
+// Recompute, deduped: concurrent callers share one pass. Never rejects while a
+// last-good snapshot exists.
+function refresh(): Promise<BoardData> {
   if (!inflight) {
     inflight = computeSnapshot()
       .then((d) => {
         memo = { value: d, ts: Date.now() };
         return d;
       })
+      .catch((e) => {
+        if (memo) return memo.value; // transient RPC failure must not break the board
+        throw e;
+      })
       .finally(() => {
         inflight = null;
       });
   }
-  try {
-    return await inflight;
-  } catch (e) {
-    if (memo) return memo.value; // last-good — never break the board on a transient RPC failure
-    throw e;
+  return inflight;
+}
+
+// STALE-WHILE-REVALIDATE, server side.
+//
+// This used to `await` the recompute the moment the memo went stale, so every five
+// minutes exactly one visitor paid the full pass — measured at ~11s in production —
+// while a perfectly good snapshot sat unused in memory. That was the "why is the
+// cached board still slow?" Adrian kept hitting: not a cache miss, a cache that
+// refused to be served while it refreshed.
+//
+// Now the only request that ever waits is the very first one after a boot, when
+// there is genuinely nothing to show.
+async function getSnapshot(): Promise<BoardData> {
+  const age = memo ? Date.now() - memo.ts : Number.POSITIVE_INFINITY;
+  if (memo && age < TTL_MS) return memo.value; // fresh
+  if (memo && age < MAX_STALE_MS) {
+    // stale but usable: hand it over now, refresh behind the caller's back
+    void refresh().catch(() => {});
+    return memo.value;
   }
+  return refresh(); // nothing usable — this one has to wait
 }
 
 export async function GET(_req: NextRequest) {

@@ -389,9 +389,9 @@ button{font:inherit}
    Cards stretch to their row so a taller neighbour never leaves a hole. ---- */
 .stat-cards{display:grid;gap:clamp(.7rem,2vw,1rem);align-items:stretch;
   grid-template-columns:1fr;
-  grid-template-areas:"weight" "proj" "raffle" "rarity" "next" "spot" "member" "cohorts"}
+  grid-template-areas:"weight" "proj" "raffle" "rarity" "next" "spot" "member" "cohorts" "mh" "board"}
 .stat-cards.no-raffle{
-  grid-template-areas:"weight" "proj" "next" "rarity" "spot" "member" "cohorts"}
+  grid-template-areas:"weight" "proj" "next" "rarity" "spot" "member" "cohorts" "mh" "board"}
 /* tablet — 2 columns, explicit order */
 @media(min-width:600px){
   .stat-cards{grid-template-columns:1fr 1fr;
@@ -400,14 +400,18 @@ button{font:inherit}
       "raffle  next"
       "rarity  spot"
       "member  spot"
-      "cohorts cohorts"}
+      "cohorts cohorts"
+      "mh      mh"
+      "board   board"}
   .stat-cards.no-raffle{
     grid-template-areas:
       "weight  proj"
       "next    next"
       "rarity  spot"
       "member  spot"
-      "cohorts cohorts"}
+      "cohorts cohorts"
+      "mh      mh"
+      "board   board"}
 }
 /* desktop — 3 columns; rarity + spotlight are the two-row anchors, next/member
    stack in the third column, cohorts a full-width band. */
@@ -417,13 +421,17 @@ button{font:inherit}
       "weight  proj    raffle"
       "rarity  spot    next"
       "rarity  spot    member"
-      "cohorts cohorts cohorts"}
+      "cohorts cohorts cohorts"
+      "mh      mh      mh"
+      "board   board   board"}
   .stat-cards.no-raffle{
     grid-template-areas:
       "weight  proj    next"
       "rarity  spot    next"
       "rarity  spot    member"
-      "cohorts cohorts cohorts"}
+      "cohorts cohorts cohorts"
+      "mh      mh      mh"
+      "board   board   board"}
 }
 .st-weight{grid-area:weight}
 .st-proj{grid-area:proj}
@@ -433,6 +441,11 @@ button{font:inherit}
 .st-next{grid-area:next}
 .st-member{grid-area:member}
 .st-cohorts{grid-area:cohorts}
+/* The two museum readouts that close the standing panel. The board keeps its own
+   scroll so twenty curators never stretch the panel down the page. */
+.st-mh{grid-area:mh}
+.st-board{grid-area:board}
+.st-board .mh-board{max-height:min(52vh,420px);overflow:auto;overscroll-behavior:contain}
 .stat{background:rgba(20,4,8,.42);border:1px solid rgba(224,165,32,.26);border-radius:10px;
   padding:clamp(.85rem,2.4vw,1.1rem)}
 /* cohorts reads as a thin full-width band: name + note on one baseline */
@@ -519,31 +532,9 @@ button{font:inherit}
    instead of stacking in a half-width column. ---- */
 .dash{display:grid;gap:clamp(.8rem,2vw,1.1rem);align-items:start;
   grid-template-columns:1fr;
-  grid-template-areas:"mh" "board" "reapers" "standing" "collection"}
-.dash.no-reapers{grid-template-areas:"mh" "board" "standing" "collection"}
-@media(min-width:980px){
-  .dash{grid-template-columns:repeat(2,minmax(0,1fr));
-    grid-template-areas:
-      "mh         board"
-      "reapers    reapers"
-      "standing   standing"
-      "collection collection"}
-  .dash.no-reapers{
-    grid-template-areas:
-      "mh         board"
-      "standing   standing"
-      "collection collection"}
-  /* the top row is one clean rectangle: both panels share a height, and whichever
-     runs long scrolls inside itself rather than dragging the page out of square */
-  .dash>.pn-mh,.dash>.pn-board{align-self:stretch}
-  .pn-mh{display:flex;flex-direction:column}
-  .pn-mh .panel-body{flex:1;display:flex;flex-direction:column;justify-content:center}
-  .pn-board{display:flex;flex-direction:column}
-  .pn-board .panel-body{flex:1;min-height:0}
-  .panel.wide{grid-column:1 / -1}
-}
-.pn-mh{grid-area:mh}
-.pn-board{grid-area:board}
+  grid-template-areas:"standing" "reapers" "collection"}
+.dash.no-reapers{grid-template-areas:"standing" "collection"}
+@media(min-width:980px){.panel.wide{grid-column:1 / -1}}
 .reapers-mine,.rm-none{grid-area:reapers}
 .pn-standing{grid-area:standing}
 .pn-collection{grid-area:collection}

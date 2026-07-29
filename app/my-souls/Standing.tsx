@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import Panel from "../components/Panel";
+import { MHHero, BoardBody, type DashPhase } from "./MuseumParts";
 import { MH_COHORT_NAME, type MyMHResult, type MHExhibit, type MHBoardResult } from "@/lib/mh";
 import type { SoulsData } from "@/lib/souls";
 import type { MineEntry } from "./MyReapers";
@@ -48,8 +49,10 @@ export function RaffleCard({ consumed }: { consumed: number }) {
 export default function Standing({
   data,
   myMh,
+  mhPhase,
   board,
   boardPhase,
+  boardUpdatedAt,
   mine,
   consumed,
   contribution,
@@ -58,8 +61,10 @@ export default function Standing({
 }: {
   data: SoulsData;
   myMh: MyMHResult | null;
+  mhPhase: DashPhase;
   board: MHBoardResult | null;
-  boardPhase: string;
+  boardPhase: DashPhase;
+  boardUpdatedAt: number | null;
   mine: MineEntry[];
   consumed: number;
   contribution: number;
@@ -87,6 +92,18 @@ export default function Standing({
         <MilestonesCard mine={mine} board={board} boardPhase={boardPhase} contribution={contribution} reaperLive={reaperLive} mode={mode} />
         <MemberSinceCard myMh={myMh} />
         <CohortsCard exhibits={exhibits} loading={!myMh} reaperLive={reaperLive} mode={mode} />
+
+        {/* The panel closes with the two museum readouts, full width. They used to
+            open the page as separate panels; down here the live counter reads as
+            the conclusion of your standing, and the board — the slowest thing on
+            the page — can no longer hold up the first thing you see. */}
+        <div className="stat st-mh">
+          <MHHero mode={mode} myMh={myMh} mhPhase={mhPhase} heldNone={!data.owned.length} />
+        </div>
+        <div className="stat st-board">
+          <div className="stat-h">🏛 Curators&apos; board</div>
+          <BoardBody mode={mode} board={board?.rows ?? null} boardPhase={boardPhase} updatedAt={boardUpdatedAt} />
+        </div>
       </div>
     </Panel>
   );
