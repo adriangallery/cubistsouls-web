@@ -1,6 +1,6 @@
 "use client";
 
-import { describeWeights, stageOf, type Raffle, type RaffleStage } from "@/lib/raffle";
+import { blocksToHuman, earnableRules, settledRules, stageOf, type Raffle, type RaffleStage } from "@/lib/raffle";
 import styles from "./raffles.module.css";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
@@ -13,14 +13,15 @@ const PREVIEW: Raffle = {
   id: 0,
   label: "The first 1/1",
   prizeURI: IMG(8777),
-  snapshotBlock: 0,
+  holderBlock: 0,
+  closeBlock: 0,
   drawBlock: 0,
   seed: "0x",
   winners: 1,
   cancelled: false,
   ticketsHash: "0x",
   winnerList: [],
-  w: { perConsumedSoul: 1, perHolderWallet: 1, perSoulHeld: 0, perOGSoulHeld: 0, maxPerWallet: 0 },
+  w: { perConsumedSoul: 1, perAscendedReaper: 10, perHolderWallet: 1, perSoulHeld: 0, perOGSoulHeld: 0, maxPerWallet: 0 },
 };
 
 export default function RafflesClient({
@@ -38,8 +39,8 @@ export default function RafflesClient({
         <span className={styles.kicker}>🎟 Where the tickets are spent</span>
         <h1 className={styles.title}>THE RAFFLES</h1>
         <p className={styles.lead}>
-          Every Pikkazo your reapers gave to the fire earned a ticket. Every soul you hold earns you
-          a seat. This is the room where they matter.
+          Holding a soul earns you a seat. Feeding the fire earns you more, and keeps earning while
+          an occasion is open. This is the room where they matter.
         </p>
       </header>
 
@@ -56,31 +57,39 @@ export default function RafflesClient({
       <section className={styles.how}>
         <h2 className={styles.h2}>How a draw is kept honest</h2>
         <p className={styles.howLead}>
-          Two blocks decide everything, and they guard against two different kinds of cheating.
+          An occasion stays open for days so that feeding the fire while it runs actually counts.
+          That is why the tickets are counted at two different moments, not one.
         </p>
         <ol className={styles.steps}>
           <li>
-            <span className={styles.stepK}>The snapshot is already past</span>
+            <span className={styles.stepK}>Holders were counted before the announcement</span>
             <span>
-              Tickets are counted at a block that was mined before the occasion was announced. Nobody
-              can spread a collection across new wallets to farm extra entries, because the count
-              already happened.
+              The entry you get for simply holding a soul was settled at a block already mined when
+              this was announced. It is the one thing that could be farmed by spreading a collection
+              across new wallets — so the count had already happened.
             </span>
           </li>
           <li>
-            <span className={styles.stepK}>The seed is still future</span>
+            <span className={styles.stepK}>The fire counts until the window shuts</span>
             <span>
-              The draw uses the hash of a block that has not been mined yet. The museum picks the
-              snapshot but cannot know the seed — so it cannot pick a snapshot that makes a chosen
-              wallet win.
+              Every Pikkazo your reapers consume while the occasion is open earns its ticket, and a
+              soul that reaches Soul Reaper earns more. These cannot be faked by splitting wallets:
+              more tickets means more canvases actually burned.
+            </span>
+          </li>
+          <li>
+            <span className={styles.stepK}>The seed comes after the close</span>
+            <span>
+              The draw uses the hash of a block nobody has mined yet. The museum sets the dates but
+              cannot know the seed — so it cannot arrange for a chosen wallet to win.
             </span>
           </li>
           <li>
             <span className={styles.stepK}>Then everyone can check</span>
             <span>
-              The rules freeze the moment the seed lands. The ticket list is published with its hash
-              written on-chain. Rebuild the list from the snapshot, draw with the seed, and you get
-              the same winner — or the museum is caught.
+              The rules freeze the moment the seed lands — weights, exclusions and dates all become
+              immutable. The ticket list is published with its hash written on-chain. Rebuild it,
+              draw with the seed, and you get the same winner — or the museum is caught.
             </span>
           </li>
         </ol>
@@ -94,7 +103,8 @@ export default function RafflesClient({
 }
 
 const STAGE_COPY: Record<RaffleStage, { k: string; cls: string }> = {
-  armed: { k: "Open", cls: "sOpen" },
+  open: { k: "Open", cls: "sOpen" },
+  closed: { k: "Closed", cls: "sDraw" },
   "awaiting-draw": { k: "Drawing", cls: "sDraw" },
   drawn: { k: "Seed anchored", cls: "sDraw" },
   published: { k: "Drawn", cls: "sDone" },
@@ -102,10 +112,11 @@ const STAGE_COPY: Record<RaffleStage, { k: string; cls: string }> = {
 };
 
 function RaffleCard({ r, head, preview }: { r: Raffle; head: number; preview: boolean }) {
-  const stage = preview ? "armed" : stageOf(r, head);
+  const stage: RaffleStage = preview ? "open" : stageOf(r, head);
   const s = STAGE_COPY[stage];
-  const rules = describeWeights(r.w);
-  const toDraw = r.drawBlock - head;
+  const earnable = earnableRules(r.w);
+  const settled = settledRules(r.w);
+  const left = r.closeBlock - head;
 
   return (
     <article className={styles.card}>
@@ -121,43 +132,56 @@ function RaffleCard({ r, head, preview }: { r: Raffle; head: number; preview: bo
           <span className={styles.count}>
             {r.winners} winner{r.winners === 1 ? "" : "s"}
           </span>
+          {!preview && stage === "open" && left > 0 ? (
+            <span className={styles.closes}>closes in {blocksToHuman(left)}</span>
+          ) : null}
         </div>
         <h2 className={styles.cardTitle}>{r.label}</h2>
 
-        <div className={styles.rules}>
-          <span className={styles.rulesK}>Your entries</span>
-          <ul>
-            {rules.map((t) => (
-              <li key={t}>{t}</li>
-            ))}
-          </ul>
-        </div>
+        {earnable.length ? (
+          <div className={styles.rules}>
+            <span className={styles.rulesK}>
+              {stage === "open" ? "Still earnable — the fire is open" : "Earned while the window was open"}
+            </span>
+            <ul>
+              {earnable.map((t: string) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+
+        {settled.length ? (
+          <div className={`${styles.rules} ${styles.settled}`}>
+            <span className={styles.rulesK}>Already settled</span>
+            <ul>
+              {settled.map((t: string) => (
+                <li key={t}>{t}</li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
 
         <dl className={styles.blocks}>
           <div>
-            <dt>Counted at block</dt>
-            <dd>{r.snapshotBlock ? fmt(r.snapshotBlock) : "—"}</dd>
+            <dt>Holders counted at</dt>
+            <dd>{r.holderBlock ? fmt(r.holderBlock) : "—"}</dd>
           </div>
           <div>
-            <dt>Drawn from block</dt>
-            <dd>
-              {r.drawBlock ? fmt(r.drawBlock) : "—"}
-              {!preview && stage === "armed" && toDraw > 0 ? (
-                <span className={styles.until}> · in {fmt(toDraw)} blocks</span>
-              ) : null}
-            </dd>
+            <dt>Burning counts until</dt>
+            <dd>{r.closeBlock ? fmt(r.closeBlock) : "—"}</dd>
+          </div>
+          <div>
+            <dt>Seed from block</dt>
+            <dd>{r.drawBlock ? fmt(r.drawBlock) : "—"}</dd>
           </div>
         </dl>
 
         {stage === "published" ? (
           <div className={styles.winners}>
             <span className={styles.rulesK}>Won by</span>
-            {r.winnerList.map((w) => (
-              <a
-                key={w}
-                className={styles.winner}
-                href={`/curator/${w}`}
-              >
+            {r.winnerList.map((w: string) => (
+              <a key={w} className={styles.winner} href={`/curator/${w}`}>
                 {w.slice(0, 6)}…{w.slice(-4)}
               </a>
             ))}

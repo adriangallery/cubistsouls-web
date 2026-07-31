@@ -242,3 +242,21 @@
   font-size: 0.88rem;
   margin-top: 1.1rem;
 }
+
+/* the window's remaining time, next to the stage chip */
+.closes {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--flame);
+  white-space: nowrap;
+}
+/* the rules that can no longer change, set back from the ones still in play */
+.settled { margin-top: 0.9rem; opacity: 0.82; }
+.settled li::before { content: "🔒"; }
+/* three counts now, not two */
+@media (min-width: 520px) {
+  .blocks { grid-template-columns: repeat(3, 1fr); }
+}

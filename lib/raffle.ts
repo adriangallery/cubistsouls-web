@@ -1,13 +1,19 @@
 // The museum's raffles — read side.
 //
-// Every rule lives on the diamond (RaffleFacet): the weights, the exclusions, the two
-// blocks, the seed and the published winners. This file only reads them, so the page
-// can never disagree with the contract about what an occasion's rules are.
+// Every rule lives on the diamond (RaffleFacet): the weights, the exclusions, the
+// three blocks, the seed and the published winners. This file only reads them, so the
+// page can never disagree with the contract about what an occasion's rules are.
 //
-// IMPORTANT — tickets are counted AT THE SNAPSHOT BLOCK, never "now". The counters on
-// /my-souls read current state, which is the right thing there and the wrong thing
-// here: a wallet that bought souls after the snapshot has no extra entries. That is
-// why this page shows the published ticket list rather than computing one live.
+// THE THREE BLOCKS, because they drive most of the copy on the page:
+//   holderBlock — already past. The flat per-wallet entry was counted there, so it
+//                 cannot be farmed by splitting a collection across new wallets.
+//   closeBlock  — the window. Pikkazos burned up to here still earn their tickets;
+//                 that is the whole point of leaving an occasion open for days.
+//   drawBlock   — after the close, its hash is the seed.
+//
+// IMPORTANT — no ticket total on this page is "live". The counters on /my-souls read
+// current state, which is right there and wrong here: a wallet that bought souls after
+// the holder block would be shown entries it does not have.
 
 import { createPublicClient, fallback, http } from "viem";
 import { mainnet } from "viem/chains";
@@ -38,7 +44,8 @@ export const RAFFLE_ABI = [
     outputs: [
       { name: "label", type: "string" },
       { name: "prizeURI", type: "string" },
-      { name: "snapshotBlock", type: "uint64" },
+      { name: "holderBlock", type: "uint64" },
+      { name: "closeBlock", type: "uint64" },
       { name: "drawBlock", type: "uint64" },
       { name: "seed", type: "bytes32" },
       { name: "winners", type: "uint32" },
@@ -50,6 +57,7 @@ export const RAFFLE_ABI = [
         type: "tuple",
         components: [
           { name: "perConsumedSoul", type: "uint16" },
+          { name: "perAscendedReaper", type: "uint16" },
           { name: "perHolderWallet", type: "uint16" },
           { name: "perSoulHeld", type: "uint16" },
           { name: "perOGSoulHeld", type: "uint16" },
@@ -69,6 +77,7 @@ export const RAFFLE_ABI = [
 
 export type Weights = {
   perConsumedSoul: number;
+  perAscendedReaper: number;
   perHolderWallet: number;
   perSoulHeld: number;
   perOGSoulHeld: number;
@@ -79,7 +88,8 @@ export type Raffle = {
   id: number;
   label: string;
   prizeURI: string;
-  snapshotBlock: number;
+  holderBlock: number;
+  closeBlock: number;
   drawBlock: number;
   seed: string;
   winners: number;
@@ -89,7 +99,7 @@ export type Raffle = {
   w: Weights;
 };
 
-export type RaffleStage = "armed" | "awaiting-draw" | "drawn" | "published" | "cancelled";
+export type RaffleStage = "open" | "closed" | "awaiting-draw" | "drawn" | "published" | "cancelled";
 
 /** Where an occasion is in its life, derived from the chain rather than a stored flag. */
 export function stageOf(r: Raffle, head: number): RaffleStage {
@@ -97,7 +107,8 @@ export function stageOf(r: Raffle, head: number): RaffleStage {
   if (r.winnerList.length > 0) return "published";
   if (r.seed && !/^0x0+$/.test(r.seed)) return "drawn";
   if (head >= r.drawBlock) return "awaiting-draw";
-  return "armed";
+  if (head >= r.closeBlock) return "closed";
+  return "open";
 }
 
 /** Returns null when the facet isn't on the diamond yet — the page renders a preview. */
@@ -115,24 +126,26 @@ export async function loadRaffles(): Promise<{ raffles: Raffle[]; head: number }
         abi: RAFFLE_ABI,
         functionName: "raffle",
         args: [BigInt(id)],
-      })) as unknown as [string, string, bigint, bigint, string, number, boolean, string, string[], Weights];
+      })) as unknown as [string, string, bigint, bigint, bigint, string, number, boolean, string, string[], Weights];
       raffles.push({
         id,
         label: r[0],
         prizeURI: r[1],
-        snapshotBlock: Number(r[2]),
-        drawBlock: Number(r[3]),
-        seed: r[4],
-        winners: Number(r[5]),
-        cancelled: r[6],
-        ticketsHash: r[7],
-        winnerList: r[8] as string[],
+        holderBlock: Number(r[2]),
+        closeBlock: Number(r[3]),
+        drawBlock: Number(r[4]),
+        seed: r[5],
+        winners: Number(r[6]),
+        cancelled: r[7],
+        ticketsHash: r[8],
+        winnerList: r[9] as string[],
         w: {
-          perConsumedSoul: Number(r[9].perConsumedSoul),
-          perHolderWallet: Number(r[9].perHolderWallet),
-          perSoulHeld: Number(r[9].perSoulHeld),
-          perOGSoulHeld: Number(r[9].perOGSoulHeld),
-          maxPerWallet: Number(r[9].maxPerWallet),
+          perConsumedSoul: Number(r[10].perConsumedSoul),
+          perAscendedReaper: Number(r[10].perAscendedReaper),
+          perHolderWallet: Number(r[10].perHolderWallet),
+          perSoulHeld: Number(r[10].perSoulHeld),
+          perOGSoulHeld: Number(r[10].perOGSoulHeld),
+          maxPerWallet: Number(r[10].maxPerWallet),
         },
       });
     }
@@ -142,17 +155,36 @@ export async function loadRaffles(): Promise<{ raffles: Raffle[]; head: number }
   }
 }
 
-/** Plain-English rendering of an occasion's weights, straight from the contract. */
-export function describeWeights(w: Weights): string[] {
+/** Earned while the window is open — burning now still counts toward these. */
+export function earnableRules(w: Weights): string[] {
+  const out: string[] = [];
+  if (w.perConsumedSoul > 0) {
+    out.push(`${w.perConsumedSoul} per Pikkazo your reapers give to the fire`);
+  }
+  if (w.perAscendedReaper > 0) {
+    out.push(`${w.perAscendedReaper} more for every soul that reached Soul Reaper`);
+  }
+  return out;
+}
+
+/** Already settled at the holder block — nothing done now can change these. */
+export function settledRules(w: Weights): string[] {
   const out: string[] = [];
   if (w.perHolderWallet > 0) {
     out.push(`${w.perHolderWallet} ticket${w.perHolderWallet > 1 ? "s" : ""} for holding a soul at all`);
-  }
-  if (w.perConsumedSoul > 0) {
-    out.push(`${w.perConsumedSoul} per Pikkazo your reapers consumed`);
   }
   if (w.perSoulHeld > 0) out.push(`${w.perSoulHeld} per soul held`);
   if (w.perOGSoulHeld > 0) out.push(`${w.perOGSoulHeld} per OG soul held`);
   if (w.maxPerWallet > 0) out.push(`capped at ${w.maxPerWallet} per wallet`);
   return out;
+}
+
+/** Roughly how long the window still has, at ~12s a block. */
+export function blocksToHuman(blocks: number): string {
+  if (blocks <= 0) return "closed";
+  const mins = (blocks * 12) / 60;
+  if (mins < 90) return `${Math.round(mins)} min`;
+  const hours = mins / 60;
+  if (hours < 48) return `${Math.round(hours)} h`;
+  return `${Math.round(hours / 24)} days`;
 }
