@@ -1,0 +1,158 @@
+// The museum's raffles — read side.
+//
+// Every rule lives on the diamond (RaffleFacet): the weights, the exclusions, the two
+// blocks, the seed and the published winners. This file only reads them, so the page
+// can never disagree with the contract about what an occasion's rules are.
+//
+// IMPORTANT — tickets are counted AT THE SNAPSHOT BLOCK, never "now". The counters on
+// /my-souls read current state, which is the right thing there and the wrong thing
+// here: a wallet that bought souls after the snapshot has no extra entries. That is
+// why this page shows the published ticket list rather than computing one live.
+
+import { createPublicClient, fallback, http } from "viem";
+import { mainnet } from "viem/chains";
+
+export const SOULS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406" as const;
+
+const RPCS = [
+  "https://gateway.tenderly.co/public/mainnet",
+  "https://eth.drpc.org",
+  "https://ethereum-rpc.publicnode.com",
+];
+
+const client = createPublicClient({
+  chain: mainnet,
+  transport: fallback(
+    RPCS.map((url) => http(url, { retryCount: 0, timeout: 15_000 })),
+    { rank: false },
+  ),
+});
+
+export const RAFFLE_ABI = [
+  { type: "function", name: "raffleCount", stateMutability: "view", inputs: [], outputs: [{ type: "uint256" }] },
+  {
+    type: "function",
+    name: "raffle",
+    stateMutability: "view",
+    inputs: [{ name: "id", type: "uint256" }],
+    outputs: [
+      { name: "label", type: "string" },
+      { name: "prizeURI", type: "string" },
+      { name: "snapshotBlock", type: "uint64" },
+      { name: "drawBlock", type: "uint64" },
+      { name: "seed", type: "bytes32" },
+      { name: "winners", type: "uint32" },
+      { name: "cancelled", type: "bool" },
+      { name: "ticketsHash", type: "bytes32" },
+      { name: "winnerList", type: "address[]" },
+      {
+        name: "w",
+        type: "tuple",
+        components: [
+          { name: "perConsumedSoul", type: "uint16" },
+          { name: "perHolderWallet", type: "uint16" },
+          { name: "perSoulHeld", type: "uint16" },
+          { name: "perOGSoulHeld", type: "uint16" },
+          { name: "maxPerWallet", type: "uint32" },
+        ],
+      },
+    ],
+  },
+  {
+    type: "function",
+    name: "globallyExcluded",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ type: "address[]" }],
+  },
+] as const;
+
+export type Weights = {
+  perConsumedSoul: number;
+  perHolderWallet: number;
+  perSoulHeld: number;
+  perOGSoulHeld: number;
+  maxPerWallet: number;
+};
+
+export type Raffle = {
+  id: number;
+  label: string;
+  prizeURI: string;
+  snapshotBlock: number;
+  drawBlock: number;
+  seed: string;
+  winners: number;
+  cancelled: boolean;
+  ticketsHash: string;
+  winnerList: string[];
+  w: Weights;
+};
+
+export type RaffleStage = "armed" | "awaiting-draw" | "drawn" | "published" | "cancelled";
+
+/** Where an occasion is in its life, derived from the chain rather than a stored flag. */
+export function stageOf(r: Raffle, head: number): RaffleStage {
+  if (r.cancelled) return "cancelled";
+  if (r.winnerList.length > 0) return "published";
+  if (r.seed && !/^0x0+$/.test(r.seed)) return "drawn";
+  if (head >= r.drawBlock) return "awaiting-draw";
+  return "armed";
+}
+
+/** Returns null when the facet isn't on the diamond yet — the page renders a preview. */
+export async function loadRaffles(): Promise<{ raffles: Raffle[]; head: number } | null> {
+  try {
+    const [countRaw, head] = await Promise.all([
+      client.readContract({ address: SOULS, abi: RAFFLE_ABI, functionName: "raffleCount" }),
+      client.getBlockNumber(),
+    ]);
+    const count = Number(countRaw);
+    const raffles: Raffle[] = [];
+    for (let id = count - 1; id >= 0; id--) {
+      const r = (await client.readContract({
+        address: SOULS,
+        abi: RAFFLE_ABI,
+        functionName: "raffle",
+        args: [BigInt(id)],
+      })) as unknown as [string, string, bigint, bigint, string, number, boolean, string, string[], Weights];
+      raffles.push({
+        id,
+        label: r[0],
+        prizeURI: r[1],
+        snapshotBlock: Number(r[2]),
+        drawBlock: Number(r[3]),
+        seed: r[4],
+        winners: Number(r[5]),
+        cancelled: r[6],
+        ticketsHash: r[7],
+        winnerList: r[8] as string[],
+        w: {
+          perConsumedSoul: Number(r[9].perConsumedSoul),
+          perHolderWallet: Number(r[9].perHolderWallet),
+          perSoulHeld: Number(r[9].perSoulHeld),
+          perOGSoulHeld: Number(r[9].perOGSoulHeld),
+          maxPerWallet: Number(r[9].maxPerWallet),
+        },
+      });
+    }
+    return { raffles, head: Number(head) };
+  } catch {
+    return null; // facet not cut yet, or the chain is unreachable
+  }
+}
+
+/** Plain-English rendering of an occasion's weights, straight from the contract. */
+export function describeWeights(w: Weights): string[] {
+  const out: string[] = [];
+  if (w.perHolderWallet > 0) {
+    out.push(`${w.perHolderWallet} ticket${w.perHolderWallet > 1 ? "s" : ""} for holding a soul at all`);
+  }
+  if (w.perConsumedSoul > 0) {
+    out.push(`${w.perConsumedSoul} per Pikkazo your reapers consumed`);
+  }
+  if (w.perSoulHeld > 0) out.push(`${w.perSoulHeld} per soul held`);
+  if (w.perOGSoulHeld > 0) out.push(`${w.perOGSoulHeld} per OG soul held`);
+  if (w.maxPerWallet > 0) out.push(`capped at ${w.maxPerWallet} per wallet`);
+  return out;
+}

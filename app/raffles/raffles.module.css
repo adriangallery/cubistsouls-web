@@ -1,0 +1,244 @@
+/* /raffles — where the reaper tickets are spent. Scoped module, same museum tokens
+   as the rest of the site; the raffle accent is the gild, kept for the prize frame
+   and the stage chip so the page has one bright thing and not five. */
+.rf {
+  --tick: #e0a520;
+  --tick-deep: #a8761a;
+  min-height: 100vh;
+}
+.wrap {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 0 clamp(1rem, 5vw, 2.5rem) 4rem;
+}
+
+/* ── hero ── */
+.hero {
+  text-align: center;
+  padding: clamp(1.6rem, 6vw, 3rem) 0 clamp(1rem, 3vw, 1.6rem);
+}
+.kicker {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--ember);
+  margin-bottom: 0.7rem;
+}
+.title {
+  font-family: "CubistSouls", var(--disp);
+  font-weight: 400;
+  font-synthesis: none;
+  letter-spacing: 0;
+  font-size: clamp(2.2rem, 9vw, 4.4rem);
+  line-height: 0.95;
+  color: var(--bone);
+  text-wrap: balance;
+}
+.lead {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--bone-2);
+  font-size: clamp(1rem, 2.4vw, 1.2rem);
+  max-width: 46ch;
+  margin: 0.9rem auto 0;
+  line-height: 1.5;
+}
+.previewNote {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: #ffd9a0;
+  background: rgba(255, 91, 24, 0.12);
+  border: 1px dashed rgba(255, 91, 24, 0.45);
+  border-radius: 8px;
+  padding: 0.6rem 0.9rem;
+  text-align: center;
+  margin-bottom: 1.2rem;
+}
+
+/* ── the occasion ── */
+.card {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: clamp(0.9rem, 3vw, 1.4rem);
+  border: 1px solid rgba(224, 165, 32, 0.32);
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(58, 15, 22, 0.42), rgba(26, 6, 8, 0.42));
+  padding: clamp(0.9rem, 3vw, 1.3rem);
+  margin-bottom: 1.1rem;
+}
+@media (min-width: 720px) {
+  .card { grid-template-columns: 300px 1fr; align-items: start; }
+}
+.art {
+  position: relative;
+  border: 1px solid rgba(224, 165, 32, 0.4);
+  border-radius: 10px;
+  overflow: hidden;
+  background: #140408;
+  box-shadow: 0 16px 40px -24px #000;
+}
+.art img { width: 100%; height: auto; display: block; }
+.placeholder {
+  position: absolute;
+  inset: auto 0 0 0;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #ffd9a0;
+  background: rgba(20, 4, 8, 0.82);
+  padding: 0.35rem 0.5rem;
+  text-align: center;
+}
+
+.body { min-width: 0; }
+.top {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.5rem;
+}
+.stage {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+}
+.sOpen { color: var(--freed, #37d67a); }
+.sDraw { color: var(--flame); }
+.sDone { color: var(--tick); }
+.sOff { color: var(--mute); opacity: 0.7; }
+.count {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.cardTitle {
+  font-family: "CubistSouls", var(--disp);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(1.5rem, 5vw, 2.1rem);
+  line-height: 1;
+  color: var(--bone);
+  margin-bottom: 0.9rem;
+}
+
+.rulesK {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tick);
+  margin-bottom: 0.4rem;
+}
+.rules ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.25rem; }
+.rules li {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  color: var(--bone-2);
+  padding-left: 1rem;
+  position: relative;
+}
+.rules li::before { content: "🎟"; position: absolute; left: 0; font-size: 0.7rem; top: 0.2rem; }
+
+.blocks {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+  margin: 1rem 0 0;
+  border-top: 1px solid rgba(224, 165, 32, 0.16);
+  padding-top: 0.8rem;
+}
+.blocks dt {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin-bottom: 0.2rem;
+}
+.blocks dd {
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  color: var(--bone);
+  font-variant-numeric: tabular-nums;
+}
+.until { color: var(--mute); font-size: 0.72rem; }
+
+.winners { margin-top: 0.9rem; }
+.winner {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--tick);
+  text-decoration: none;
+  border: 1px solid rgba(224, 165, 32, 0.4);
+  border-radius: 999px;
+  padding: 0.2rem 0.6rem;
+  margin-right: 0.4rem;
+}
+.winner:hover { background: rgba(224, 165, 32, 0.12); }
+
+.foot {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.84rem;
+  color: var(--mute);
+  margin-top: 0.9rem;
+}
+
+/* ── how it works ── */
+.how { margin-top: clamp(2rem, 6vw, 3rem); }
+.h2 {
+  font-family: "CubistSouls", var(--disp);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(1.4rem, 4.6vw, 2rem);
+  line-height: 1;
+  color: var(--bone);
+  margin-bottom: 0.4rem;
+}
+.howLead {
+  font-family: var(--serif);
+  color: var(--mute);
+  max-width: 58ch;
+  margin-bottom: 1.2rem;
+}
+.steps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.7rem; counter-reset: s; }
+.steps li {
+  border-left: 2px solid rgba(224, 165, 32, 0.35);
+  padding: 0.1rem 0 0.1rem 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+.stepK {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--tick);
+}
+.steps li span:last-child {
+  font-family: var(--serif);
+  font-size: 0.95rem;
+  line-height: 1.55;
+  color: var(--bone-2);
+  max-width: 62ch;
+}
+.howFoot {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--mute);
+  font-size: 0.88rem;
+  margin-top: 1.1rem;
+}
