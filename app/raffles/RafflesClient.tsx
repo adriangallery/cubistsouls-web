@@ -1,6 +1,7 @@
 "use client";
 
 import { blocksToHuman, earnableRules, settledRules, stageOf, type Raffle, type RaffleStage } from "@/lib/raffle";
+import MyEntries from "./MyEntries";
 import styles from "./raffles.module.css";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
@@ -50,8 +51,12 @@ export default function RafflesClient({
         </p>
       ) : null}
 
-      {raffles.map((r) => (
-        <RaffleCard key={r.id} r={r} head={head} preview={preview} />
+      {raffles.map((r, i) => (
+        <div key={r.id}>
+          <RaffleCard r={r} head={head} preview={preview} />
+          {/* only the newest occasion takes entries */}
+          {i === 0 && !preview ? <MyEntries raffle={r} open={stageOf(r, head) === "open"} /> : null}
+        </div>
       ))}
 
       <section className={styles.how}>

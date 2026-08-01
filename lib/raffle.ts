@@ -188,3 +188,18 @@ export function blocksToHuman(blocks: number): string {
   if (hours < 48) return `${Math.round(hours)} h`;
   return `${Math.round(hours / 24)} days`;
 }
+
+/// The EXACT text a holder signs to enter. Short and readable on purpose — people
+/// should be able to understand the wallet popup. The occasion id is what stops a
+/// signature being replayed into a different draw.
+///
+/// Defined here, and here only: the API route verifies against this and the button
+/// signs this. If the two ever drifted, entries would verify against a message the
+/// holder never agreed to.
+export function entryMessage(raffleId: number, address: string): string {
+  return [
+    "Cubist Souls — entering the raffle",
+    `Occasion: ${raffleId}`,
+    `Wallet: ${address.toLowerCase()}`,
+  ].join("\n");
+}

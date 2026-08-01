@@ -260,3 +260,91 @@
 @media (min-width: 520px) {
   .blocks { grid-template-columns: repeat(3, 1fr); }
 }
+
+/* ── your entries — the number the holder came for ── */
+.mine {
+  border: 1px solid rgba(224, 165, 32, 0.3);
+  border-top: 0;
+  border-radius: 0 0 14px 14px;
+  background: rgba(20, 4, 8, 0.5);
+  padding: clamp(0.9rem, 3vw, 1.3rem);
+  margin: -1.1rem 0 1.1rem;
+}
+.mineLead {
+  font-family: var(--serif);
+  font-size: 0.92rem;
+  color: var(--mute);
+  margin: 0.5rem 0;
+}
+.mineLead a { color: var(--tick); text-decoration: none; }
+.mineLead a:hover { text-decoration: underline; }
+.entryHero { display: flex; align-items: baseline; gap: 0.5rem; margin: 0.3rem 0 0.7rem; }
+.entryNum {
+  font-family: "CubistSouls", var(--disp);
+  font-weight: 400;
+  font-synthesis: none;
+  font-size: clamp(2.6rem, 10vw, 4rem);
+  line-height: 0.9;
+  color: var(--bone);
+}
+.entryUnit {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--tick);
+}
+.breakdown { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.35rem; }
+.breakdown li {
+  display: flex;
+  gap: 0.55rem;
+  align-items: baseline;
+  font-family: var(--serif);
+  font-size: 0.92rem;
+  color: var(--bone-2);
+}
+.breakdown b { color: var(--bone); font-weight: 600; }
+.bLock, .bFire { font-size: 0.7rem; flex: 0 0 auto; }
+.bLock { opacity: 0.6; }
+
+.enterRow { display: flex; align-items: center; gap: 0.8rem; flex-wrap: wrap; margin-top: 1rem; }
+.enterBtn {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.76rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink);
+  background: linear-gradient(180deg, var(--flame), var(--ember));
+  border: 0;
+  border-radius: 999px;
+  padding: 0.65rem 1.1rem;
+  cursor: pointer;
+}
+.enterBtn:hover:not(:disabled) { filter: brightness(1.08); }
+.enterBtn:disabled { opacity: 0.45; cursor: not-allowed; }
+.inChip {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--freed, #37d67a);
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+}
+.mineCount {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.mineErr { font-family: var(--mono); font-size: 0.7rem; color: var(--blood); margin-top: 0.5rem; }
+.mineFine {
+  font-family: var(--serif);
+  font-style: italic;
+  font-size: 0.8rem;
+  color: var(--mute);
+  margin-top: 0.7rem;
+}
