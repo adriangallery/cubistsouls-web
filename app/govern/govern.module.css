@@ -898,3 +898,102 @@
 .ledTxNone {
   opacity: 0.5;
 }
+
+/* ── the LIVE proposal (Proposal.tsx) ── */
+.propTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+.liveBadge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #9fe0a7;
+  background: rgba(60, 160, 80, 0.14);
+  border: 1px solid rgba(120, 200, 130, 0.45);
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  animation: livePulse 2.4s ease-in-out infinite;
+}
+@keyframes livePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(120, 200, 130, 0.25); }
+  50% { box-shadow: 0 0 12px 2px rgba(120, 200, 130, 0.12); }
+}
+.closedBadge {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--mute);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+}
+.closesIn {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--mute);
+  white-space: nowrap;
+}
+.propBody {
+  font-family: var(--serif);
+  font-size: 0.94rem;
+  line-height: 1.6;
+  color: var(--mute);
+  border-left: 2px solid rgba(224, 165, 32, 0.35);
+  padding-left: 0.75rem;
+  margin: 0 0 1rem;
+}
+.connectRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin: 0.2rem 0 0.9rem;
+}
+.connectHint {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--mute);
+}
+.stOpt:disabled {
+  cursor: default;
+}
+.stOpt:disabled:hover {
+  border-color: rgba(255, 255, 255, 0.13);
+}
+.stOptOn:disabled,
+.stOpt:disabled.stOptOn {
+  border-color: var(--order);
+}
+.errNote {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: #ff9a7a;
+  margin: 0.5rem 0 0;
+}
+.weighNote {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  color: var(--mute);
+  opacity: 0.85;
+  margin: 0.7rem 0 0;
+}
+
+/* ── folded drawers + blocks inside them ── */
+.foldBody {
+  padding-bottom: clamp(0.9rem, 3vw, 1.2rem);
+}
+.subBlock {
+  margin: 1.1rem 0;
+}
+.subBlock:first-child {
+  margin-top: 0.2rem;
+}

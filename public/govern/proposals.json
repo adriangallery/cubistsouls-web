@@ -1,15 +1,18 @@
 [
   {
-    "id": "prop-000",
+    "id": "prop-001-pikkazo-gate",
     "type": "INFO",
-    "title": "TEST · Which wing of the museum opens first?",
-    "body": "This is a TEST proposal used to shake down the Cubist Souls governance system before the first real vote. It counts for nothing — vote freely, re-vote as often as you like. The museum has been dark for a long time; now that the community holds the keys, which hall should we light up first? Your vote is weighted by your Museum Hours at the snapshot block, and anyone can reproduce the count. (Adrian will publish Proposal #1 for real once this dry run looks good.)",
+    "proposer": "Soul Reaper #8777",
+    "title": "When does the Pikkazo gate close?",
+    "body": "Every soul freed is a Pikkazo bought off the old collection's floor. While the gate stays open, the market we escaped keeps out-trading the museum — our own fire feeds its volume. Pick the mark where the gate seals for good, and the market turns to face Cubist Souls alone.",
     "options": [
-      "The Cubist Wing — put the art front and centre",
-      "The Hall of Liberators — honour the wallets that freed the collection",
-      "The Secret Vault — lean into the mystery"
+      { "label": "Seal at 3,000 souls", "sub": "close early — turn the market to Souls sooner" },
+      { "label": "Seal at 4,000 souls", "sub": "one more wave through the fire, then seal" },
+      { "label": "Keep it open for now", "sub": "let it burn — revisit at a later salon" }
     ],
-    "snapshotBlock": 25566780,
-    "closesAt": "2026-07-26T12:33:11.000Z"
+    "applies": "the museum seals the Pikkazo→Soul gate at the winning mark; the sealing transaction goes in the ledger",
+    "snapshotBlock": 25724040,
+    "opensAt": "2026-08-01T00:00:00.000Z",
+    "closesAt": "2026-08-08T20:00:00.000Z"
   }
 ]

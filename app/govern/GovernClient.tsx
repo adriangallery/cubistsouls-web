@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAccount, usePublicClient } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
@@ -11,6 +11,7 @@ import {
   type WalletPower,
 } from "@/lib/govern";
 import type { PyramidCounts } from "./page";
+import ProposalLive from "./Proposal";
 import styles from "./govern.module.css";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -42,19 +43,36 @@ export default function GovernClient({ counts }: { counts: PyramidCounts }) {
       .finally(() => setParamsLoaded(true));
   }, []);
 
-  // Wallet power is lifted here so the demo ballot can pour it into the layer bars.
+  // Wallet power is lifted here so the live proposal can seed the voter's weight.
   const [power, setPower] = useState<WalletPower | null>(null);
 
+  // ONE thing above the fold: the live proposal. Everything that explains the
+  // system (pyramid, cycle, fine print, the standing-vote previews) folds shut —
+  // Adrian's 1-aug feedback: too many elements, the page must read in seconds.
   return (
     <main className={styles.wrap}>
       <Hero />
-      <Pyramid counts={counts} params={params} />
+      <ProposalLive params={params} power={power} burned={counts.burned} />
       <PowerPanel params={params} onPower={setPower} />
-      <Cycle />
-      <DemoBallot params={params} power={power} />
-      <StandingVotes params={params} power={power} />
-      <Ledger params={params} />
-      <FinePrint params={params} />
+      <Fold title="How the pyramid works">
+        <Pyramid counts={counts} params={params} />
+        <Cycle />
+        <ul className={styles.fineList}>
+          <li>Power lives in the souls, never the wallet.</li>
+          <li>Only reapers open a proposal.</li>
+          <li>{params.secondsRequired} more reapers must second it.</li>
+          <li>Quorum {fmt(params.quorumSouls)} souls — counted in souls.</li>
+          <li>Power is frozen when the ballot opens.</li>
+          <li>The Order may brake {params.brakeHours}h — one re-vote.</li>
+          <li>Sell the soul, the power leaves with it.</li>
+        </ul>
+      </Fold>
+      {params.ballots.length > 0 && (
+        <Fold title="Standing votes — preview">
+          <StandingVotes params={params} power={power} />
+        </Fold>
+      )}
+      {params.ledger.length > 0 && <Ledger params={params} />}
       <div className={styles.paramTag}>
         {paramsLoaded ? (
           params.version > 0 ? (
@@ -72,7 +90,7 @@ export default function GovernClient({ counts }: { counts: PyramidCounts }) {
   );
 }
 
-// ── HERO — the whole page in two lines ──────────────────────────────────────────
+// ── HERO — the whole page in one line ───────────────────────────────────────────
 function Hero() {
   return (
     <header className={styles.hero}>
@@ -80,18 +98,29 @@ function Hero() {
         <span className={styles.tri}>🜃</span> Soul-bound governance
       </span>
       <h1 className={styles.title}>THE PYRAMID</h1>
-      <p className={styles.lead}>Your souls carry the power.</p>
       <p className={styles.lead2}>Reapers propose. The pyramid votes.</p>
     </header>
   );
 }
 
-// ── a. THE PYRAMID — the protagonist, explains itself ───────────────────────────
+// ── FOLD — a closed drawer for everything that explains rather than decides ─────
+function Fold({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className={styles.section}>
+      <details className={styles.fine}>
+        <summary className={styles.fineSummary}>{title}</summary>
+        <div className={styles.foldBody}>{children}</div>
+      </details>
+    </section>
+  );
+}
+
+// ── a. THE PYRAMID — lives inside the "how it works" fold ───────────────────────
 function Pyramid({ counts, params }: { counts: PyramidCounts; params: GovernParams }) {
   const erasTxt = counts.eras ? fmtK(counts.eras) : "—";
   const ogTxt = counts.og ? fmt(counts.og) : "—";
   return (
-    <section className={styles.section}>
+    <div className={styles.subBlock}>
       <div className={styles.pyramid}>
         <div className={`${styles.tier} ${styles.tOrder}`} style={{ width: "64%" }}>
           <span className={styles.tierIco}>🜃</span>
@@ -122,7 +151,7 @@ function Pyramid({ counts, params }: { counts: PyramidCounts; params: GovernPara
           <span className={styles.tierMeta}>+5 max</span>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -268,7 +297,7 @@ function Chip({
   );
 }
 
-// ── c. THE CYCLE — one horizontal strip of icons ────────────────────────────────
+// ── c. THE CYCLE — one horizontal strip of icons, inside the fold ───────────────
 function Cycle() {
   const steps = [
     { ic: "🜃", t: "propose" },
@@ -278,7 +307,7 @@ function Cycle() {
     { ic: "✓", t: "execute" },
   ];
   return (
-    <section className={styles.section}>
+    <div className={styles.subBlock}>
       <span className={styles.eyebrow}>The cycle</span>
       <ol className={styles.cycle}>
         {steps.map((s, i) => (
@@ -295,166 +324,7 @@ function Cycle() {
           </Fragment>
         ))}
       </ol>
-    </section>
-  );
-}
-
-// ── d. DEMO BALLOT — teaches by doing, LOCAL only ───────────────────────────────
-type Vote = "for" | "against" | "abstain";
-const VOTE_STORE = "cs-govern-demo-vote";
-
-// Seed tally (mock power by pyramid layer). The connected wallet's real power is
-// poured into the matching layers when it votes — the "data theatre" of the plan.
-const SEED = {
-  for: { order: 9, cohort: 286, senior: 71 },
-  against: { order: 0, cohort: 74, senior: 18 },
-  seedSouls: 312,
-};
-
-function DemoBallot({ params, power }: { params: GovernParams; power: WalletPower | null }) {
-  const [vote, setVote] = useState<Vote | null>(null);
-  useEffect(() => {
-    try {
-      const v = localStorage.getItem(VOTE_STORE) as Vote | null;
-      if (v === "for" || v === "against" || v === "abstain") setVote(v);
-    } catch {}
-  }, []);
-  const cast = useCallback((v: Vote) => {
-    setVote(v);
-    try {
-      localStorage.setItem(VOTE_STORE, v);
-    } catch {}
-  }, []);
-  const clear = useCallback(() => {
-    setVote(null);
-    try {
-      localStorage.removeItem(VOTE_STORE);
-    } catch {}
-  }, []);
-
-  // My contribution, decomposed by layer (crown→Order, cohort→Cohorts, stars→Seniority).
-  const mine = useMemo(
-    () => ({
-      order: power?.crownBonus ?? 0,
-      cohort: power?.cohortBase ?? (power ? 0 : 12),
-      senior: power?.starTotal ?? 0,
-      souls: power?.heldCount ?? 1,
-    }),
-    [power],
-  );
-
-  const forT = { ...SEED.for };
-  const againstT = { ...SEED.against };
-  let souls = SEED.seedSouls;
-  if (vote === "for") {
-    forT.order += mine.order;
-    forT.cohort += mine.cohort;
-    forT.senior += mine.senior;
-    souls += mine.souls;
-  } else if (vote === "against") {
-    againstT.order += mine.order;
-    againstT.cohort += mine.cohort;
-    againstT.senior += mine.senior;
-    souls += mine.souls;
-  } else if (vote === "abstain") {
-    souls += mine.souls;
-  }
-  const forSum = forT.order + forT.cohort + forT.senior;
-  const againstSum = againstT.order + againstT.cohort + againstT.senior;
-  const total = forSum + againstSum || 1;
-  const forPct = Math.round((forSum / total) * 100);
-  const quorumPct = Math.min(100, Math.round((souls / params.quorumSouls) * 100));
-  const quorumMet = souls >= params.quorumSouls;
-
-  return (
-    <section className={styles.section}>
-      <article className={styles.ballot}>
-        <div className={styles.demoBadge}>DEMO</div>
-        <h3 className={styles.ballotTitle}>Host a summer raffle?</h3>
-        <div className={styles.ballotMeta}>
-          <span className={styles.metaChip}>
-            🜃 <b>Soul Reaper #8777</b>
-          </span>
-          <span className={styles.metaSeal}>
-            seconded <b>{params.secondsRequired}/{params.secondsRequired}</b> ✓
-          </span>
-          <span className={styles.metaCouncil}>
-            Order counsels <b>FOR</b> · 3/3
-          </span>
-        </div>
-
-        {/* vote buttons — functional locally, persisted in localStorage */}
-        <div className={styles.voteRow}>
-          {(["for", "against", "abstain"] as Vote[]).map((v) => (
-            <button
-              key={v}
-              className={`${styles.voteBtn} ${vote === v ? styles.voteOn : ""} ${styles["v_" + v]}`}
-              onClick={() => cast(v)}
-            >
-              {v === "for" ? "Vote FOR" : v === "against" ? "Vote AGAINST" : "Abstain"}
-              {vote === v ? " ✓" : ""}
-            </button>
-          ))}
-        </div>
-        {vote && (
-          <div className={styles.voteNote}>
-            You voted <b>{vote.toUpperCase()}</b>.{" "}
-            <button className={styles.clearBtn} onClick={clear}>
-              reset
-            </button>
-          </div>
-        )}
-
-        {/* headline split */}
-        <div className={styles.splitBar}>
-          <span className={styles.splitFor} style={{ width: `${forPct}%` }}>
-            {forPct >= 12 ? `FOR ${forPct}%` : ""}
-          </span>
-          <span className={styles.splitAgainst}>{100 - forPct >= 12 ? `AGAINST ${100 - forPct}%` : ""}</span>
-        </div>
-
-        {/* the pyramid votes — power contributed by each layer (FOR vs AGAINST) */}
-        <div className={styles.layerTally}>
-          {(
-            [
-              ["The Order", styles.bOrder, forT.order, againstT.order],
-              ["Cohorts", styles.bCohort, forT.cohort, againstT.cohort],
-              ["Seniority", styles.bSenior, forT.senior, againstT.senior],
-            ] as [string, string, number, number][]
-          ).map(([name, cls, f, a]) => {
-            const rowMax = Math.max(1, forSum, againstSum);
-            return (
-              <div className={styles.layerRow} key={name}>
-                <span className={styles.layerName}>
-                  <span className={`${styles.breakDot} ${cls}`} /> {name}
-                </span>
-                <span className={styles.layerBars}>
-                  <span className={styles.layerFor} style={{ width: `${(f / rowMax) * 100}%` }} />
-                  <span className={styles.layerAgainst} style={{ width: `${(a / rowMax) * 100}%` }} />
-                </span>
-                <span className={styles.layerVal}>{fmt(f + a)}</span>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* quorum meter */}
-        <div className={styles.quorum}>
-          <div className={styles.quorumTop}>
-            <span>Quorum</span>
-            <span className={quorumMet ? styles.qMet : undefined}>
-              {fmt(souls)} / {fmt(params.quorumSouls)} {quorumMet ? "· met ✓" : ""}
-            </span>
-          </div>
-          <div className={styles.quorumTrack}>
-            <span
-              className={`${styles.quorumFill} ${quorumMet ? styles.quorumFillMet : ""}`}
-              style={{ width: `${quorumPct}%` }}
-            />
-          </div>
-        </div>
-      </article>
-    </section>
+    </div>
   );
 }
 
@@ -469,8 +339,8 @@ function DemoBallot({ params, power }: { params: GovernParams; power: WalletPowe
 // contract change, no facet cut. Which is why this component renders whatever it
 // finds there instead of anything hardcoded.
 //
-// Votes are LOCAL (localStorage) while the design is frozen, exactly like the demo
-// ballot above — the EIP-191 engine lands with the first real Salón.
+// Votes here are still LOCAL (localStorage) — these are previews of the recurring
+// ballots. The live proposal at the top of the page is the real EIP-191 engine.
 const STANDING_STORE = "cs-govern-standing";
 
 function StandingVotes({ params, power }: { params: GovernParams; power: WalletPower | null }) {
@@ -505,13 +375,11 @@ function StandingVotes({ params, power }: { params: GovernParams; power: WalletP
   if (!params.ballots.length) return null;
 
   return (
-    <section className={styles.section}>
-      <div className={styles.stHead}>
-        <h2 className={styles.stTitle}>Standing votes</h2>
-        <p className={styles.stLead}>
-          The museum writes the options. The pyramid chooses between them — every time.
-        </p>
-      </div>
+    <div className={styles.subBlock}>
+      <p className={styles.stLead}>
+        The museum writes the options. The pyramid chooses between them — every time. These
+        are previews; they go live at a later salon.
+      </p>
 
       {params.ballots.map((b) => {
         const chosen = picks[b.key] ?? -1;
@@ -606,7 +474,7 @@ function StandingVotes({ params, power }: { params: GovernParams; power: WalletP
         validator, ownership, the pauses, and any diamond cut. That is the art and the safety of
         the collection, not policy.
       </p>
-    </section>
+    </div>
   );
 }
 
@@ -644,26 +512,6 @@ function Ledger({ params }: { params: GovernParams }) {
           ))}
         </ul>
       )}
-    </section>
-  );
-}
-
-// ── g. FINE PRINT — everything else, closed by default ──────────────────────────
-function FinePrint({ params }: { params: GovernParams }) {
-  return (
-    <section className={styles.section}>
-      <details className={styles.fine}>
-        <summary className={styles.fineSummary}>The fine print</summary>
-        <ul className={styles.fineList}>
-          <li>Power lives in the souls, never the wallet.</li>
-          <li>Only reapers open a proposal.</li>
-          <li>{params.secondsRequired} more reapers must second it.</li>
-          <li>Quorum {fmt(params.quorumSouls)} souls — counted in souls.</li>
-          <li>Power is frozen when the ballot opens.</li>
-          <li>The Order may brake {params.brakeHours}h — one re-vote.</li>
-          <li>Sell the soul, the power leaves with it.</li>
-        </ul>
-      </details>
     </section>
   );
 }
