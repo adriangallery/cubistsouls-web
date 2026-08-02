@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSignMessage } from "wagmi";
 import SoulCard from "../components/SoulCard";
+import { TransferModal, useBatchTransferLive, useCanTransfer } from "./TransferFlow";
 import type { MHExhibit } from "@/lib/mh";
 import {
   collabMessage,
@@ -60,6 +61,8 @@ export default function CollabGrid({
   collabEnabled,
   exhibits,
   consumedById,
+  canTransfer = false,
+  onTransferred,
 }: {
   owned: number[];
   address: string;
@@ -68,12 +71,42 @@ export default function CollabGrid({
   // per-soul souls-consumed (from the page's ReaperState). Souls with marks
   // (consumed ≥ 6) render composed art in the grid.
   consumedById?: Map<number, number>;
+  // The batch-send tool (mode "self" only). It renders only once the Diamond
+  // routes batchTransfer on mainnet AND the connected signer is this wallet.
+  canTransfer?: boolean;
+  onTransferred?: () => void;
 }) {
   const { signMessageAsync } = useSignMessage();
   const [fired, setFired] = useState<FiredMap>({});
   const [modal, setModal] = useState<Modal>(null);
   const [signing, setSigning] = useState(false);
   const [sort, setSort] = useState<Sort>("id");
+
+  // ── the transfer tool (select mode) ──
+  const batchLive = useBatchTransferLive();
+  const signerHere = useCanTransfer(address);
+  const transferable = canTransfer && batchLive && signerHere;
+  const [selecting, setSelecting] = useState(false);
+  const [sel, setSel] = useState<Set<number>>(new Set());
+  const [sendOpen, setSendOpen] = useState(false);
+
+  const toggleSel = useCallback((id: number) => {
+    setSel((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
+  }, []);
+  const exitSelect = useCallback(() => {
+    setSelecting(false);
+    setSel(new Set());
+    setSendOpen(false);
+  }, []);
+  const onSent = useCallback(() => {
+    exitSelect();
+    onTransferred?.();
+  }, [exitSelect, onTransferred]);
 
   const stats = useMemo(() => {
     const m = new Map<number, MHExhibit>();
@@ -200,7 +233,17 @@ export default function CollabGrid({
           </button>
         </div>
 
-        {collabEnabled && (
+        {transferable && !selecting ? (
+          <button
+            className="tf-enter"
+            title="Send several souls to another wallet in one transaction"
+            onClick={() => setSelecting(true)}
+          >
+            ⇄ Transfer
+          </button>
+        ) : null}
+
+        {collabEnabled && !selecting && (
           <details className="cx-strip">
             <summary>
               {SPARK} One free WTP! artwork per soul — tap the spark
@@ -220,11 +263,11 @@ export default function CollabGrid({
           const ex = stats.get(id);
           const marked = (consumedById?.get(id) ?? 0) >= REAPER_ART_MIN;
           return (
-            <div className="soul-cell" key={id}>
+            <div className={`soul-cell${selecting && sel.has(id) ? " picked" : ""}`} key={id}>
               <SoulCard
                 id={id}
                 status="Held"
-                link="opensea"
+                link={selecting ? "none" : "opensea"}
                 stamp={false}
                 imgSrc={marked ? REAPER_IMG(id) : undefined}
                 stats={
@@ -238,7 +281,7 @@ export default function CollabGrid({
                     : undefined
                 }
               />
-              {collabEnabled && (
+              {collabEnabled && !selecting && (
                 <button
                   className={`fire-btn${st?.used ? " fired" : ""}`}
                   title="Create this soul's free WTP! artwork — your NFT is not affected"
@@ -247,10 +290,46 @@ export default function CollabGrid({
                   {SPARK} {st?.used ? "created" : ""}
                 </button>
               )}
+              {selecting && (
+                <button
+                  className="tf-pick"
+                  aria-pressed={sel.has(id)}
+                  aria-label={`${sel.has(id) ? "Deselect" : "Select"} soul ${id}`}
+                  onClick={() => toggleSel(id)}
+                >
+                  <span className="tf-tick">{sel.has(id) ? "✓" : ""}</span>
+                </button>
+              )}
             </div>
           );
         })}
       </div>
+
+      {selecting && (
+        <div className="tf-bar" role="toolbar" aria-label="Transfer souls">
+          <span className="tf-count">
+            <b>{sel.size}</b> of {owned.length} selected
+          </span>
+          <div className="tf-bar-btns">
+            <button className="ghost" onClick={() => setSel(new Set(sel.size === owned.length ? [] : owned))}>
+              {sel.size === owned.length ? "Clear" : "Select all"}
+            </button>
+            <button className="ghost" onClick={exitSelect}>Cancel</button>
+            <button className="go" disabled={sel.size === 0} onClick={() => setSendOpen(true)}>
+              Send {sel.size || ""} →
+            </button>
+          </div>
+        </div>
+      )}
+
+      {sendOpen && sel.size > 0 && (
+        <TransferModal
+          ids={[...sel].sort((a, b) => a - b)}
+          holder={address}
+          onClose={() => setSendOpen(false)}
+          onDone={onSent}
+        />
+      )}
 
       {modal && <FireModal modal={modal} signing={signing} onClose={close} onFire={doFire} onRetry={openIntro} />}
     </>
