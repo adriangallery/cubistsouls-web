@@ -186,6 +186,7 @@ export default function MySouls() {
               boardPhase={boardPhase}
               boardUpdatedAt={boardUpdatedAt}
               reaperLive={reaperLive}
+              onTransferred={h.reload}
             />
           )
         )}

@@ -34,6 +34,8 @@ export type HolderData = {
   deckTotal: number;
   tier: string;
   reaperLive: boolean;
+  // re-run the whole scan on demand (after a batch send moves souls out)
+  reload: () => void;
 };
 
 /**
@@ -133,6 +135,11 @@ export function useHolderData(account: string | undefined, enabled = true): Hold
     else reset();
   }, [enabled, account, load, reset]);
 
+  // Re-run the whole holder scan on demand (after a batch send moves souls out).
+  const reload = useCallback(() => {
+    if (enabled && account) load(account);
+  }, [enabled, account, load]);
+
   // ── derived (same math as the old MySouls component body) ──
   const mine: MineEntry[] = data ? mineFrom(reaper, data.owned) : [];
   const consumed = mine.reduce((s, e) => s + e.consumed, 0);
@@ -157,5 +164,6 @@ export function useHolderData(account: string | undefined, enabled = true): Hold
     deckTotal,
     tier,
     reaperLive: REAPER_LIVE,
+    reload,
   };
 }

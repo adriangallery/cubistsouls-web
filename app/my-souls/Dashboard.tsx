@@ -42,6 +42,7 @@ export default function Dashboard({
   boardPhase,
   boardUpdatedAt,
   reaperLive,
+  onTransferred,
 }: {
   mode: "self" | "public";
   data: SoulsData;
@@ -59,6 +60,8 @@ export default function Dashboard({
   boardPhase: DashPhase;
   boardUpdatedAt: number | null;
   reaperLive: boolean;
+  // refresh after a batch send (mode "self" only — /curator stays read-only)
+  onTransferred?: () => void;
 }) {
   const tier = tierOf(contribution);
   const hasReapers = reaperLive && (mine.length > 0 || mode === "self");
@@ -128,6 +131,8 @@ export default function Dashboard({
               collabEnabled={collab}
               exhibits={myMh?.exhibits ?? null}
               consumedById={consumedById}
+              canTransfer={mode === "self"}
+              onTransferred={onTransferred}
             />
           ) : (
             <p className="mh-status">

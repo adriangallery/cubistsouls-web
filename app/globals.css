@@ -820,6 +820,52 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
 .cx-pitch .join{border:1px solid rgba(224,165,32,.45);color:var(--bone)}
 .cx-pitch .join:hover{border-color:var(--gild);color:var(--gild)}
 
+/* ---------- TRANSFER TOOL (batch send, /my-souls) ---------- */
+.tf-enter{font-family:var(--mono);font-weight:700;font-size:.66rem;letter-spacing:.06em;text-transform:uppercase;
+  padding:.45rem .8rem;border-radius:6px;cursor:pointer;border:1px solid rgba(224,165,32,.45);
+  background:transparent;color:var(--bone);transition:.15s ease}
+.tf-enter:hover{border-color:var(--gild);color:var(--gild)}
+.tf-pick{position:absolute;inset:0;z-index:4;cursor:pointer;border-radius:10px;background:transparent;
+  border:2px solid rgba(224,165,32,.35);transition:.12s ease}
+.tf-pick:hover{border-color:rgba(224,165,32,.7)}
+.soul-cell.picked .tf-pick{border-color:var(--gild);background:rgba(224,165,32,.14);
+  box-shadow:0 0 0 3px rgba(224,165,32,.25),0 10px 30px rgba(0,0,0,.35)}
+.tf-tick{position:absolute;top:8px;right:8px;width:26px;height:26px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-weight:700;font-size:.85rem;
+  background:var(--wall-deep);border:1px solid rgba(224,165,32,.5);color:#2a1400}
+.soul-cell.picked .tf-tick{background:linear-gradient(180deg,var(--gild-lite),var(--gild));border-color:transparent}
+.tf-bar{position:fixed;left:50%;bottom:14px;transform:translateX(-50%);z-index:90;width:min(560px,calc(100vw - 24px));
+  display:flex;align-items:center;justify-content:space-between;gap:.7rem;flex-wrap:wrap;
+  background:linear-gradient(180deg,#2a0810,#16050a);border:1px solid rgba(224,165,32,.5);border-radius:12px;
+  padding:.7rem .9rem;box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.tf-count{font-family:var(--mono);font-size:.72rem;letter-spacing:.06em;color:var(--mute)}
+.tf-count b{color:var(--bone);font-size:.9rem}
+.tf-bar-btns{display:flex;gap:.45rem;flex-wrap:wrap}
+.tf-bar-btns button{font-family:var(--mono);font-weight:700;font-size:.68rem;letter-spacing:.05em;text-transform:uppercase;
+  padding:.6rem .85rem;border-radius:7px;cursor:pointer;transition:.15s ease}
+.tf-bar-btns .ghost{background:transparent;border:1px solid rgba(224,165,32,.4);color:var(--bone)}
+.tf-bar-btns .ghost:hover{border-color:var(--gild);color:var(--gild)}
+.tf-bar-btns .go{border:0;color:#2a1400;background:linear-gradient(180deg,var(--gild-lite),var(--gild) 55%,var(--gild-deep));
+  box-shadow:0 8px 24px rgba(224,165,32,.28)}
+.tf-bar-btns .go:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
+.tf-chips{display:flex;gap:.35rem;justify-content:center;flex-wrap:wrap;margin:.7rem auto .4rem;max-width:420px}
+.tf-chip{font-family:var(--mono);font-size:.66rem;letter-spacing:.04em;color:var(--bone-2);
+  padding:.25rem .5rem;border-radius:5px;border:1px solid rgba(224,165,32,.3);background:var(--wall-deep)}
+.tf-chip.more{color:var(--gild);border-color:rgba(224,165,32,.55)}
+.tf-label{display:block;font-family:var(--mono);font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--mute);margin:.9rem 0 .35rem;text-align:left}
+.tf-input{width:100%;font-family:var(--mono);font-size:.85rem;color:var(--bone);background:var(--wall-deep);
+  border:1px solid rgba(224,165,32,.35);border-radius:8px;padding:.8rem .9rem;outline:none}
+.tf-input:focus{border-color:var(--gild)}
+.tf-input:disabled{opacity:.6}
+.tf-note{font-family:var(--mono);font-size:.72rem;line-height:1.5;margin:.45rem 0 0;text-align:left;color:var(--mute)}
+.tf-note.ok{color:#9fd08a}
+.tf-note.bad{color:#e98a6f}
+.tf-note.warn{color:#e0b36a}
+.tf-fine{font-family:var(--serif);font-style:italic;color:var(--mute);font-size:.8rem;line-height:1.55;
+  margin:.9rem auto;max-width:420px}
+.tf-fine + .cx-fire{margin-top:0}
+
 /* ---------- MOBILE WALLET SHEET (dapp-browser fallback) ---------- */
 .wsheet{position:relative;width:100%;max-width:440px;background:linear-gradient(180deg,#2a0810,#16050a);
   border:1px solid rgba(224,165,32,.45);border-radius:16px;padding:1.5rem 1.4rem 1.4rem;
