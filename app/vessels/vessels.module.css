@@ -74,7 +74,40 @@
   font-family: var(--disp); font-weight: 900; color: var(--bone);
   font-size: clamp(1.2rem, 4vw, 1.6rem); line-height: 1.1;
 }
-.sideNote { font-size: .78rem; color: var(--mute); line-height: 1.55; }
+.sideNote { font-size: .76rem; color: var(--mute); line-height: 1.55; }
+.sideNote b { color: var(--bone); }
+.sideCount {
+  font-family: var(--mono); font-size: .58rem; font-weight: 400;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--reaper-lite);
+  margin-left: .5rem; vertical-align: middle;
+}
+
+/* the thirty slots — they fill as you pick, so the input is visible, not stated */
+.slots {
+  display: grid; grid-template-columns: repeat(10, 1fr);
+  gap: 3px; margin: .6rem 0 .7rem;
+}
+.slotFilled, .slotEmpty {
+  width: 100%; aspect-ratio: 1; border-radius: 3px; display: block;
+}
+.slotFilled { image-rendering: pixelated; border: 1px solid rgba(167, 101, 209, .5); }
+.slotEmpty { border: 1px dashed rgba(167, 101, 209, .3); background: rgba(122, 63, 160, .08); }
+
+/* the outcome — the piece itself, taking shape */
+.outcome { display: flex; flex-direction: column; gap: .35rem; margin: .6rem 0 .7rem; }
+.outcomeArt {
+  width: 118px; display: block; border-radius: 8px; overflow: hidden;
+  border: 1px solid var(--reaper-lite); box-shadow: 0 0 24px -12px rgba(167, 101, 209, .9);
+}
+.outcomeBlank {
+  width: 118px; aspect-ratio: 1; border-radius: 8px;
+  border: 1px dashed rgba(167, 101, 209, .45); background: rgba(122, 63, 160, .08);
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: .3rem; color: var(--mute);
+}
+.outcomeBlank span { font-size: 1.5rem; }
+.outcomeBlank small { font-family: var(--mono); font-size: .54rem; text-align: center; }
+.outcomeName { font-family: var(--mono); font-size: .62rem; color: var(--bone); }
 .arrow {
   align-self: center; font-size: clamp(1.2rem, 4vw, 1.8rem);
   color: var(--reaper-lite); filter: drop-shadow(0 0 10px rgba(167, 101, 209, .5));

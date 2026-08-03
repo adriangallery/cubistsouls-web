@@ -32,7 +32,7 @@ import styles from "./vessels.module.css";
 const IMG = (id: number) => `/api/img?id=${id}`;
 // The death mask every Memento Mori wears, over every other layer. Rendered here
 // as the museum's preview; the on-chain renderer paints the same layer.
-const MASK = "/assets/traits-svg/vessel-fx/memento-mori.svg";
+const MASK = "/assets/traits-svg/vessel-fx/memento-mori-a.svg"; // -a: the artist's placement (renamed to bust the immutable cache)
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
 
 // canvas art + the mask on top — what a Memento Mori actually looks like
@@ -130,6 +130,7 @@ export default function VesselsClient() {
   // The plaque is not the founder's to write: every union is named by the museum,
   // "Memento Mori #<id>", the moment it is fused.
   const autoName = canvas !== null ? `Memento Mori #${canvas}` : "";
+  const pickedList = [...picked].sort((a, b) => a - b);
   const ready = picked.size === UNION_SIZE && canvas !== null;
   const priceLabel = fee !== null ? `Ξ${formatEther(fee)}` : "…";
 
@@ -187,30 +188,59 @@ export default function VesselsClient() {
           </h2>
         </div>
 
-        {/* the ledger: what goes in, what comes out */}
+        {/* THE RITUAL, drawn: thirty slots fill as you pick, and the piece you
+            get takes shape on the right. Text explains; this shows. */}
         <div className={styles.ledger}>
           <div className={styles.side}>
             <span className={styles.sideLabel}>You place</span>
-            <b className={styles.sideBig}>30 Souls</b>
+            <b className={styles.sideBig}>
+              30 Souls <span className={styles.sideCount}>{picked.size}/30 chosen</span>
+            </b>
+            <div className={styles.slots} aria-hidden="true">
+              {Array.from({ length: UNION_SIZE }, (_, i) => {
+                const id = pickedList[i];
+                return id !== undefined ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img className={styles.slotFilled} key={id} src={IMG(id)} alt="" loading="lazy" />
+                ) : (
+                  <span className={styles.slotEmpty} key={`empty-${i}`} />
+                );
+              })}
+            </div>
             <span className={styles.sideNote}>
-              Souls you already hold. They stay in the museum&apos;s custody, bound to the piece —
-              never burned, never lost. Sell it and all thirty travel with it.
+              They are <b>not burned</b>. They pass into the museum&apos;s custody, bound to the piece
+              forever — sell it and all thirty travel with it.
             </span>
           </div>
+
           <span className={styles.arrow} aria-hidden="true">
             →
           </span>
+
           <div className={styles.side}>
             <span className={styles.sideLabel}>You receive</span>
-            <b className={styles.sideBig}>1 Memento Mori</b>
+            <b className={styles.sideBig}>
+              1 Memento Mori <span className={styles.sideCount}>a new token</span>
+            </b>
+            <div className={styles.outcome}>
+              {canvas !== null ? (
+                <Masked id={canvas} className={styles.outcomeArt} />
+              ) : (
+                <span className={styles.outcomeBlank}>
+                  <span>⚱</span>
+                  <small>choose a face below</small>
+                </span>
+              )}
+              <span className={styles.outcomeName}>{autoName || "Memento Mori #…"}</span>
+            </div>
             <span className={styles.sideNote}>
-              A brand-new token wearing the death mask, minted on an empty canvas of your choosing —
-              plus its own on-chain vault. Yours to keep, name and sell.
+              An empty canvas brought back to the wall under the death mask — with its own on-chain
+              vault. Yours to keep and sell.
             </span>
           </div>
         </div>
         <p className={styles.cost}>
-          Cost: <b>{priceLabel}</b> + gas · one transaction · no approvals · cannot be undone
+          Thirty in, one out · <b>{priceLabel}</b> + gas · one transaction · no approvals · cannot be undone
         </p>
 
         {!connected ? (
@@ -327,26 +357,6 @@ export default function VesselsClient() {
                 </div>
               </>
             )}
-
-            <div className={styles.previewRow}>
-              <div className={styles.preview}>
-                <span className={styles.previewLabel}>What you receive</span>
-                <div className={styles.previewCard}>
-                  {canvas !== null ? (
-                    <Masked id={canvas} className={styles.previewArt} />
-                  ) : (
-                    <div className={styles.previewBlank}>
-                      <span>⚱</span>
-                      <small>pick a face in step 2</small>
-                    </div>
-                  )}
-                  <div className={styles.previewBody}>
-                    <b>{autoName || "Memento Mori"}</b>
-                    <span>{picked.size}/30 souls united</span>
-                  </div>
-                </div>
-              </div>
-            </div>
 
             {err ? <p className={styles.err}>{err}</p> : null}
             <button className={styles.btn} disabled={!ready || phase !== "idle"} onClick={fuse}>

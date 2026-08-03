@@ -22,7 +22,7 @@ export const maxDuration = 60;
 const SOULS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 const SEL_IS_VESSEL = "0x1afdd161"; // isVesselToken(uint256)
 const RPC = "https://gateway.tenderly.co/public/mainnet"; // the gateway that answers datacenter IPs
-const MASK_PATH = path.join(process.cwd(), "public/assets/traits-svg/vessel-fx/memento-mori.svg");
+const MASK_PATH = path.join(process.cwd(), "public/assets/traits-svg/vessel-fx/memento-mori-a.svg");
 const SIZE = 1536; // 2× the 768 viewBox — vectors scale for free
 
 function imgRedirect(origin: string, id: number) {
