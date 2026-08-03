@@ -27,7 +27,6 @@ import {
   MARK_BY_ID,
   loadCohorts,
   isOG,
-  OPENSEA_OG_URL,
   OPENSEA_PIKKAZO_URL,
   type Rarity,
   type LayerData,
@@ -336,6 +335,10 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   }, [live, mounted, isConnected, address, loadWallet]);
 
   // ---- aspirants (demo: hardcoded · live: owned souls composed from traits) ----
+  // THE ORDER IS CLOSED (03-ago, ReaperFacetV4): `og` is now the full eligibility
+  // flag — OG cohort AND already ascended (>=30 consumed). The diamond reverts
+  // OrderClosed for anything below 30, so the picker must never offer a soul the
+  // chain would reject. The twelve keep reaping; nobody else can start.
   const aspirants: Aspirant[] = useMemo(() => {
     if (demo) return PREVIEW_ASPIRANTS.map((a) => ({ ...a, og: true }));
     return ownedSouls.map((id) => ({
@@ -343,7 +346,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
       name: `№${String(id).padStart(4, "0")}`,
       base: layerData ? baseLayersOf(id, layerData) : {},
       state: states.get(id),
-      og: isOG(cohorts.get(id)),
+      og: isOG(cohorts.get(id)) && (states.get(id)?.consumed ?? 0) >= ASCEND_AT,
     }));
   }, [demo, ownedSouls, layerData, states, cohorts]);
 
@@ -570,27 +573,46 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   };
 
   // ---------------------------------------------------------------- gated states
+  // THE ORDER IS CLOSED — the playable teaser is gone for visitors: it used to sell a
+  // rite anyone could join, and that rite no longer exists. Disconnected visitors get
+  // the closure + a connect door for the twelve. `?demo=1` still forces the old
+  // panel (kept for inspection).
+  if (!demoParam && live && !connected) {
+    return (
+      <div className="rite">
+        <div className={styles.connect}>
+          <p className={styles.connectLead}>The fire answers only to the twelve.</p>
+          <button type="button" className="btn btn-primary" onClick={startConnect}>
+            Connect wallet
+          </button>
+          <p className="cta-note">Hold a Soul Reaper to keep feeding it</p>
+        </div>
+        <MobileWalletSheet open={sheet} onClose={() => setSheet(false)} onWalletConnect={() => openConnectModal?.()} />
+      </div>
+    );
+  }
+
   // LIVE + connected but no souls (skipped when ?demo=1 forces the teaser)
   if (!demoParam && live && connected && phase === "loaded" && ownedSouls.length === 0) {
     return (
       <div className="rite">
         <p className="note" style={{ textAlign: "center" }}>
-          No Souls in this wallet. Free one first. <a href="/">Free a soul</a>
+          No Souls in this wallet. <a href="/">Free a soul</a> — the Order is closed, but the museum is not.
         </p>
       </div>
     );
   }
 
-  // LIVE + connected + owns souls but none is OG → only OGs can take the scythe
+  // LIVE + connected + owns souls but none is a member of the Order → the doors are
+  // shut. Since 03-ago the diamond only accepts offerings from souls already at 30.
   if (!demoParam && live && connected && phase === "loaded" && ownedSouls.length > 0 && !hasOG) {
     return (
       <div className="rite">
         <div className={styles.connect}>
-          <p className={styles.connectLead}>Only OG souls can take the scythe.</p>
-          <a className="btn btn-primary" href={OPENSEA_OG_URL} target="_blank" rel="noopener noreferrer">
-            Get an OG soul
-          </a>
-          <p className="cta-note">OG cohort · freed before the eras</p>
+          <p className={styles.connectLead}>The Order is closed.</p>
+          <p className="cta-note">
+            No Soul Reaper in this wallet. The twelve keep reaping — nobody new joins.
+          </p>
         </div>
       </div>
     );
@@ -644,7 +666,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
 
             <div className={styles.propInfo}>
               <div className={styles.propHead}>
-                <span className={styles.propLabel}>Your aspirant</span>
+                <span className={styles.propLabel}>Your reaper</span>
                 {aspirants.length > 1 && (
                   <button type="button" className={styles.changeLink} onClick={() => setPickerOpen((o) => !o)} aria-expanded={pickerOpen}>
                     change soul {pickerOpen ? "▴" : "▾"}
@@ -683,7 +705,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
           {/* ---------- SOUL PICKER — collapsed; full grid with OG gating ---------- */}
           {pickerOpen && (
             <div className={styles.picker}>
-              <div className={styles.pickerLab}>Pick a Soul {demo ? "(demo)" : ""}</div>
+              <div className={styles.pickerLab}>Pick a reaper {demo ? "(demo)" : ""}</div>
               <div className="aspirants">
                 {aspirants.map((a) => (
                   <button
@@ -693,8 +715,8 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                     disabled={!a.og}
                     aria-disabled={!a.og}
                     aria-pressed={aspirantId === a.id}
-                    aria-label={a.og ? `Aspirant ${a.name}` : `${a.name} — OG only, cannot be used`}
-                    title={a.og ? undefined : "Only OG souls can take the scythe"}
+                    aria-label={a.og ? `Reaper ${a.name}` : `${a.name} — not a member of the Order, cannot be used`}
+                    title={a.og ? undefined : "The Order is closed — only souls already at 30 can feed the fire"}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={IMG(a.id)} alt={`Cubist Soul ${a.name}`} loading="lazy" />

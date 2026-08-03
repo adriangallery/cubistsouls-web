@@ -6,7 +6,6 @@ import { usePublicClient } from "wagmi";
 import {
   loadLayerData,
   composeStack,
-  MARK_BY_ID,
   getReaperVaults,
   vaultEtherscanUrl,
   fmtVaultEth,
@@ -21,10 +20,12 @@ import styles from "./reapers.module.css";
 // handed down; the art is composed HERE with the vector engine so each reaper shows
 // its marks (never a blend over the flat PNG).
 //
-// The prominent spot is RESERVED for real ascended reapers. No placeholders: while
-// none have crossed 30 the section shows a single "awaits its first reaper" plate.
-// Beneath it, RISING — real souls already burning canvases (0<consumed<30) but not
-// yet renamed — appear as a compact, less-prominent row of aspirants.
+// THE ORDER IS CLOSED (03-ago 2026, ReaperFacetV4): the roster is final at twelve.
+// The cards are the whole point of the page now — no mark chips (every member sits
+// at 30, so all four milestones are unanimous and the chips said nothing). Beneath
+// them, AT THE THRESHOLD: the two souls that were still climbing when the doors
+// shut (0<consumed<30). They can never ascend; they are shown as record, not as a
+// leaderboard of aspirants.
 
 export type OrderEntry = {
   id: number;
@@ -77,24 +78,23 @@ export default function TheOrder({
       ) : (
         <div className={styles.orderEmpty}>
           <span className={styles.orderScythe}>🜃</span>
-          <p className={styles.orderEmptyLead}>The order awaits its first reaper.</p>
+          <p className={styles.orderEmptyLead}>The Order could not be read.</p>
           <p className={styles.orderEmptySub}>
-            Hit 30 burned and your Soul is renamed a Reaper — its place is here.
+            Twelve reapers are on chain — this is a reader hiccup, not an empty roster.
           </p>
         </div>
       )}
 
-      {/* RISING — real aspirants already feeding the fire, compact + secondary. */}
+      {/* AT THE THRESHOLD — the souls the closure sealed mid-climb. Record, not race. */}
       {rising.length > 0 && (
         <div className={styles.rising}>
           <div className={styles.risingHead}>
-            <span className={styles.risingKick}>Rising</span>
-            <span className={styles.risingSub}>burning now · not yet ascended</span>
+            <span className={styles.risingKick}>At the threshold</span>
+            <span className={styles.risingSub}>still climbing when the Order closed · sealed here</span>
           </div>
           <ul className={styles.risingList}>
             {rising.map((r) => {
               const pct = Math.min(100, (r.consumed / 30) * 100);
-              const marks = r.marks.map((m) => MARK_BY_ID.get(m)).filter(Boolean);
               return (
                 <li className={styles.risingRow} key={r.id}>
                   <span className={styles.risingArt}>
@@ -116,11 +116,6 @@ export default function TheOrder({
                     <b>{r.consumed}</b>
                     <i>/30</i>
                   </span>
-                  {marks.length > 0 && (
-                    <span className={styles.risingMarks}>
-                      {marks.map((m) => m!.name).join(" · ")}
-                    </span>
-                  )}
                   {r.holder && /^0x[0-9a-fA-F]{40}$/.test(r.holder) ? (
                     <Link className={styles.risingHolder} href={`/curator/${r.holder}`}>
                       {short(r.holder)} →
@@ -149,11 +144,10 @@ function OrderGrid({
     <div className={styles.orderGrid}>
       {list.map((r, i) => {
         const stack = layerData ? composeStack(r.id, layerData, r.marks) : [];
-        const marks = r.marks.map((m) => MARK_BY_ID.get(m)).filter(Boolean);
         return (
           <article className={styles.orderCard} key={`${r.id}-${i}`}>
             <div className="tryon-stack">
-              <span className={styles.orderRank}>#{i + 1}</span>
+              <span className={styles.orderRank} title="Order of ascension">#{i + 1}</span>
               {stack.length ? (
                 stack.map((src, j) => (
                   // eslint-disable-next-line @next/next/no-img-element
@@ -171,13 +165,6 @@ function OrderGrid({
               <div className={styles.orderConsumed}>
                 <span className="ico">🔥</span> Souls Consumed <b>{r.consumed}</b>
               </div>
-              {marks.length > 0 && (
-                <div className={styles.orderMarks}>
-                  {marks.map((m) => (
-                    <span className={styles.orderChip} key={m!.id}>{m!.name}</span>
-                  ))}
-                </div>
-              )}
               {r.holder && /^0x[0-9a-fA-F]{40}$/.test(r.holder) ? (
                 <Link className={styles.orderHolder} href={`/curator/${r.holder}`}>
                   held by {short(r.holder)} →

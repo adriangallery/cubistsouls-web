@@ -1168,6 +1168,15 @@
   margin: 0.7rem auto clamp(0.8rem, 2.5vw, 1.2rem);
 }
 
+.closedLead {
+  text-align: center;
+  color: var(--mute);
+  font-size: clamp(0.86rem, 2vw, 0.98rem);
+  line-height: 1.6;
+  max-width: 54ch;
+  margin: 0 auto clamp(0.9rem, 3vw, 1.4rem);
+}
+
 .orderGrid {
   display: grid;
   gap: clamp(0.9rem, 3vw, 1.5rem);
@@ -1246,18 +1255,6 @@
   gap: 0.4rem;
 }
 .orderConsumed b { color: var(--flame); font-size: 0.9rem; }
-.orderMarks { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-.orderChip {
-  font-family: var(--mono);
-  font-size: 0.56rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  color: var(--reaper-lite);
-  background: rgba(122, 63, 160, 0.14);
-  border: 1px solid rgba(167, 101, 209, 0.42);
-  padding: 0.24rem 0.5rem;
-  border-radius: 999px;
-}
 .orderHolder {
   margin-top: auto;
   font-family: var(--mono);
@@ -1369,15 +1366,6 @@
 }
 .risingCount b { font-family: var(--disp); font-weight: 900; font-size: 0.95rem; color: var(--flame); }
 .risingCount i { font-style: normal; }
-.risingMarks {
-  flex: 0 0 auto;
-  font-family: var(--mono);
-  font-size: 0.54rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--reaper-lite);
-}
 /* holder → their public /curator page (invite the click) */
 .risingHolder {
   flex: 0 0 auto;
@@ -1390,7 +1378,7 @@
 .risingHolder:hover { color: var(--reaper-lite); }
 /* narrow: drop the mark names + holder, keep art/id/bar/count in one line */
 @media (max-width: 480px) {
-  .risingMarks, .risingHolder { display: none; }
+  .risingHolder { display: none; }
   .risingRow { gap: 0.5rem; }
 }
 
