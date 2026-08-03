@@ -453,3 +453,60 @@ export function consumedOf(tally: Map<string, number>, account: string): number 
 export function totalContribution(freed: number, consumed: number): number {
   return freed + consumed;
 }
+
+// ---- Reaper vaults (ERC-6551, Ascended only) --------------------------------
+// Every Ascended reaper carries a token-bound account ("vault") — deployed by
+// the museum the moment ReaperAscended fires. THE GATE lives on-chain
+// (ReaperAccountFacet): reaperAccount() reverts for regular souls, so the map
+// below simply omits ids the diamond refuses — the UI never decides who has a
+// vault, the contract does. Control follows ownerOf(reaperId), always.
+
+export const VAULT_ABI = parseAbi([
+  "function reaperAccount(uint256 reaperId) view returns (address account, bool deployed)",
+]);
+
+export type ReaperVault = { account: `0x${string}`; deployed: boolean; eth: bigint };
+
+export async function getReaperVaults(
+  client: PublicClient,
+  ids: number[],
+): Promise<Map<number, ReaperVault>> {
+  const out = new Map<number, ReaperVault>();
+  if (!ids.length) return out;
+  const res = await client.multicall({
+    allowFailure: true, // regular souls revert NotAscended — skipped, not fatal
+    contracts: ids.map((id) => ({
+      address: SOULS,
+      abi: VAULT_ABI,
+      functionName: "reaperAccount" as const,
+      args: [BigInt(id)] as const,
+    })),
+  });
+  const balances = await Promise.all(
+    res.map(async (r) => {
+      if (r.status !== "success") return 0n;
+      const [account, deployed] = r.result as readonly [`0x${string}`, boolean];
+      if (!deployed || account === "0x0000000000000000000000000000000000000000") return 0n;
+      try {
+        return await client.getBalance({ address: account });
+      } catch {
+        return 0n;
+      }
+    }),
+  );
+  ids.forEach((id, i) => {
+    const r = res[i];
+    if (r.status !== "success") return;
+    const [account, deployed] = r.result as readonly [`0x${string}`, boolean];
+    out.set(id, { account, deployed, eth: balances[i] });
+  });
+  return out;
+}
+
+export const vaultEtherscanUrl = (account: string) => `https://etherscan.io/address/${account}`;
+
+export function fmtVaultEth(wei: bigint): string {
+  if (wei === 0n) return "Ξ0";
+  const eth = Number(wei) / 1e18;
+  return `Ξ${eth < 0.0001 ? "<0.0001" : eth.toLocaleString("en-US", { maximumFractionDigits: 4 })}`;
+}

@@ -1,14 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePublicClient } from "wagmi";
 import {
   loadLayerData,
   composeStack,
   MARK_BY_ID,
   rankName,
   ASCEND_AT,
+  getReaperVaults,
+  vaultEtherscanUrl,
+  fmtVaultEth,
   type LayerData,
   type ReaperState,
+  type ReaperVault,
 } from "@/lib/reaper";
 
 // YOUR REAPERS — the prominent block, right under the plaque, for the souls THIS
@@ -35,6 +40,17 @@ export default function MyReapers({ mine, mode = "self" }: { mine: MineEntry[]; 
   useEffect(() => {
     if (mine.length) loadLayerData().then(setLayerData).catch(() => {});
   }, [mine.length]);
+
+  // Vaults exist ONLY for the ascended (the diamond reverts for anyone else);
+  // fetched lazily so souls still rising cost zero extra RPC.
+  const client = usePublicClient();
+  const [vaults, setVaults] = useState<Map<number, ReaperVault>>(new Map());
+  const ascendedKey = mine.filter((e) => e.isReaper).map((e) => e.id).join(",");
+  useEffect(() => {
+    if (!client || !ascendedKey) return;
+    const ids = ascendedKey.split(",").map(Number);
+    getReaperVaults(client, ids).then(setVaults).catch(() => {});
+  }, [client, ascendedKey]);
 
   // no rite in progress. On a public profile there's nothing to prompt (the visitor
   // can't feed someone else's reaper) → render nothing rather than a dead CTA.
@@ -113,6 +129,22 @@ export default function MyReapers({ mine, mode = "self" }: { mine: MineEntry[]; 
                     ))}
                   </div>
                 )}
+                {e.isReaper && vaults.get(e.id)?.deployed ? (
+                  <a
+                    className="rm-vault"
+                    href={vaultEtherscanUrl(vaults.get(e.id)!.account)}
+                    target="_blank"
+                    rel="noreferrer"
+                    title="The reaper's vault — an on-chain account bound to this token. Whoever holds the reaper commands it."
+                  >
+                    <span className="rm-vault-mark">⚱</span>
+                    <span className="rm-vault-addr">
+                      {vaults.get(e.id)!.account.slice(0, 6)}…{vaults.get(e.id)!.account.slice(-4)}
+                    </span>
+                    <span className="rm-vault-eth">{fmtVaultEth(vaults.get(e.id)!.eth)}</span>
+                    <span className="rm-vault-go">↗</span>
+                  </a>
+                ) : null}
               </div>
             </article>
           );

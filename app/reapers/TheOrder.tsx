@@ -2,11 +2,16 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { usePublicClient } from "wagmi";
 import {
   loadLayerData,
   composeStack,
   MARK_BY_ID,
+  getReaperVaults,
+  vaultEtherscanUrl,
+  fmtVaultEth,
   type LayerData,
+  type ReaperVault,
 } from "@/lib/reaper";
 import styles from "./reapers.module.css";
 
@@ -53,11 +58,22 @@ export default function TheOrder({
 
   const ascended = live ? reapers : [];
 
+  // The vaults of the Order — one ERC-6551 account per ascended reaper, read
+  // straight from the diamond (the facet reverts for anything not ascended).
+  const client = usePublicClient();
+  const [vaults, setVaults] = useState<Map<number, ReaperVault>>(new Map());
+  const vaultKey = ascended.map((r) => r.id).join(",");
+  useEffect(() => {
+    if (!client || !vaultKey) return;
+    const ids = vaultKey.split(",").map(Number);
+    getReaperVaults(client, ids).then(setVaults).catch(() => {});
+  }, [client, vaultKey]);
+
   return (
     <>
       {/* THE prominent spot — real ascended reapers, or the reserved plate. */}
       {ascended.length > 0 ? (
-        <OrderGrid list={ascended} layerData={layerData} />
+        <OrderGrid list={ascended} layerData={layerData} vaults={vaults} />
       ) : (
         <div className={styles.orderEmpty}>
           <span className={styles.orderScythe}>🜃</span>
@@ -120,7 +136,15 @@ export default function TheOrder({
   );
 }
 
-function OrderGrid({ list, layerData }: { list: OrderEntry[]; layerData: LayerData | null }) {
+function OrderGrid({
+  list,
+  layerData,
+  vaults,
+}: {
+  list: OrderEntry[];
+  layerData: LayerData | null;
+  vaults: Map<number, ReaperVault>;
+}) {
   return (
     <div className={styles.orderGrid}>
       {list.map((r, i) => {
@@ -165,6 +189,18 @@ function OrderGrid({ list, layerData }: { list: OrderEntry[]; layerData: LayerDa
               )}
               {ascDate(r.ascendedAt) ? (
                 <div className={styles.orderAscended}>Ascended {ascDate(r.ascendedAt)}</div>
+              ) : null}
+              {vaults.get(r.id)?.deployed ? (
+                <a
+                  className={styles.orderVault}
+                  href={vaultEtherscanUrl(vaults.get(r.id)!.account)}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="The reaper's vault — an on-chain account bound to the token itself. It travels with the reaper, wherever it hangs."
+                >
+                  <span className={styles.orderVaultMark}>⚱</span> vault{" "}
+                  {short(vaults.get(r.id)!.account)} · {fmtVaultEth(vaults.get(r.id)!.eth)} ↗
+                </a>
               ) : null}
             </div>
           </article>
