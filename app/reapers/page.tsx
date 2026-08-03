@@ -65,27 +65,18 @@ export default async function ReapersPage() {
       </div>
       <Nav active="reapers" />
 
-      {/* ---------- HERO — the closure, in two lines ---------- */}
+      {/* ---------- HERO — just the name of the thing (Adrian 03-ago: the strip
+           above already says it is closed; the roster IS the message) ---------- */}
       <header className="rp-hero">
         <div className="wrap">
           <span className="rp-kicker"><span className="scythe">🜃</span>The Order</span>
-          <h1 className="rp-title">THE ORDER IS <em>CLOSED</em></h1>
-          <p className="rp-mech">
-            Twelve Souls burned <b>30</b> Pikkazos each. The register is sealed.
-          </p>
-          <p className="rp-mech rp-mech-2">
-            No new reapers. No new initiates. <b>The twelve keep reaping.</b>
-          </p>
+          <h1 className="rp-title">THE <em>TWELVE</em></h1>
         </div>
       </header>
 
-      {/* ---------- THE TWELVE — the protagonist of the page ---------- */}
+      {/* ---------- THE TWELVE — straight to the roster, no second heading ------ */}
       <section className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB }}>
         <div className="wrap">
-          <div className="sec-head" style={HEAD_MB}>
-            <span className="eyebrow">The final roster</span>
-            <h2>THE <span className="rp-hot">TWELVE</span></h2>
-          </div>
           <TheOrder live={REAPER_LIVE} reapers={reapers} rising={rising} />
         </div>
       </section>
