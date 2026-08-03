@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAccount, useChainId, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
 import { mainnet } from "wagmi/chains";
-import { isAddress, getAddress } from "viem";
+import { isAddress, getAddress, parseAbi } from "viem";
 import { normalize } from "viem/ens";
 import { SOULS } from "@/lib/souls";
 
@@ -41,6 +41,13 @@ const BATCH_ABI = [
     outputs: [],
   },
 ] as const;
+
+// Both vault kinds a shipped token might carry (reverts for regular souls —
+// that's the on-chain gate, and multicall allowFailure treats it as "no vault").
+const VAULT_LOOKUP_ABI = parseAbi([
+  "function reaperAccount(uint256 reaperId) view returns (address account, bool deployed)",
+  "function vesselVault(uint256 vesselId) view returns (address vault, bool deployed)",
+]);
 
 // Souls per transaction. A batch is ~55k gas per soul; 200 keeps the heaviest
 // realistic send around ~11M gas, comfortably inside a block.
@@ -132,6 +139,30 @@ export function TransferModal({
       if (addr === ZERO) return finish({ state: "bad", msg: "The zero address burns nothing here — refused." });
       if (addr.toLowerCase() === SOULS.toLowerCase() || addr.toLowerCase() === PIKKAZO)
         return finish({ state: "bad", msg: "That's a collection contract — souls sent there would be lost. Refused." });
+      // A token sent into its OWN token-bound vault is bricked forever: the
+      // batch uses transferFrom (not safe), so AccountV3's ownership-cycle
+      // guard never runs. Refuse any destination that is the vault of a token
+      // in this shipment (reaper vaults and vessel vaults alike).
+      try {
+        if (publicClient) {
+          const vaults = await publicClient.multicall({
+            allowFailure: true,
+            contracts: ids.flatMap((id) => [
+              { address: SOULS, abi: VAULT_LOOKUP_ABI, functionName: "reaperAccount" as const, args: [BigInt(id)] as const },
+              { address: SOULS, abi: VAULT_LOOKUP_ABI, functionName: "vesselVault" as const, args: [BigInt(id)] as const },
+            ]),
+          });
+          for (const r of vaults) {
+            if (r.status !== "success") continue; // regular souls revert: no vault
+            const vaultAddr = (r.result as readonly [string, boolean])[0];
+            if (vaultAddr.toLowerCase() === addr.toLowerCase())
+              return finish({
+                state: "bad",
+                msg: "That is this token's own vault — it would be sealed inside itself forever. Refused.",
+              });
+          }
+        }
+      } catch {}
       let isContract = false;
       try {
         const code = await publicClient?.getCode({ address: addr });
@@ -157,7 +188,7 @@ export function TransferModal({
       setDest({ state: "bad", msg: "Paste a 0x… address or an ENS name." });
     }
     return () => { gone = true; };
-  }, [raw, holder, publicClient]);
+  }, [raw, holder, publicClient, ids]);
 
   const ensureMainnet = useCallback(async () => {
     if (chainId === mainnet.id) return true;
