@@ -95,12 +95,12 @@
 
 /* the outcome — the piece itself, taking shape */
 .outcome { display: flex; flex-direction: column; gap: .35rem; margin: .6rem 0 .7rem; }
-.outcomeArt {
-  width: 118px; display: block; border-radius: 8px; overflow: hidden;
+.outcome .outcomeArt {
+  width: 132px; display: block; border-radius: 8px; overflow: hidden;
   border: 1px solid var(--reaper-lite); box-shadow: 0 0 24px -12px rgba(167, 101, 209, .9);
 }
 .outcomeBlank {
-  width: 118px; aspect-ratio: 1; border-radius: 8px;
+  width: 132px; aspect-ratio: 1; border-radius: 8px;
   border: 1px dashed rgba(167, 101, 209, .45); background: rgba(122, 63, 160, .08);
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: .3rem; color: var(--mute);
