@@ -1,15 +1,17 @@
 "use client";
 
-// THE VESSELS — gallery of fused unions + THE FORGE (fuse 30 of your souls
-// into a sacrificed canvas of your choosing).
+// THE VESSELS — the wing of the unions.
 //
-// Everything gating lives on-chain (VesselFacet): this client only mirrors it.
-// The forge is a 3-step ritual: pick 30 souls -> choose the canvas -> name it.
-// One transaction: fuse{value: rite fee}. The members pass into the museum's
-// custody — permanently (no dissolution, by design). The vessel's 6551 vault is
-// created inside the same tx.
+// Design brief (Adrian, 03-ago): read the reapers page — hero says the whole
+// thing in two lines, one chip carries the rule, then straight to the panel.
+// And the ritual must be UNAMBIGUOUS: nothing of the holder's is burned. The
+// canvas was burned long ago, by a reaper, feeding it. The forge therefore
+// leads with a plain IN → OUT ledger and closes with a preview of the exact
+// token you receive, so the complex transaction reads at a glance.
+//
+// All gating lives on-chain (VesselFacet); this client only mirrors it.
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useAccount, useChainId, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
@@ -28,7 +30,22 @@ import {
 import styles from "./vessels.module.css";
 
 const IMG = (id: number) => `/api/img?id=${id}`;
+// The death mask every Memento Mori wears, over every other layer. Rendered here
+// as the museum's preview; the on-chain renderer paints the same layer.
+const MASK = "/assets/traits-svg/vessel-fx/memento-mori.svg";
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
+
+// canvas art + the mask on top — what a Memento Mori actually looks like
+function Masked({ id, className = "" }: { id: number; className?: string }) {
+  return (
+    <span className={`${styles.stack} ${className}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={IMG(id)} alt={`Memento Mori #${id}`} loading="lazy" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className={styles.maskLayer} src={MASK} alt="" aria-hidden="true" loading="lazy" />
+    </span>
+  );
+}
 
 export default function VesselsClient() {
   const client = usePublicClient();
@@ -37,17 +54,23 @@ export default function VesselsClient() {
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
 
-  // ---- the gallery -----------------------------------------------------------
-  const [vessels, setVessels] = useState<VesselEntry[] | null>(null);
+  // Dev harness (development only, same convention as /my-souls?as=0x…): render
+  // the forge against a real wallet's collection without connecting one.
+  const [devAs, setDevAs] = useState<string | null>(null);
   useEffect(() => {
-    if (!client) return;
-    getVessels(client).then(setVessels).catch(() => setVessels([]));
-  }, [client]);
+    if (process.env.NODE_ENV !== "development") return;
+    const p = new URLSearchParams(window.location.search).get("as");
+    if (p && /^0x[0-9a-fA-F]{40}$/.test(p)) setDevAs(p);
+  }, []);
+  const account = devAs ?? address;
+  const connected = !!devAs || isConnected;
 
-  // ---- the forge -------------------------------------------------------------
+  const [vessels, setVessels] = useState<VesselEntry[] | null>(null);
   const [fee, setFee] = useState<bigint | null>(null);
   const [eligible, setEligible] = useState<number[] | null>(null);
   const [canvases, setCanvases] = useState<number[] | null>(null);
+  const [readErr, setReadErr] = useState<{ souls?: boolean; canvases?: boolean }>({});
+  const [reload, setReload] = useState(0);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [canvas, setCanvas] = useState<number | null>(null);
   const [name, setName] = useState("");
@@ -57,28 +80,44 @@ export default function VesselsClient() {
 
   useEffect(() => {
     if (!client) return;
+    getVessels(client).then(setVessels).catch(() => setVessels([]));
     client
       .readContract({ address: SOULS, abi: VESSEL_ABI, functionName: "vesselFee" })
       .then((f) => setFee(f as bigint))
       .catch(() => {});
-    getAvailableCanvases(client).then(setCanvases).catch(() => setCanvases([]));
-  }, [client]);
+    getAvailableCanvases(client)
+      .then((c) => {
+        setCanvases(c);
+        setReadErr((e) => ({ ...e, canvases: false }));
+      })
+      .catch(() => {
+        setCanvases([]);
+        setReadErr((e) => ({ ...e, canvases: true }));
+      });
+  }, [client, reload]);
 
   useEffect(() => {
-    if (!client || !address) {
+    if (!client || !account) {
       setEligible(null);
       return;
     }
     let stale = false;
     (async () => {
-      const data = await loadSouls(client, address);
+      const data = await loadSouls(client, account);
       const ok = await filterEligible(client, data.owned);
-      if (!stale) setEligible(ok);
-    })().catch(() => !stale && setEligible([]));
+      if (!stale) {
+        setEligible(ok);
+        setReadErr((e) => ({ ...e, souls: false }));
+      }
+    })().catch(() => {
+      if (stale) return;
+      setEligible([]);
+      setReadErr((e) => ({ ...e, souls: true }));
+    });
     return () => {
       stale = true;
     };
-  }, [client, address]);
+  }, [client, account, reload]);
 
   const toggle = useCallback((id: number) => {
     setPicked((prev) => {
@@ -89,13 +128,8 @@ export default function VesselsClient() {
     });
   }, []);
 
-  const autofill = useCallback(() => {
-    if (!eligible) return;
-    setPicked(new Set(eligible.slice(0, UNION_SIZE)));
-  }, [eligible]);
-
-  const ready =
-    picked.size === UNION_SIZE && canvas !== null && name.trim().length > 0 && name.trim().length <= 64;
+  const ready = picked.size === UNION_SIZE && canvas !== null && name.trim().length > 0;
+  const priceLabel = fee !== null ? `Ξ${formatEther(fee)}` : "…";
 
   const fuse = useCallback(async () => {
     if (!ready || !walletClient || !client || fee === null || canvas === null) return;
@@ -116,51 +150,268 @@ export default function VesselsClient() {
       setPhase("done");
     } catch (e: unknown) {
       const m = (e as { shortMessage?: string; message?: string })?.shortMessage || (e as Error)?.message || "failed";
-      setErr(/reject|denied/i.test(m) ? "The wallet said no — nothing fused." : m);
+      setErr(/reject|denied/i.test(m) ? "The wallet said no — nothing moved." : m);
       setPhase("idle");
     }
   }, [ready, walletClient, client, fee, canvas, picked, name, chainId, switchChainAsync]);
 
   return (
     <main className={styles.wrap}>
-      <header className={styles.head}>
-        <p className={styles.kick}>The wing of the unions</p>
-        <h1 className={styles.title}>The Vessels</h1>
-        <p className={styles.lead}>
-          Thirty souls join forces and pour themselves into a canvas that once fed a reaper. The
-          sacrificed canvas hangs again — not as a soul, but as a vessel of communion. Its thirty
-          rest in the museum&apos;s custody and travel with the vessel, wherever it hangs.
+      {/* ---------- HERO — the whole page in two lines ---------- */}
+      <header className={styles.hero}>
+        <span className={styles.kick}>
+          <span className={styles.kickMark}>⚱</span> The unions
+        </span>
+        <h1 className={styles.title}>
+          MEMENTO <em>MORI</em>
+        </h1>
+        <p className={styles.mech}>
+          Lock <b>30 Souls</b> together and mint a <b>Memento Mori</b>.
         </p>
+        <p className={styles.mech}>
+          It wears an <b>empty canvas</b> — one a reaper burned long ago — behind the <b>death mask</b>.
+        </p>
+        <span className={styles.ruleChip}>
+          <span className={styles.ruleMark}>⚱</span> Nothing of yours is burned
+        </span>
       </header>
 
-      {/* ------------------------------------------------ the gallery */}
-      <section aria-label="Fused vessels">
+      {/* ---------- THE FORGE — the center of the page ---------- */}
+      <section className={styles.forge} id="forge" aria-label="The forge">
+        <div className={styles.secHead}>
+          <span className={styles.eyebrow}>Do it here</span>
+          <h2>
+            THE <span className={styles.hot}>FORGE</span>
+          </h2>
+        </div>
+
+        {/* the ledger: what goes in, what comes out */}
+        <div className={styles.ledger}>
+          <div className={styles.side}>
+            <span className={styles.sideLabel}>You place</span>
+            <b className={styles.sideBig}>30 Souls</b>
+            <span className={styles.sideNote}>
+              Souls you already hold. They stay in the museum&apos;s custody, bound to the piece —
+              never burned, never lost. Sell it and all thirty travel with it.
+            </span>
+          </div>
+          <span className={styles.arrow} aria-hidden="true">
+            →
+          </span>
+          <div className={styles.side}>
+            <span className={styles.sideLabel}>You receive</span>
+            <b className={styles.sideBig}>1 Memento Mori</b>
+            <span className={styles.sideNote}>
+              A brand-new token wearing the death mask, minted on an empty canvas of your choosing —
+              plus its own on-chain vault. Yours to keep, name and sell.
+            </span>
+          </div>
+        </div>
+        <p className={styles.cost}>
+          Cost: <b>{priceLabel}</b> + gas · one transaction · no approvals · cannot be undone
+        </p>
+
+        {!connected ? (
+          <div className={styles.connect}>
+            <ConnectButton />
+          </div>
+        ) : phase === "done" ? (
+          <div className={styles.done}>
+            <span className={styles.doneMark}>⚱</span>
+            <p className={styles.doneLead}>The communion is sealed. Your Memento Mori hangs.</p>
+            {txHash ? (
+              <a className={styles.doneLink} href={`https://etherscan.io/tx/${txHash}`} target="_blank" rel="noreferrer">
+                Etherscan ↗
+              </a>
+            ) : null}
+            <button className={styles.btn} onClick={() => window.location.reload()}>
+              See it hung →
+            </button>
+          </div>
+        ) : (
+          <>
+            {/* step 1 — the thirty */}
+            <div className={styles.stepHead}>
+              <span className={styles.stepNum}>1</span>
+              <span className={styles.stepTitle}>Pick thirty of your Souls</span>
+              <span className={styles.count}>
+                {picked.size}/{UNION_SIZE}
+              </span>
+            </div>
+            {eligible === null ? (
+              <p className={styles.dim}>Reading your collection…</p>
+            ) : readErr.souls ? (
+              <p className={styles.dim}>
+                Couldn&apos;t read your collection just now — the chain didn&apos;t answer.{" "}
+                <button className={styles.mini} onClick={() => setReload((n) => n + 1)}>
+                  try again
+                </button>
+              </p>
+            ) : eligible.length < UNION_SIZE ? (
+              <p className={styles.dim}>
+                You hold <b>{eligible.length}</b> eligible soul{eligible.length === 1 ? "" : "s"} — a union needs{" "}
+                {UNION_SIZE}. Souls that carry the fire, or already rest inside a Memento Mori, cannot join.
+              </p>
+            ) : (
+              <>
+                <div className={styles.tools}>
+                  <button className={styles.mini} onClick={() => setPicked(new Set(eligible.slice(0, UNION_SIZE)))}>
+                    pick first thirty
+                  </button>
+                  {picked.size > 0 ? (
+                    <button className={styles.mini} onClick={() => setPicked(new Set())}>
+                      clear
+                    </button>
+                  ) : null}
+                  <span className={styles.toolNote}>{eligible.length} eligible</span>
+                </div>
+                <div className={styles.pickGrid}>
+                  {eligible.map((id) => (
+                    <button
+                      key={id}
+                      className={`${styles.pick}${picked.has(id) ? ` ${styles.picked}` : ""}`}
+                      onClick={() => toggle(id)}
+                      aria-pressed={picked.has(id)}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={IMG(id)} alt={`Soul #${id}`} loading="lazy" />
+                      <span className={styles.tag}>#{id}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* step 2 — the face (NOT a burn: these canvases are already gone) */}
+            <div className={styles.stepHead}>
+              <span className={styles.stepNum}>2</span>
+              <span className={styles.stepTitle}>Choose the face it will wear</span>
+              {canvas !== null ? <span className={styles.count}>#{canvas}</span> : null}
+            </div>
+            <p className={styles.stepLead}>
+              These canvases were burned long ago, feeding a reaper — <b>not by you, and not now</b>. Nobody
+              holds them and nobody ever can. Your Memento Mori brings one back to the wall, wearing the
+              death mask.
+            </p>
+            {canvases === null ? (
+              <p className={styles.dim}>Reading the empty canvases…</p>
+            ) : readErr.canvases ? (
+              <p className={styles.dim}>
+                Couldn&apos;t read the empty canvases just now — the chain didn&apos;t answer.{" "}
+                <button className={styles.mini} onClick={() => setReload((n) => n + 1)}>
+                  try again
+                </button>
+              </p>
+            ) : canvases.length === 0 ? (
+              <p className={styles.dim}>Every empty canvas has been claimed.</p>
+            ) : (
+              <>
+                <div className={styles.tools}>
+                  <span className={styles.toolNote}>{canvases.length} free · first come, first served</span>
+                </div>
+                <div className={`${styles.pickGrid} ${styles.canvasGrid}`}>
+                  {canvases.map((id) => (
+                    <button
+                      key={id}
+                      className={`${styles.pick} ${styles.empty}${canvas === id ? ` ${styles.picked}` : ""}`}
+                      onClick={() => setCanvas(canvas === id ? null : id)}
+                      aria-pressed={canvas === id}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={IMG(id)} alt={`Empty canvas #${id}`} loading="lazy" />
+                      <span className={styles.tag}>#{id}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            {/* step 3 — the plaque + what you get */}
+            <div className={styles.stepHead}>
+              <span className={styles.stepNum}>3</span>
+              <span className={styles.stepTitle}>Name it</span>
+            </div>
+            <input
+              className={styles.nameInput}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={64}
+              placeholder="The plaque on the wall — on-chain, you can rename it later"
+            />
+
+            <div className={styles.previewRow}>
+              <div className={styles.preview}>
+                <span className={styles.previewLabel}>What you receive</span>
+                <div className={styles.previewCard}>
+                  {canvas !== null ? (
+                    <Masked id={canvas} className={styles.previewArt} />
+                  ) : (
+                    <div className={styles.previewBlank}>
+                      <span>⚱</span>
+                      <small>pick a face in step 2</small>
+                    </div>
+                  )}
+                  <div className={styles.previewBody}>
+                    <b>{name.trim() || "Unnamed"}</b>
+                    <span>
+                      {canvas !== null ? `Memento Mori #${canvas}` : "Memento Mori"} · {picked.size}/30 souls
+                      united
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {err ? <p className={styles.err}>{err}</p> : null}
+            <button className={styles.btn} disabled={!ready || phase !== "idle"} onClick={fuse}>
+              {phase === "wallet"
+                ? "Confirm in wallet…"
+                : phase === "pending"
+                  ? "Fusing…"
+                  : `Fuse · ${priceLabel}`}
+            </button>
+            <p className={styles.fine}>
+              One transaction: your thirty pass into the museum&apos;s custody, the Memento Mori is minted on
+              the canvas you chose, and its vault is created. There is no dissolution — a Memento Mori is
+              forever thirty.
+            </p>
+          </>
+        )}
+      </section>
+
+      {/* ---------- THE WING — vessels already fused ---------- */}
+      <section className={styles.wing} aria-label="Fused vessels">
+        <div className={styles.secHead}>
+          <span className={styles.eyebrow}>Communions sealed</span>
+          <h2>
+            THE <span className={styles.hot}>WING</span>
+          </h2>
+        </div>
         {vessels === null ? (
           <p className={styles.dim}>Reading the wing…</p>
         ) : vessels.length === 0 ? (
-          <div className={styles.empty}>
-            <span className={styles.emptyMark}>⚱</span>
-            <p className={styles.emptyLead}>The wing awaits its first communion.</p>
-            <p className={styles.emptySub}>Thirty souls, one vessel. The forge is below.</p>
+          <div className={styles.emptyPlate}>
+            <span className={styles.doneMark}>⚱</span>
+            <p className={styles.doneLead}>The wing awaits its first Memento Mori.</p>
+            <p className={styles.dim}>Thirty souls, one vessel.</p>
           </div>
         ) : (
           <div className={styles.grid}>
             {vessels.map((v) => (
               <article className={styles.card} key={v.id}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img className={styles.art} src={IMG(v.id)} alt={`Vessel #${v.id}`} loading="lazy" />
+                <Masked id={v.id} className={styles.art} />
                 <div className={styles.body}>
                   <div className={styles.name}>
-                    <span className={styles.mark}>⚱</span> {v.name || `Vessel #${v.id}`}
+                    <span className={styles.mark}>⚱</span> {v.name || `Memento Mori #${v.id}`}
                   </div>
                   <div className={styles.sub}>
-                    Vessel <b>#{v.id}</b> · {v.members.length} souls united
+                    Memento Mori <b>#{v.id}</b> · {v.members.length} souls united
                   </div>
                   <Link className={styles.holder} href={`/curator/${v.founder}`}>
                     founded by {short(v.founder)} →
                   </Link>
                   <a
-                    className={styles.vault}
+                    className={styles.holder}
                     href={`https://etherscan.io/address/${v.vault}`}
                     target="_blank"
                     rel="noreferrer"
@@ -181,127 +432,6 @@ export default function VesselsClient() {
               </article>
             ))}
           </div>
-        )}
-      </section>
-
-      {/* ------------------------------------------------ the forge */}
-      <section className={styles.forge} id="forge" aria-label="The forge">
-        <h2 className={styles.forgeTitle}>The Forge</h2>
-        <p className={styles.forgeLead}>
-          Exactly thirty of your souls — none that carry the fire — fused in one transaction.
-          The rite costs {fee !== null ? `Ξ${formatEther(fee)}` : "…"} and cannot be undone: there
-          is no dissolution. The thirty pass into the museum&apos;s custody, forever bound to the
-          vessel.
-        </p>
-
-        {!isConnected ? (
-          <div className={styles.connect}>
-            <ConnectButton />
-          </div>
-        ) : phase === "done" ? (
-          <div className={styles.done}>
-            <span className={styles.emptyMark}>⚱</span>
-            <p>
-              The communion is sealed.{" "}
-              {txHash ? (
-                <a href={`https://etherscan.io/tx/${txHash}`} target="_blank" rel="noreferrer">
-                  Etherscan ↗
-                </a>
-              ) : null}
-            </p>
-            <button className={styles.btn} onClick={() => window.location.reload()}>
-              See it hung →
-            </button>
-          </div>
-        ) : (
-          <>
-            {/* step 1 — the thirty */}
-            <div className={styles.stepHead}>
-              <span className={styles.stepNum}>1</span> Choose the thirty
-              <span className={styles.count}>
-                {picked.size}/{UNION_SIZE}
-              </span>
-              {eligible && eligible.length >= UNION_SIZE ? (
-                <button className={styles.mini} onClick={autofill}>
-                  first thirty
-                </button>
-              ) : null}
-            </div>
-            {eligible === null ? (
-              <p className={styles.dim}>Reading your collection…</p>
-            ) : eligible.length < UNION_SIZE ? (
-              <p className={styles.dim}>
-                {eligible.length} eligible soul{eligible.length === 1 ? "" : "s"} — a union needs{" "}
-                {UNION_SIZE}. Souls that carry the fire, or already rest in a vessel, cannot join.
-              </p>
-            ) : (
-              <div className={styles.pickGrid}>
-                {eligible.map((id) => (
-                  <button
-                    key={id}
-                    className={`${styles.pick}${picked.has(id) ? ` ${styles.picked}` : ""}`}
-                    onClick={() => toggle(id)}
-                    aria-pressed={picked.has(id)}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={IMG(id)} alt={`Soul #${id}`} loading="lazy" />
-                    <span>#{id}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* step 2 — the canvas */}
-            <div className={styles.stepHead}>
-              <span className={styles.stepNum}>2</span> Choose the sacrificed canvas
-              {canvas !== null ? <span className={styles.count}>#{canvas}</span> : null}
-            </div>
-            {canvases === null ? (
-              <p className={styles.dim}>Reading the consumed…</p>
-            ) : canvases.length === 0 ? (
-              <p className={styles.dim}>No sacrificed canvas is free right now.</p>
-            ) : (
-              <div className={styles.pickGrid}>
-                {canvases.map((id) => (
-                  <button
-                    key={id}
-                    className={`${styles.pick}${canvas === id ? ` ${styles.picked}` : ""}`}
-                    onClick={() => setCanvas(canvas === id ? null : id)}
-                    aria-pressed={canvas === id}
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={IMG(id)} alt={`Canvas #${id}`} loading="lazy" />
-                    <span>#{id}</span>
-                  </button>
-                ))}
-              </div>
-            )}
-
-            {/* step 3 — the plaque */}
-            <div className={styles.stepHead}>
-              <span className={styles.stepNum}>3</span> Name the vessel
-            </div>
-            <input
-              className={styles.nameInput}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={64}
-              placeholder="The plaque on the wall — on-chain, renamable by the holder"
-            />
-
-            {err ? <p className={styles.err}>{err}</p> : null}
-            <button className={styles.btn} disabled={!ready || phase !== "idle"} onClick={fuse}>
-              {phase === "wallet"
-                ? "Confirm in wallet…"
-                : phase === "pending"
-                  ? "Fusing…"
-                  : `Fuse the thirty${fee !== null ? ` · Ξ${formatEther(fee)}` : ""}`}
-            </button>
-            <p className={styles.fine}>
-              One transaction: the thirty pass into custody, the vessel is minted over your chosen
-              canvas, and its vault is created — on your gas. No approvals, no dissolution.
-            </p>
-          </>
         )}
       </section>
     </main>
