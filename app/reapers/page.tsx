@@ -8,51 +8,49 @@ import { getReapers, getRising, getConsumed } from "@/lib/chain";
 import flags from "@/public/flags.json";
 import styles from "./reapers.module.css";
 
-// Soul Reapers — public product panel. GATED by flags.reaperLive: false = preview
-// (demo data, disabled CTA, empty Order), true = real reads/writes against the
-// diamond's ReaperFacet cut. The flag is read at build time (flipping it is a
-// deploy anyway — see the launch runbook in the worker report). The rite itself is
-// a client component; The Order is derived from chain server-side (ISR).
-// 5-min ISR (Adrian 28-jul: it's a museum — minute-fresh adds nothing and 5×'s the
-// RPC pressure). The reader TTL in lib/chain.ts (240s) means back-to-back reloads
-// reuse the memo instead of fanning out RPC. HOME stays at 60 (post-burn counter UX).
+// Soul Reapers — THE ORDER IS CLOSED (Adrian, 03-ago-2026). With the twelfth reaper
+// (#1650) ascended, ReaperFacetV4 sealed the register on chain: `offer` reverts
+// OrderClosed for any soul under 30 consumed, so there are no new reapers and no new
+// initiates — while the twelve keep reaping forever.
+//
+// The page follows the contract, not the other way round:
+//   1. the hero states the closure,
+//   2. THE TWELVE is the protagonist (it used to sit below the rite),
+//   3. the rite survives BELOW, members-only (RiteMock gates on >=30 consumed),
+//   4. THE CONSUMED memorial and the fine print close the page.
+// Still gated by flags.reaperLive for the roster read; 5-min ISR (Adrian 28-jul:
+// it's a museum). The rest of the reads are real chain history regardless.
 export const revalidate = 300;
 
 const REAPER_LIVE = (flags as { reaperLive?: boolean }).reaperLive === true;
 
 export const metadata: Metadata = {
-  title: "Soul Reapers",
+  title: "The Order — 12 Soul Reapers",
   description:
-    "Burn Pikkazos to power up your Cubist Soul. Hit 30 and it becomes a Soul Reaper.",
+    "Twelve Cubist Souls burned 30 Pikkazos each and became Soul Reapers. The Order is closed — sealed on chain.",
   alternates: { canonical: "/reapers" },
   openGraph: {
     type: "website",
-    title: "Soul Reapers",
-    description: "Burn Pikkazos to power up your Soul. Hit 30 and become a Soul Reaper.",
+    title: "The Order — 12 Soul Reapers",
+    description: "Twelve Souls. Thirty canvases each. The Order is closed.",
     url: "https://cubistsouls.com/reapers",
     images: ["https://cubistsouls.com/api/img?id=136"],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Soul Reapers",
-    description: "Burn Pikkazos to power up your Soul. Hit 30 and become a Soul Reaper.",
+    title: "The Order — 12 Soul Reapers",
+    description: "Twelve Souls. Thirty canvases each. The Order is closed.",
     images: ["https://cubistsouls.com/api/img?id=136"],
   },
 };
 
 // Tight vertical rhythm (Adrian 26-jul — "demasiados espacios muertos"): sections
-// hug their content and the reaper dividers are discreet. Applied inline so the
-// shared global `.section`/`.rp-rule` rules (used by other pages) are untouched.
+// hug their content and the reaper dividers are discreet.
 const SEC_PB = "clamp(1.2rem, 3.5vw, 1.8rem)";
 const HEAD_MB = { marginBottom: "clamp(0.7rem, 2.5vw, 1.1rem)" };
 const RULE_M = { margin: "clamp(0.7rem, 2vw, 1.1rem) auto" };
 
 export default async function ReapersPage() {
-  // Only touch the chain when the facet is live; otherwise The Order is preview-only.
-  // THE CONSUMED, in contrast, is a memorial of what has actually burned — always
-  // real on-chain history (last-good cached, own empty state), regardless of the flag.
-  // RISING (aspirants, 0<consumed<30) is real on-chain activity like THE CONSUMED
-  // — always read, independent of the flag (today: #8777 at 18/30).
   const [reapers, rising, consumed] = await Promise.all([
     REAPER_LIVE ? getReapers() : Promise.resolve([]),
     getRising(),
@@ -63,49 +61,49 @@ export default async function ReapersPage() {
     <div className="reaper">
       <div className="teaser-strip">
         <span className="ts-dot" />
-        {REAPER_LIVE ? "The fire is live · power up your Soul" : "Coming soon · try it now"}
+        The Order is closed · twelve, final
       </div>
       <Nav active="reapers" />
 
-      {/* ---------- HERO — the whole page in two lines ---------- */}
+      {/* ---------- HERO — the closure, in two lines ---------- */}
       <header className="rp-hero">
         <div className="wrap">
-          <span className="rp-kicker"><span className="scythe">🜃</span>The fire</span>
-          <h1 className="rp-title">SOUL <em>REAPERS</em></h1>
+          <span className="rp-kicker"><span className="scythe">🜃</span>The Order</span>
+          <h1 className="rp-title">THE ORDER IS <em>CLOSED</em></h1>
           <p className="rp-mech">
-            Burn <b>Pikkazos</b> to power up your Soul.
+            Twelve Souls burned <b>30</b> Pikkazos each. The register is sealed.
           </p>
           <p className="rp-mech rp-mech-2">
-            Hit <b>30</b> and become a <b>SOUL REAPER</b>.
+            No new reapers. No new initiates. <b>The twelve keep reaping.</b>
           </p>
-          <span className={styles.ogChip}><span className={styles.ogChipMark}>🜃</span>OG Souls only</span>
         </div>
       </header>
 
-      {/* (3-steps + milestone section removed 26-jul per Adrian — the hero already
-          says it all; straight to the panel.) */}
-
-      {/* ---------- THE RITE — the panel is the center of the page ---------- */}
-      <section id="rite" className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB, scrollMarginTop: "80px" }}>
+      {/* ---------- THE TWELVE — the protagonist of the page ---------- */}
+      <section className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB }}>
         <div className="wrap">
           <div className="sec-head" style={HEAD_MB}>
-            <span className="eyebrow">Do it here</span>
-            <h2>FEED <span className="rp-hot">THE FIRE</span></h2>
+            <span className="eyebrow">The final roster</span>
+            <h2>THE <span className="rp-hot">TWELVE</span></h2>
           </div>
-          <RiteMock live={REAPER_LIVE} />
+          <TheOrder live={REAPER_LIVE} reapers={reapers} rising={rising} />
         </div>
       </section>
 
       <div className="rp-rule" style={RULE_M}><div className="line" /></div>
 
-      {/* ---------- THE ORDER — ascended reapers + rising aspirants ---------- */}
-      <section className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB }}>
+      {/* ---------- THE FIRE — still burning, members only ---------- */}
+      <section id="rite" className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB, scrollMarginTop: "80px" }}>
         <div className="wrap">
           <div className="sec-head" style={HEAD_MB}>
-            <span className="eyebrow">Souls that hit 30</span>
-            <h2>THE <span className="rp-hot">ORDER</span></h2>
+            <span className="eyebrow">Members only</span>
+            <h2>FEED <span className="rp-hot">THE FIRE</span></h2>
           </div>
-          <TheOrder live={REAPER_LIVE} reapers={reapers} rising={rising} />
+          <p className={styles.closedLead}>
+            A Soul Reaper can keep burning canvases forever — its count climbs past 30.
+            Any soul below 30 is refused by the contract itself.
+          </p>
+          <RiteMock live={REAPER_LIVE} />
         </div>
       </section>
 
@@ -126,17 +124,16 @@ export default async function ReapersPage() {
       <section className="section" style={{ paddingTop: SEC_PB, paddingBottom: SEC_PB }}>
         <div className="wrap">
           <details className={styles.fine}>
-            <summary className={styles.fineSummary}>How it works — the fine print</summary>
+            <summary className={styles.fineSummary}>The closure — the fine print</summary>
             <ul className={styles.fineList}>
-              <li><b>Only souls freed before the eras (OG cohort) can become Soul Reapers.</b></li>
-              <li>The fire burns <b>Pikkazos</b> (canvases), never freed Souls. Their souls are consumed by your reaper.</li>
-              <li>Every Pikkazo burned = <b>+1</b>. Burn an <b>exact batch</b> and it also forges that mark: <b>Orange 6 · Flame Crown 12 · Phoenix 18 · Burning Soul 30</b>. Any other number is a pure feed.</li>
-              <li>Every burn adds to <b>Souls Consumed</b>. At <b>30</b>, the museum renames your Soul to <b>Soul Reaper</b>.</li>
-              <li>Your reaper <b>inherits</b> the hours of every soul it consumes — <b>+1 Museum Hour per hour</b> each, kept forever (up to 60).</li>
-              <li><b>Every soul consumed = 1 raffle ticket. Forever.</b></li>
+              <li><b>The Order is twelve, and it is closed.</b> The rule lives in the contract: an offering is only accepted from a Soul already at 30 consumed.</li>
+              <li><b>The twelve keep reaping.</b> Burning more canvases still adds to their count — and to everything the count pays for.</li>
+              <li><b>Two souls were mid-climb when the doors shut</b> (#1682 and #2474). They stay exactly where they stopped. The museum keeps that record.</li>
+              <li>Every soul consumed by a reaper is <b>1 raffle ticket. Forever.</b></li>
+              <li>Each reaper <b>inherits</b> the hours of every soul it consumed — +1 Museum Hour per hour, kept forever (up to 60).</li>
               <li><b>Reapers get first access to the trait shop.</b></li>
-              <li><b>The museum never forgets what you were born as</b> — it only lets you become more.</li>
-              <li>Burning is <b>irreversible</b>. Offerings and rewards may shift before launch.</li>
+              <li>Every reaper carries an <b>on-chain account of its own</b>, bound to the token: it travels with the reaper when it changes hands.</li>
+              <li>Burning is <b>irreversible</b>, and a consumed canvas can never become a Soul.</li>
             </ul>
           </details>
         </div>
