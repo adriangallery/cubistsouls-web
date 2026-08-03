@@ -88,6 +88,38 @@ async function reaperState(id: number): Promise<{ consumed: number; marks: numbe
   }
 }
 
+// ---- Vessels (VesselFacet, 03-ago) -------------------------------------------
+// A vessel is NOT a soul: thirty souls fused inside a reaper-consumed canvas.
+// It gets its own name (on-chain plaque), the recovered art of the sacrificed
+// canvas, and NO cohort trait (vessels never carry era/OG weight). Fail-open:
+// if the vessel read fails we fall through to the soul path and OpenSea's next
+// crawl corrects it.
+const SEL_IS_VESSEL = "0x1afdd161"; // isVesselToken(uint256)
+const SEL_VESSEL_NAME = "0x9d1e9375"; // vesselNameOf(uint256)
+const VESSEL_LORE =
+  "Thirty souls joined forces and poured themselves into a canvas that once fed a reaper. " +
+  "The sacrificed canvas hangs again — not as a soul, but as a vessel of communion. " +
+  "Its thirty members rest in the museum's custody and travel with the vessel, wherever it hangs.";
+
+async function vesselMeta(id: number): Promise<{ name: string } | null> {
+  try {
+    const isV = await reaperCall(SEL_IS_VESSEL, id);
+    if (!isV || BigInt(isV) === 0n) return null;
+    let name = `Vessel #${id}`;
+    const raw = await reaperCall(SEL_VESSEL_NAME, id);
+    if (raw && raw.length > 130) {
+      // abi-decode string: offset(32) + len(32) + data
+      const len = parseInt(raw.slice(66, 130), 16);
+      const hex = raw.slice(130, 130 + len * 2);
+      const txt = Buffer.from(hex, "hex").toString("utf8").trim();
+      if (txt) name = `${txt} — Vessel #${id}`;
+    }
+    return { name };
+  } catch {
+    return null;
+  }
+}
+
 // The OG cohort is FROZEN FOREVER: exactly the souls minted up to the ConvertV2
 // cut (block 25565191) — 863 ids, embedded statically so deciding "OG" never
 // touches the network. (The old fallback `return "OG"` on RPC failure mislabeled
@@ -134,6 +166,31 @@ export async function GET(req: Request) {
   const id = Number(new URL(req.url).searchParams.get("id"));
   if (!Number.isInteger(id) || id < 1 || id > 10000) {
     return Response.json({ error: "bad token id" }, { status: 400 });
+  }
+
+  // Vessels short-circuit: their own name, the sacrificed canvas's art, no cohort.
+  const vessel = await vesselMeta(id);
+  if (vessel) {
+    return Response.json(
+      {
+        name: vessel.name,
+        description: VESSEL_LORE,
+        image: `https://cubistsouls.com/api/img?id=${id}`,
+        external_url: "https://cubistsouls.com/vessels",
+        attributes: [
+          { trait_type: "Origin", value: `Pikkazo Canvas #${id}` },
+          { trait_type: "Status", value: "Vessel" },
+          { trait_type: "Souls United", value: 30 },
+        ],
+      },
+      {
+        status: 200,
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "public, max-age=3600, s-maxage=86400, stale-while-revalidate=604800",
+        },
+      },
+    );
   }
 
   let attributes: any[] = [];

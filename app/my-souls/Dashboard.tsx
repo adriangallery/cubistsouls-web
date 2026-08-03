@@ -5,6 +5,7 @@ import Link from "next/link";
 import Panel from "../components/Panel";
 import CollabGrid from "./CollabGrid";
 import MyReapers, { type MineEntry } from "./MyReapers";
+import MyVessels, { useOwnedSplit } from "./MyVessels";
 import Standing from "./Standing";
 import { tierOf, type SoulsData } from "@/lib/souls";
 import type { MyMHResult, MHBoardResult } from "@/lib/mh";
@@ -66,6 +67,8 @@ export default function Dashboard({
   const tier = tierOf(contribution);
   const hasReapers = reaperLive && (mine.length > 0 || mode === "self");
   const consumedById = new Map(mine.map((e) => [e.id, e.consumed]));
+  // vessels out of the souls grid, into their own section (on-chain split)
+  const { souls: gridOwned, vessels } = useOwnedSplit(data.owned);
 
   return (
     <>
@@ -118,15 +121,17 @@ export default function Dashboard({
 
         {reaperLive ? <MyReapers mine={mine} mode={mode} /> : null}
 
+        <MyVessels vessels={vessels} mode={mode} />
+
         <Panel
           id="collection"
           title={mode === "self" ? "Your collection" : "Collection"}
-          meta={`${data.owned.length} soul${data.owned.length === 1 ? "" : "s"}`}
+          meta={`${gridOwned.length} soul${gridOwned.length === 1 ? "" : "s"}`}
           wide
         >
-          {data.owned.length ? (
+          {gridOwned.length ? (
             <CollabGrid
-              owned={data.owned}
+              owned={gridOwned}
               address={address}
               collabEnabled={collab}
               exhibits={myMh?.exhibits ?? null}
