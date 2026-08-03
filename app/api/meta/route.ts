@@ -95,7 +95,6 @@ async function reaperState(id: number): Promise<{ consumed: number; marks: numbe
 // if the vessel read fails we fall through to the soul path and OpenSea's next
 // crawl corrects it.
 const SEL_IS_VESSEL = "0x1afdd161"; // isVesselToken(uint256)
-const SEL_VESSEL_NAME = "0x9d1e9375"; // vesselNameOf(uint256)
 const VESSEL_LORE =
   "Thirty souls joined forces and poured themselves into a canvas that a reaper burned long ago. " +
   "The empty canvas hangs again behind the death mask — not as a soul, but as a Memento Mori. " +
@@ -105,16 +104,9 @@ async function vesselMeta(id: number): Promise<{ name: string } | null> {
   try {
     const isV = await reaperCall(SEL_IS_VESSEL, id);
     if (!isV || BigInt(isV) === 0n) return null;
-    let name = `Memento Mori #${id}`;
-    const raw = await reaperCall(SEL_VESSEL_NAME, id);
-    if (raw && raw.length > 130) {
-      // abi-decode string: offset(32) + len(32) + data
-      const len = parseInt(raw.slice(66, 130), 16);
-      const hex = raw.slice(130, 130 + len * 2);
-      const txt = Buffer.from(hex, "hex").toString("utf8").trim();
-      if (txt) name = `${txt} — Memento Mori #${id}`;
-    }
-    return { name };
+    // The plaque is the museum's, never the holder's: a union is always
+    // "Memento Mori #<id>", whatever string sits in storage.
+    return { name: `Memento Mori #${id}` };
   } catch {
     return null;
   }

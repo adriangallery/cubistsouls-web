@@ -73,7 +73,6 @@ export default function VesselsClient() {
   const [reload, setReload] = useState(0);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [canvas, setCanvas] = useState<number | null>(null);
-  const [name, setName] = useState("");
   const [phase, setPhase] = useState<"idle" | "wallet" | "pending" | "done">("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -128,7 +127,10 @@ export default function VesselsClient() {
     });
   }, []);
 
-  const ready = picked.size === UNION_SIZE && canvas !== null && name.trim().length > 0;
+  // The plaque is not the founder's to write: every union is named by the museum,
+  // "Memento Mori #<id>", the moment it is fused.
+  const autoName = canvas !== null ? `Memento Mori #${canvas}` : "";
+  const ready = picked.size === UNION_SIZE && canvas !== null;
   const priceLabel = fee !== null ? `Ξ${formatEther(fee)}` : "…";
 
   const fuse = useCallback(async () => {
@@ -141,7 +143,7 @@ export default function VesselsClient() {
         address: SOULS,
         abi: VESSEL_ABI,
         functionName: "fuse",
-        args: [BigInt(canvas), [...picked].sort((a, b) => a - b).map(BigInt), name.trim()],
+        args: [BigInt(canvas), [...picked].sort((a, b) => a - b).map(BigInt), autoName],
         value: fee,
       });
       setTxHash(hash);
@@ -153,7 +155,7 @@ export default function VesselsClient() {
       setErr(/reject|denied/i.test(m) ? "The wallet said no — nothing moved." : m);
       setPhase("idle");
     }
-  }, [ready, walletClient, client, fee, canvas, picked, name, chainId, switchChainAsync]);
+  }, [ready, walletClient, client, fee, canvas, picked, autoName, chainId, switchChainAsync]);
 
   return (
     <main className={styles.wrap}>
@@ -326,19 +328,6 @@ export default function VesselsClient() {
               </>
             )}
 
-            {/* step 3 — the plaque + what you get */}
-            <div className={styles.stepHead}>
-              <span className={styles.stepNum}>3</span>
-              <span className={styles.stepTitle}>Name it</span>
-            </div>
-            <input
-              className={styles.nameInput}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={64}
-              placeholder="The plaque on the wall — on-chain, you can rename it later"
-            />
-
             <div className={styles.previewRow}>
               <div className={styles.preview}>
                 <span className={styles.previewLabel}>What you receive</span>
@@ -352,11 +341,8 @@ export default function VesselsClient() {
                     </div>
                   )}
                   <div className={styles.previewBody}>
-                    <b>{name.trim() || "Unnamed"}</b>
-                    <span>
-                      {canvas !== null ? `Memento Mori #${canvas}` : "Memento Mori"} · {picked.size}/30 souls
-                      united
-                    </span>
+                    <b>{autoName || "Memento Mori"}</b>
+                    <span>{picked.size}/30 souls united</span>
                   </div>
                 </div>
               </div>
@@ -372,8 +358,9 @@ export default function VesselsClient() {
             </button>
             <p className={styles.fine}>
               One transaction: your thirty pass into the museum&apos;s custody, the Memento Mori is minted on
-              the canvas you chose, and its vault is created. There is no dissolution — a Memento Mori is
-              forever thirty.
+              the canvas you chose, and its vault is created. The museum writes the plaque — every union is
+              named <b>Memento Mori #{canvas ?? "…"}</b>. There is no dissolution: a Memento Mori is forever
+              thirty.
             </p>
           </>
         )}
