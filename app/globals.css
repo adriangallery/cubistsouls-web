@@ -1169,3 +1169,14 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
    in the old display face on purpose — better a deliberate pairing than a silent
    fallback to whatever the browser picks. */
 .amp{font-family:var(--disp);font-weight:800;letter-spacing:-.01em}
+
+/* the reaper's vault — ERC-6551 account line on ascended cards (my-souls) */
+.rm-vault{display:flex;align-items:center;gap:.45rem;margin-top:.55rem;padding:.4rem .55rem;
+  font-family:var(--mono);font-size:.66rem;color:var(--bone);text-decoration:none;
+  background:rgba(122,63,160,.14);border:1px solid rgba(167,101,209,.34);border-radius:8px;
+  transition:border-color .15s ease,background .15s ease}
+.rm-vault:hover{border-color:var(--reaper-lite);background:rgba(122,63,160,.24)}
+.rm-vault-mark{font-size:.8rem;line-height:1}
+.rm-vault-addr{letter-spacing:.02em}
+.rm-vault-eth{margin-left:auto;color:var(--reaper-lite)}
+.rm-vault-go{color:var(--mute)}

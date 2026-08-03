@@ -1517,3 +1517,23 @@
   max-width: 44ch;
   margin: 0.7rem auto 0;
 }
+
+/* the vault line — the reaper's ERC-6551 account, public wing of the Order */
+.orderVault {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  color: var(--bone);
+  text-decoration: none;
+  padding: 0.3rem 0.5rem;
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.34);
+  border-radius: 8px;
+  transition: border-color 0.15s ease;
+}
+.orderVault:hover { border-color: var(--reaper-lite); }
+.orderVaultMark { font-size: 0.75rem; line-height: 1; }
