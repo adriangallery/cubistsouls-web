@@ -1,0 +1,1591 @@
+/* Soul Reapers — scoped styles for the real panel (Pikkazo offering grid, live
+   CTA, connect prompt) and THE ORDER. Kept in a CSS module so the shared
+   globals.css is never touched (another wave edits it in parallel). These
+   elements render inside `.reaper`, so the --reaper* tokens cascade in; global
+   tokens (--bone, --mono, --gild, --wall-deep…) resolve from :root. */
+
+/* ---- 3 pictographic steps ---- */
+.steps {
+  list-style: none;
+  margin: 0 0 clamp(1.2rem, 4vw, 1.8rem);
+  padding: 0;
+  display: grid;
+  gap: clamp(0.6rem, 2vw, 1rem);
+  grid-template-columns: repeat(3, 1fr);
+  counter-reset: none;
+}
+.step {
+  position: relative;
+  text-align: center;
+  background: linear-gradient(180deg, rgba(122, 63, 160, 0.1), rgba(20, 4, 8, 0.35));
+  border: 1px solid rgba(167, 101, 209, 0.34);
+  border-radius: var(--r-md);
+  padding: clamp(1rem, 3.5vw, 1.6rem) clamp(0.4rem, 2vw, 1rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+}
+.stepNum {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border-radius: 50%;
+  background: var(--reaper);
+  color: #fff;
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: 1rem;
+  box-shadow: 0 0 16px -2px rgba(167, 101, 209, 0.8);
+}
+.stepIco {
+  font-size: clamp(1.8rem, 7vw, 2.8rem);
+  line-height: 1;
+  filter: drop-shadow(0 0 10px rgba(167, 101, 209, 0.45));
+}
+.stepTitle {
+  font-family: var(--disp);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
+  font-size: clamp(0.82rem, 2.6vw, 1.15rem);
+  color: var(--bone);
+  line-height: 1.1;
+}
+
+/* OG-only rule chip in the hero */
+.ogChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: clamp(0.9rem, 3vw, 1.3rem);
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--gild);
+  background: rgba(224, 165, 32, 0.1);
+  border: 1px solid rgba(224, 165, 32, 0.45);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+}
+.ogChipMark {
+  color: var(--reaper-lite);
+  filter: drop-shadow(0 0 6px rgba(167, 101, 209, 0.6));
+}
+
+/* milestone badge — 30 = SOUL REAPER */
+.milestone {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  flex-wrap: wrap;
+  max-width: 520px;
+  margin: 0 auto;
+  text-decoration: none;
+  background: linear-gradient(180deg, rgba(167, 101, 209, 0.22), rgba(122, 63, 160, 0.08));
+  border: 1px solid var(--reaper-lite);
+  border-radius: 999px;
+  padding: 0.7rem 1.2rem;
+  box-shadow: 0 0 26px -8px rgba(167, 101, 209, 0.8);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.milestone:hover { transform: translateY(-1px); box-shadow: 0 0 30px -6px rgba(167, 101, 209, 0.95); }
+.milestoneMark {
+  font-size: 1.3rem;
+  filter: drop-shadow(0 0 8px rgba(167, 101, 209, 0.7));
+}
+.milestoneNum {
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: clamp(1.6rem, 6vw, 2.2rem);
+  color: var(--reaper-lite);
+  line-height: 1;
+}
+.milestoneText {
+  font-family: var(--disp);
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: clamp(0.85rem, 2.8vw, 1.15rem);
+  color: var(--bone);
+}
+.milestoneText b { color: var(--reaper-lite); }
+
+/* ---- fine print (collapsible details) ---- */
+.fine {
+  max-width: 720px;
+  margin: 0 auto;
+  background: var(--wall-deep);
+  border: 1px solid rgba(224, 165, 32, 0.24);
+  border-radius: var(--r-md);
+  padding: 0 clamp(1rem, 3vw, 1.4rem);
+}
+.fineSummary {
+  cursor: pointer;
+  list-style: none;
+  padding: clamp(0.9rem, 3vw, 1.15rem) 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gild);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.fineSummary::-webkit-details-marker { display: none; }
+.fineSummary::after {
+  content: "+";
+  font-size: 1.1rem;
+  color: var(--reaper-lite);
+}
+.fine[open] .fineSummary::after { content: "–"; }
+.fineList {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 clamp(1rem, 3vw, 1.3rem);
+  display: grid;
+  gap: 0.7rem;
+}
+.fineList li {
+  font-family: var(--serif);
+  color: var(--bone-2);
+  font-size: 0.92rem;
+  line-height: 1.55;
+  padding-left: 1.1rem;
+  position: relative;
+}
+.fineList li::before {
+  content: "🜃";
+  position: absolute;
+  left: 0;
+  top: 0.05rem;
+  font-size: 0.7rem;
+  color: var(--reaper-lite);
+}
+.fineList li b { color: var(--bone); }
+
+/* =========================================================================
+   ONE-BAR RITE (Adrian 26-jul) — proposed soul card, N/30 bar, burn slider,
+   marks-as-rewards, collapsed canvas picker. All scoped to the module so the
+   shared globals.css is never touched (a parallel wave edits it).
+   ========================================================================= */
+
+/* teaser / connect banner */
+.demoBanner {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 clamp(1rem, 3vw, 1.4rem);
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bone-2);
+  background: rgba(122, 63, 160, 0.12);
+  border: 1px solid rgba(167, 101, 209, 0.34);
+  border-radius: 999px;
+  padding: 0.55rem 0.95rem;
+}
+.demoDot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: var(--reaper-lite);
+  box-shadow: 0 0 10px var(--reaper-lite);
+  animation: rpPulse 1.8s ease-in-out infinite;
+}
+@keyframes rpPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.demoLink {
+  font: inherit;
+  color: var(--reaper-lite);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.demoLink:hover { color: var(--bone); }
+
+/* ---- proposed soul card ---- */
+.proposal {
+  display: grid;
+  gap: clamp(1rem, 3vw, 1.5rem);
+  grid-template-columns: 1fr;
+  align-items: center;
+  background: linear-gradient(180deg, rgba(167, 101, 209, 0.1), rgba(20, 4, 8, 0.35));
+  border: 1px solid rgba(167, 101, 209, 0.34);
+  border-radius: var(--r-md);
+  padding: clamp(1rem, 3.5vw, 1.5rem);
+  margin-bottom: clamp(1rem, 3vw, 1.4rem);
+}
+@media (min-width: 560px) {
+  .proposal { grid-template-columns: minmax(0, 210px) 1fr; }
+}
+.propArt { min-width: 0; }
+
+/* preview cue: a mark is being TRIED ON (not yet earned) — subtle shimmer border +
+   caption, so a previewed mark reads differently from a permanently unlocked one. */
+.tryonPreview {
+  border-color: var(--reaper-lite) !important;
+  box-shadow: 0 0 0 2px rgba(167, 101, 209, 0.35), 0 0 30px -4px rgba(167, 101, 209, 0.75) !important;
+  animation: tryonShimmer 1.8s ease-in-out infinite;
+}
+@keyframes tryonShimmer {
+  0%, 100% { box-shadow: 0 0 0 2px rgba(167, 101, 209, 0.3), 0 0 22px -6px rgba(167, 101, 209, 0.6); }
+  50% { box-shadow: 0 0 0 2px rgba(167, 101, 209, 0.55), 0 0 34px -2px rgba(167, 101, 209, 0.95); }
+}
+.tryonChip {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+  background: rgba(167, 101, 209, 0.12);
+  border: 1px solid rgba(167, 101, 209, 0.4);
+  border-radius: 999px;
+  padding: 0.28rem 0.55rem;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tryonPreview { animation: none; }
+}
+.propInfo { min-width: 0; display: flex; flex-direction: column; gap: 0.9rem; }
+.propHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.propLabel {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gild);
+}
+.changeLink {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.42);
+  border-radius: 999px;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.changeLink:hover { background: rgba(122, 63, 160, 0.28); border-color: var(--reaper-lite); }
+
+/* ---- the ONE progress bar: N / 30 → SOUL REAPER ---- */
+.pbar { display: flex; flex-direction: column; gap: 0.5rem; }
+.pbarTop {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.pbarTop b {
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: clamp(1.5rem, 6vw, 2.1rem);
+  color: var(--bone);
+  letter-spacing: 0;
+  line-height: 1;
+}
+.pbarTop b i { font-style: normal; font-size: 0.55em; color: var(--mute); }
+.pbarValUp { color: var(--reaper-lite) !important; }
+.pbarValUp i { color: var(--reaper-lite) !important; }
+.pbarTrack {
+  position: relative;
+  height: 16px;
+  border-radius: 999px;
+  background: #2a1420;
+  border: 1px solid rgba(224, 165, 32, 0.18);
+  overflow: hidden;
+}
+.pbarTrackUp {
+  border-color: var(--reaper-lite);
+  box-shadow: 0 0 20px -4px rgba(167, 101, 209, 0.8);
+}
+.pbarBase {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, var(--reaper-deep), var(--reaper-lite));
+  transition: width 0.28s ease;
+}
+.pbarAdd {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: linear-gradient(90deg, var(--flame), #ffb347);
+  background-size: 22px 22px;
+  transition: left 0.28s ease, width 0.28s ease;
+  box-shadow: 0 0 14px -2px rgba(255, 91, 24, 0.8);
+}
+.pbarGoal {
+  position: absolute;
+  right: 3px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 2;
+  font-size: 0.7rem;
+  line-height: 1;
+  opacity: 0.5;
+  filter: grayscale(0.4);
+}
+.pbarGoalHit {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(167, 101, 209, 0.9));
+}
+.pbarNote {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+  line-height: 1.4;
+}
+.pbarNoteUp { color: var(--reaper-lite); }
+
+/* ---- soul picker (collapsed) ---- */
+.picker {
+  background: rgba(20, 4, 8, 0.4);
+  border: 1px solid rgba(167, 101, 209, 0.28);
+  border-radius: var(--r-md);
+  padding: clamp(0.8rem, 3vw, 1.2rem);
+  margin-bottom: clamp(1rem, 3vw, 1.4rem);
+}
+.pickerLab {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gild);
+  margin-bottom: 0.7rem;
+}
+
+/* ---- burn box (slider) ---- */
+.burnBox {
+  background: linear-gradient(180deg, rgba(122, 63, 160, 0.08), rgba(20, 4, 8, 0.3));
+  border: 1px solid rgba(167, 101, 209, 0.3);
+  border-radius: var(--r-md);
+  padding: clamp(1rem, 3.5vw, 1.5rem) clamp(1rem, 4vw, 1.7rem) clamp(1.1rem, 3.5vw, 1.5rem);
+  margin-bottom: clamp(1rem, 3vw, 1.4rem);
+}
+.burnHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  margin-bottom: 1.3rem;
+}
+.burnLead {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--bone);
+}
+
+/* the custom slider */
+.slider { padding: 0 4px; }
+.sliderTrack {
+  position: relative;
+  height: 12px;
+  margin: 2.4rem 6px 3rem;
+  border-radius: 999px;
+  background: #2a1420;
+  border: 1px solid rgba(224, 165, 32, 0.2);
+  cursor: pointer;
+  touch-action: none;
+}
+.sliderFill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, var(--reaper-deep), var(--reaper-lite));
+  pointer-events: none;
+}
+.sliderLockZone {
+  position: absolute;
+  top: -1px;
+  bottom: -1px;
+  right: 0;
+  border-radius: 0 999px 999px 0;
+  background: repeating-linear-gradient(45deg, rgba(107, 95, 99, 0.28) 0 6px, rgba(107, 95, 99, 0.12) 6px 12px);
+  pointer-events: none;
+}
+.sliderThumb {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 5;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, var(--reaper-lite), var(--reaper) 60%, var(--reaper-deep));
+  border: 2px solid var(--bone);
+  box-shadow: 0 0 0 4px rgba(167, 101, 209, 0.25), 0 3px 10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  touch-action: none;
+}
+.sliderThumb:active { cursor: grabbing; }
+.sliderThumb:focus-visible { outline: 2px solid var(--gild); outline-offset: 3px; }
+.thumbVal {
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: 0.82rem;
+  color: #fff;
+  line-height: 1;
+  pointer-events: none;
+}
+
+/* slider stops (the mark prices) */
+.stop {
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+.stopTick {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--wall-deep);
+  border: 2px solid var(--reaper-lite);
+  box-shadow: 0 0 8px -1px rgba(167, 101, 209, 0.7);
+  transition: transform 0.15s;
+}
+.stop:hover .stopTick { transform: translate(-50%, -50%) scale(1.2); }
+.stopLabel {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+.stopLabel b {
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: 0.82rem;
+  color: var(--bone);
+}
+.stopLabel em {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+  margin-top: 0.15rem;
+}
+.stopActive .stopTick { background: var(--reaper-lite); transform: translate(-50%, -50%) scale(1.3); }
+.stopActive .stopLabel b { color: var(--reaper-lite); }
+.stopForged { cursor: default; }
+.stopForged .stopTick { border-color: var(--gild); background: var(--gild); box-shadow: 0 0 8px -1px rgba(224, 165, 32, 0.7); }
+.stopForged .stopLabel em { color: var(--gild); }
+.stopLocked { cursor: not-allowed; }
+.stopLocked .stopTick { border-color: rgba(107, 95, 99, 0.7); background: #1a0e14; box-shadow: none; }
+.stopLocked .stopLabel b { color: var(--ash-grey); }
+.stopLocked .stopLabel em { color: var(--ash-grey); }
+.sliderScale {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: -1.6rem;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.sliderScale span:nth-child(2) { color: var(--ash-grey); letter-spacing: 0.06em; text-align: center; }
+
+/* Narrow screens: the 6/12/18 stops sit close, so the mark NAMES under them would
+   collide. Drop the name/state text on the track (the mark cards below carry the
+   full name + ✓/price/lock state); keep the numbers as the stop markers. */
+@media (max-width: 560px) {
+  .stopLabel em { display: none; }
+  .stopLabel b { font-size: 0.74rem; }
+  .sliderScale span:nth-child(2) { display: none; }
+  .markCards { grid-template-columns: repeat(2, 1fr); }
+}
+
+/* ---- the verdict line ---- */
+.verdict {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-family: var(--serif);
+  font-size: clamp(0.92rem, 2.4vw, 1.05rem);
+  line-height: 1.45;
+  color: var(--bone-2);
+  background: rgba(20, 4, 8, 0.35);
+  border: 1px solid rgba(107, 95, 99, 0.4);
+  border-radius: 10px;
+  padding: 0.7rem 0.9rem;
+}
+.verdict b { color: var(--bone); }
+.verdictForge {
+  color: var(--bone);
+  background: linear-gradient(180deg, rgba(255, 91, 24, 0.12), rgba(167, 101, 209, 0.08));
+  border-color: var(--reaper-lite);
+  box-shadow: 0 0 20px -6px rgba(167, 101, 209, 0.7);
+}
+.verdictForge b { color: var(--reaper-lite); }
+.verdictThumb {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 auto;
+  object-fit: contain;
+  border-radius: 6px;
+  background: #120a10;
+  border: 1px solid var(--reaper-lite);
+}
+
+/* ---- marks as rewards of the path ---- */
+.markCards {
+  display: grid;
+  gap: 0.5rem;
+  grid-template-columns: repeat(4, 1fr);
+  margin-bottom: clamp(1rem, 3vw, 1.4rem);
+}
+.markCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  text-align: center;
+  padding: 0.6rem 0.35rem 0.5rem;
+  background: rgba(20, 4, 8, 0.4);
+  border: 1px solid rgba(167, 101, 209, 0.3);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.markCard:hover:not(:disabled) { border-color: var(--reaper-lite); transform: translateY(-2px); }
+.mcThumb {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #120a10;
+  display: flex;
+}
+.mcThumb img { width: 100%; height: 100%; object-fit: contain; }
+.mcName {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--bone);
+  line-height: 1.1;
+}
+.mcState {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--reaper-lite);
+}
+.mcActive { border-color: var(--reaper-lite); box-shadow: 0 0 0 2px rgba(167, 101, 209, 0.3); }
+.mcActive .mcState { color: var(--flame); }
+.mcForged { cursor: default; border-color: rgba(224, 165, 32, 0.5); }
+.mcForged .mcThumb img { opacity: 0.42; filter: grayscale(0.5); }
+.mcForged .mcState { color: var(--gild); }
+.mcLocked { cursor: not-allowed; opacity: 0.55; }
+.mcLocked .mcThumb img { filter: grayscale(0.7); }
+.mcLocked .mcState { color: var(--ash-grey); }
+
+/* ---- collapsed canvas picker ---- */
+.canvasWrap { margin-bottom: clamp(0.4rem, 2vw, 0.8rem); }
+.canvasToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  width: 100%;
+  text-align: left;
+  background: rgba(20, 4, 8, 0.35);
+  border: 1px dashed rgba(167, 101, 209, 0.4);
+  border-radius: 8px;
+  padding: 0.75rem 0.95rem;
+  cursor: pointer;
+  transition: 0.15s;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+.canvasToggle:hover { border-color: var(--reaper-lite); color: var(--bone); }
+.canvasToggle b { color: var(--reaper-lite); font-size: 0.85rem; }
+.canvasWarn { font-style: normal; color: var(--flame); }
+.canvasChevron { flex: 0 0 auto; color: var(--reaper-lite); font-weight: 700; }
+.canvasBody {
+  margin-top: 0.8rem;
+  padding: clamp(0.8rem, 3vw, 1.1rem);
+  background: rgba(20, 4, 8, 0.4);
+  border: 1px solid rgba(167, 101, 209, 0.24);
+  border-radius: 8px;
+}
+
+/* ---- live connect prompt ---- */
+.connect {
+  text-align: center;
+  padding: clamp(1.4rem, 5vw, 2.6rem) 0;
+}
+.connectLead {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--bone-2);
+  font-size: clamp(1rem, 2.2vw, 1.18rem);
+  margin-bottom: 1.2rem;
+  line-height: 1.5;
+}
+
+.loadingRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+  margin-bottom: 1.2rem;
+}
+
+/* consumed badge on an aspirant thumbnail */
+.aspBadge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, var(--reaper-lite), var(--reaper-deep));
+  padding: 0.16rem 0.36rem;
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(122, 63, 160, 0.6);
+}
+
+/* OG-ONLY: a non-OG aspirant is shown but dimmed + badged, never selectable.
+   !important beats the global `.aspirant:hover` rule in globals.css (edited by a
+   parallel wave — this module must not touch it). */
+.aspLocked {
+  cursor: not-allowed;
+  opacity: 0.9;
+}
+.aspLocked img {
+  opacity: 0.24 !important;
+  filter: grayscale(0.75);
+}
+.aspLocked:hover {
+  transform: none !important;
+  border-color: rgba(224, 165, 32, 0.4) !important;
+  box-shadow: none !important;
+}
+.aspLock {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--bone);
+  background: rgba(0, 0, 0, 0.78);
+  border: 1px solid var(--gild);
+  padding: 0.2rem 0.45rem;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+/* ---- step 2: balance + affordability gating ---- */
+/* real Pikkazo balance, always visible above the marks (live only) */
+.balanceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-bottom: 0.9rem;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--bone);
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.42);
+  border-radius: 999px;
+  padding: 0.4rem 0.85rem;
+}
+.balanceChip b {
+  color: var(--reaper-lite);
+  font-size: 0.9rem;
+  letter-spacing: 0;
+}
+
+/* wallet below the cheapest mark → single "go get some" state */
+.needMin {
+  text-align: center;
+  padding: clamp(1.2rem, 4vw, 2rem) 0;
+}
+.needMinLead {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--bone-2);
+  font-size: clamp(1rem, 2.2vw, 1.18rem);
+  margin-bottom: 1.1rem;
+  line-height: 1.5;
+}
+
+/* a mark you can't pay for: dimmed, not clickable. !important beats the global
+   `.rtrait:hover` rule in globals.css (owned by a parallel wave — untouched here). */
+.markLocked {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.markLocked img {
+  filter: grayscale(0.7);
+}
+.markLocked:hover {
+  transform: none !important;
+  border-color: rgba(224, 165, 32, 0.28) !important;
+  box-shadow: none !important;
+}
+.markNeed {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  color: var(--bone);
+  background: rgba(0, 0, 0, 0.82);
+  border: 1px solid var(--gild);
+  padding: 0.22rem 0.5rem;
+  border-radius: 4px;
+}
+
+/* ---- mode toggle: Forge / Feed (two clearly separate paths) ---- */
+.modeTabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem;
+  margin: 0 0 clamp(1rem, 3vw, 1.4rem);
+  background: rgba(20, 4, 8, 0.4);
+  border: 1px solid rgba(167, 101, 209, 0.28);
+  border-radius: 999px;
+  padding: 0.3rem;
+}
+.modeTab {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  padding: 0.6rem 0.5rem;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.modeTab:hover { color: var(--bone); }
+.modeTabActive {
+  color: #fff;
+  background: linear-gradient(180deg, var(--reaper-lite), var(--reaper) 60%, var(--reaper-deep));
+  box-shadow: 0 0 18px -4px rgba(167, 101, 209, 0.8);
+}
+
+/* ---- feed-only path ---- */
+.feedBox {
+  background: linear-gradient(180deg, rgba(255, 91, 24, 0.08), rgba(20, 4, 8, 0.3));
+  border: 1px solid rgba(255, 91, 24, 0.4);
+  border-radius: var(--r-md);
+  padding: clamp(0.9rem, 3vw, 1.3rem);
+}
+.feedNote {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.03em;
+  color: var(--bone);
+  line-height: 1.5;
+  margin: 0 0 0.9rem;
+}
+.feedNote b { color: var(--flame); letter-spacing: 0.06em; }
+.qtyRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+.qtyBtn {
+  width: 2.4rem;
+  height: 2.4rem;
+  flex: 0 0 auto;
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: 1.3rem;
+  line-height: 1;
+  color: #fff;
+  background: rgba(122, 63, 160, 0.24);
+  border: 1px solid rgba(167, 101, 209, 0.5);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.qtyBtn:hover:not(:disabled) { background: rgba(122, 63, 160, 0.42); }
+.qtyBtn:disabled { opacity: 0.35; cursor: not-allowed; }
+.qtyVal {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--bone);
+  min-width: 7.5rem;
+  text-align: center;
+}
+.qtyVal b { color: var(--flame); font-size: 1.1rem; }
+.qtyMax {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.42);
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.qtyMax:hover:not(:disabled) { background: rgba(122, 63, 160, 0.28); }
+.qtyMax:disabled { opacity: 0.35; cursor: not-allowed; }
+.feedBenefit {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--mute);
+  margin: 0.9rem 0 0;
+}
+.feedBenefit b { color: var(--reaper-lite); }
+
+/* a mark already forged on THIS soul: done, never re-selectable, no cost shown */
+.markForged {
+  cursor: default;
+  border-color: rgba(224, 165, 32, 0.55) !important;
+}
+.markForged img { opacity: 0.4; filter: grayscale(0.5); }
+.markForged:hover {
+  transform: none !important;
+  box-shadow: none !important;
+}
+.markForgedTag {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #12140a;
+  background: var(--gild);
+  padding: 0.22rem 0.55rem;
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgba(224, 165, 32, 0.5);
+}
+
+/* ---- step 3: offering grid ---- */
+.offerEmpty {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--mute);
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+.offerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.8rem;
+}
+.offerCount {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mute);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.offerCount b {
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+.ok { color: var(--reaper-lite); }
+.bad { color: var(--flame); }
+.demoTag {
+  font-size: 0.55rem;
+  letter-spacing: 0.16em;
+  color: var(--ash-grey);
+  border: 1px solid rgba(107, 95, 99, 0.5);
+  border-radius: 999px;
+  padding: 0.16rem 0.5rem;
+}
+
+.suggestBtn {
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.42);
+  border-radius: 999px;
+  padding: 0.5rem 0.9rem;
+  cursor: pointer;
+  transition: 0.15s;
+}
+.suggestBtn:hover {
+  background: rgba(122, 63, 160, 0.26);
+  border-color: var(--reaper-lite);
+}
+
+.rareWarn {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  color: var(--flame);
+  background: rgba(255, 91, 24, 0.1);
+  border: 1px solid rgba(255, 91, 24, 0.4);
+  border-radius: 8px;
+  padding: 0.6rem 0.75rem;
+  margin-bottom: 0.9rem;
+}
+
+.pkzGrid {
+  display: grid;
+  gap: 0.55rem;
+  grid-template-columns: repeat(auto-fill, minmax(clamp(64px, 16vw, 84px), 1fr));
+}
+.pkz {
+  position: relative;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 5px;
+  overflow: hidden;
+  aspect-ratio: 1;
+  background: var(--wall-deep);
+  border: 2px solid rgba(224, 165, 32, 0.34);
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
+}
+.pkz img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: opacity 0.15s;
+}
+.pkz:hover { transform: translateY(-2px); border-color: var(--reaper-lite); }
+.pkzSel {
+  border-color: var(--reaper-lite);
+  box-shadow: 0 0 0 3px rgba(167, 101, 209, 0.3), 0 0 18px -4px rgba(122, 63, 160, 0.7);
+}
+.pkz:not(.pkzSel) img { opacity: 0.62; }
+/* a rare piece NOT selected gets a warning ring so it stands out in the grid */
+.pkzRare:not(.pkzSel) {
+  border-color: rgba(255, 91, 24, 0.75);
+  box-shadow: 0 0 0 1px rgba(255, 91, 24, 0.35);
+}
+.pkzCheck {
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  z-index: 2;
+  width: 1.2rem;
+  height: 1.2rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(180deg, var(--reaper-lite), var(--reaper-deep));
+  box-shadow: 0 0 10px rgba(167, 101, 209, 0.7);
+}
+.pkzId {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.55rem 0.3rem 0.22rem;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.85));
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  color: var(--bone);
+  text-align: left;
+}
+.pkzTier {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  font-family: var(--mono);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--bone);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 0.12rem 0.3rem;
+  border-radius: 3px;
+}
+
+/* ---- live CTA ---- */
+.riteGo {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 1rem 1.6rem;
+  border-radius: 8px;
+  border: 0;
+  width: 100%;
+  max-width: 520px;
+  color: #fff;
+  cursor: pointer;
+  background: linear-gradient(180deg, var(--reaper-lite), var(--reaper) 55%, var(--reaper-deep));
+  box-shadow: 0 0 26px -6px rgba(167, 101, 209, 0.8);
+  transition: transform 0.12s, box-shadow 0.15s, filter 0.15s;
+}
+.riteGo:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.08); }
+.riteGo:disabled {
+  cursor: not-allowed;
+  color: var(--mute);
+  background: linear-gradient(180deg, #3a2450, #241033);
+  box-shadow: none;
+}
+
+/* ========================= THE ORDER ========================= */
+.orderEmpty {
+  text-align: center;
+  padding: clamp(1rem, 4vw, 2rem) 0 0;
+}
+.orderScythe {
+  display: block;
+  font-size: clamp(2.2rem, 8vw, 3.2rem);
+  filter: drop-shadow(0 0 14px rgba(167, 101, 209, 0.7));
+  margin-bottom: 0.6rem;
+}
+.orderEmptyLead {
+  font-family: var(--disp);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: clamp(1.3rem, 4vw, 2rem);
+  color: var(--bone);
+  line-height: 1.05;
+}
+.orderEmptySub {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--bone-2);
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  line-height: 1.6;
+  max-width: 48ch;
+  margin: 0.7rem auto clamp(0.8rem, 2.5vw, 1.2rem);
+}
+
+.orderGrid {
+  display: grid;
+  gap: clamp(0.9rem, 3vw, 1.5rem);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr));
+}
+.orderCard {
+  background: var(--wall-raise);
+  border: 1px solid rgba(167, 101, 209, 0.34);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--sh-plaque);
+  display: flex;
+  flex-direction: column;
+}
+.orderCard .tryon-stack {
+  border: 0;
+  border-radius: 0;
+  border-bottom: 2px solid var(--reaper-lite);
+}
+.orderRank {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: 1rem;
+  color: #fff;
+  background: linear-gradient(180deg, var(--reaper-lite), var(--reaper-deep));
+  padding: 0.1rem 0.5rem;
+  border-radius: 4px;
+  box-shadow: 0 0 12px rgba(122, 63, 160, 0.6);
+}
+.orderPreviewTag {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(107, 95, 99, 0.6);
+  padding: 0.16rem 0.42rem;
+  border-radius: 3px;
+}
+.orderBody {
+  padding: clamp(0.8rem, 3vw, 1.1rem);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.orderName {
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 1.15rem;
+  color: var(--bone);
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.orderName b { color: var(--reaper-lite); }
+.orderMark { filter: drop-shadow(0 0 6px rgba(167, 101, 209, 0.6)); }
+.orderConsumed {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.orderConsumed b { color: var(--flame); font-size: 0.9rem; }
+.orderMarks { display: flex; flex-wrap: wrap; gap: 0.35rem; }
+.orderChip {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--reaper-lite);
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.42);
+  padding: 0.24rem 0.5rem;
+  border-radius: 999px;
+}
+.orderHolder {
+  margin-top: auto;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+  padding-top: 0.5rem;
+  border-top: 1px solid rgba(224, 165, 32, 0.14);
+  text-decoration: none;
+}
+.orderHolder:not([aria-disabled="true"]):hover { color: var(--reaper-lite); }
+.orderHolder[aria-disabled="true"] { cursor: default; }
+/* discreet ascension date under HELD BY — the order's chronology at a glance */
+.orderAscended {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+  opacity: 0.7;
+  margin-top: 0.35rem;
+}
+
+/* ---------- RISING — compact row of aspirants (0<consumed<30), secondary ---------- */
+.rising {
+  margin-top: clamp(1.1rem, 3.5vw, 1.6rem);
+  padding-top: clamp(1rem, 3vw, 1.3rem);
+  border-top: 1px solid rgba(224, 165, 32, 0.14);
+}
+.risingHead {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin-bottom: 0.7rem;
+}
+.risingKick {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+}
+.risingSub {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+}
+.risingList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.risingRow {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.4rem 0.55rem;
+  background: rgba(20, 4, 8, 0.35);
+  border: 1px solid rgba(167, 101, 209, 0.22);
+  border-radius: 8px;
+}
+.risingArt {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: var(--wall-deep);
+  border: 1px solid rgba(167, 101, 209, 0.4);
+  display: flex;
+}
+.risingArt img { width: 100%; height: 100%; object-fit: cover; }
+.risingId {
+  flex: 0 0 auto;
+  min-width: 3.4rem;
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 0.95rem;
+  color: var(--bone);
+  text-decoration: none;
+}
+.risingId:hover { color: var(--reaper-lite); }
+.risingBar {
+  flex: 1 1 auto;
+  min-width: 40px;
+  height: 8px;
+  border-radius: 999px;
+  background: #2a1420;
+  border: 1px solid rgba(224, 165, 32, 0.14);
+  overflow: hidden;
+}
+.risingBarFill {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--reaper-deep), var(--reaper-lite));
+}
+.risingCount {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.04em;
+  color: var(--mute);
+}
+.risingCount b { font-family: var(--disp); font-weight: 900; font-size: 0.95rem; color: var(--flame); }
+.risingCount i { font-style: normal; }
+.risingMarks {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 0.54rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--reaper-lite);
+}
+/* holder → their public /curator page (invite the click) */
+.risingHolder {
+  flex: 0 0 auto;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.04em;
+  color: var(--ash-grey);
+  text-decoration: none;
+}
+.risingHolder:hover { color: var(--reaper-lite); }
+/* narrow: drop the mark names + holder, keep art/id/bar/count in one line */
+@media (max-width: 480px) {
+  .risingMarks, .risingHolder { display: none; }
+  .risingRow { gap: 0.5rem; }
+}
+
+/* ---------- THE CONSUMED — memorial counter + fallen canvases in ash ---------- */
+.consumedPlaque {
+  text-align: center;
+  margin: 0 auto clamp(1.6rem, 5vw, 2.6rem);
+  padding: clamp(1.4rem, 5vw, 2.4rem) clamp(1rem, 4vw, 2rem);
+  max-width: 560px;
+  background:
+    radial-gradient(120% 140% at 50% 0%, rgba(122, 63, 160, 0.16), transparent 60%),
+    linear-gradient(180deg, rgba(20, 4, 8, 0.5), rgba(14, 4, 5, 0.7));
+  border: 1px solid rgba(167, 101, 209, 0.34);
+  border-radius: var(--r-md);
+  box-shadow: var(--sh-plaque), inset 0 0 40px -20px rgba(255, 91, 24, 0.4);
+}
+.consumedNum {
+  display: block;
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: clamp(3.6rem, 17vw, 8rem);
+  line-height: 0.82;
+  color: var(--bone);
+  text-shadow: 0 0 44px rgba(255, 91, 24, 0.4), 0 3px 20px rgba(0, 0, 0, 0.6);
+}
+.consumedCap {
+  display: block;
+  margin-top: clamp(0.7rem, 3vw, 1.1rem);
+  font-family: var(--mono);
+  font-size: clamp(0.66rem, 2vw, 0.82rem);
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--mute);
+}
+
+.consumedGrid {
+  display: grid;
+  gap: clamp(0.6rem, 2.4vw, 1rem);
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 130px), 1fr));
+}
+.ashCard {
+  margin: 0;
+  background: var(--wall-raise);
+  border: 1px solid rgba(107, 95, 99, 0.34);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  box-shadow: var(--sh-plaque);
+}
+.ashArt {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  background: var(--wall-deep);
+}
+.ashArt img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: grayscale(1) brightness(0.52) contrast(0.92);
+  transition: filter 0.35s ease;
+}
+.ashVeil {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(14, 4, 5, 0.1) 0%, rgba(14, 4, 5, 0.55) 100%);
+  mix-blend-mode: multiply;
+}
+.ashCard:hover img { filter: grayscale(0.7) brightness(0.72) contrast(0.95); }
+.ashMeta {
+  padding: 0.45rem 0.55rem 0.55rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+.ashId {
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 0.9rem;
+  color: var(--bone-2);
+  line-height: 1;
+}
+.ashFed {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+}
+.ashFed b { color: var(--reaper-lite); font-weight: 700; }
+.consumedMore {
+  margin: clamp(1rem, 3vw, 1.4rem) 0 0;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+}
+
+.consumedEmpty {
+  text-align: center;
+  padding: clamp(1.2rem, 4vw, 2rem) 0;
+}
+.consumedScythe {
+  display: block;
+  font-size: clamp(2.2rem, 8vw, 3.2rem);
+  filter: grayscale(0.4) drop-shadow(0 0 14px rgba(167, 101, 209, 0.5));
+  margin-bottom: 0.6rem;
+}
+.consumedEmptyLead {
+  font-family: var(--disp);
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: clamp(1.3rem, 4vw, 2rem);
+  color: var(--bone);
+  line-height: 1.05;
+}
+.consumedEmptySub {
+  font-family: var(--serif);
+  font-style: italic;
+  color: var(--bone-2);
+  font-size: clamp(0.95rem, 2vw, 1.1rem);
+  line-height: 1.6;
+  max-width: 44ch;
+  margin: 0.7rem auto 0;
+}
+
+/* the vault line — the reaper's ERC-6551 account, public wing of the Order */
+.orderVault {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-top: 0.4rem;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  letter-spacing: 0.02em;
+  color: var(--bone);
+  text-decoration: none;
+  padding: 0.3rem 0.5rem;
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.34);
+  border-radius: 8px;
+  transition: border-color 0.15s ease;
+}
+.orderVault:hover { border-color: var(--reaper-lite); }
+.orderVaultMark { font-size: 0.75rem; line-height: 1; }
+
+
+/* ---------- THE LAST CALL — the countdown under the hero ---------- */
+.lcClock {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin: clamp(0.9rem, 3vw, 1.4rem) auto 0.2rem;
+  padding: clamp(0.7rem, 2.5vw, 1rem) clamp(1rem, 4vw, 1.6rem);
+  background: rgba(20, 4, 8, 0.5);
+  border: 1px solid rgba(224, 165, 32, 0.34);
+  border-radius: var(--r-md);
+  box-shadow: 0 0 24px rgba(224, 165, 32, 0.12);
+  max-width: 30rem;
+}
+.lcClockLab {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--ash-grey);
+}
+.lcDigits {
+  display: flex;
+  align-items: baseline;
+  gap: clamp(0.5rem, 2vw, 0.9rem);
+  font-family: var(--disp);
+  font-weight: 900;
+  font-size: clamp(1.9rem, 7vw, 2.8rem);
+  line-height: 1;
+  color: var(--flame);
+  font-variant-numeric: tabular-nums;
+}
+.lcDigits i {
+  font-style: normal;
+  font-family: var(--mono);
+  font-size: 0.36em;
+  font-weight: 700;
+  color: var(--ash-grey);
+  margin-left: 0.12em;
+}
+.lcClockSub {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--mute);
+  text-align: center;
+  line-height: 1.5;
+}
