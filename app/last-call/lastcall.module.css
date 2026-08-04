@@ -377,6 +377,23 @@
   padding: clamp(0.8rem, 3vw, 1.2rem);
   margin-bottom: clamp(1rem, 3vw, 1.4rem);
 }
+/* El grid ya no puede crecer sin fin: un holder con cientos de souls tenía un muro
+   de ~5.700 px y su soul a medias enterrada dentro. Altura acotada + scroll propio. */
+.picker :global(.aspirants) {
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.3rem;
+}
+.pickerHint {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  line-height: 1.5;
+  color: var(--reaper-lite);
+  margin: -0.35rem 0 0.7rem;
+}
+.pickerHint b { color: var(--gild); font-weight: 700; }
+
 .pickerLab {
   font-family: var(--mono);
   font-size: 0.62rem;

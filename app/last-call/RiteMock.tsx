@@ -347,6 +347,32 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     }));
   }, [demo, ownedSouls, layerData, states, cohorts]);
 
+  // PICKER ORDER (04-ago): un holder con 339 souls no encontraba su iniciado — el
+  // grid salía ordenado por id, con su soul a medias en la posición 66 y 201
+  // miniaturas bloqueadas por delante. Ahora manda el RITO EN CURSO: primero las
+  // souls que ya están quemando (0 < consumed < 30), luego el resto de OG (reapers
+  // incluidos), y al final las bloqueadas. Empate → más consumido, luego id.
+  const pickerAspirants: Aspirant[] = useMemo(() => {
+    const rank = (a: Aspirant) => {
+      if (!a.og) return 2; // bloqueada: al final, es sólo registro
+      const c = a.state?.consumed ?? 0;
+      return c > 0 && c < ASCEND_AT ? 0 : 1; // rito a medias primero
+    };
+    return [...aspirants].sort(
+      (x, y) =>
+        rank(x) - rank(y) ||
+        (y.state?.consumed ?? 0) - (x.state?.consumed ?? 0) ||
+        x.id - y.id,
+    );
+  }, [aspirants]);
+
+  // conteos para la línea de ayuda del picker
+  const inProgressCount = useMemo(
+    () => aspirants.filter((a) => a.og && (a.state?.consumed ?? 0) > 0 && (a.state?.consumed ?? 0) < ASCEND_AT).length,
+    [aspirants],
+  );
+  const lockedCount = useMemo(() => aspirants.filter((a) => !a.og).length, [aspirants]);
+
   // PROPOSED soul (Adrian): your OG with the MOST souls already consumed — keep
   // feeding the one that is progressing (never scatter burns across souls and reach
   // 30 on none). Ties / no consumption → the first OG by ascending id.
@@ -684,8 +710,14 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
           {pickerOpen && (
             <div className={styles.picker}>
               <div className={styles.pickerLab}>Pick a Soul {demo ? "(demo)" : ""}</div>
+              {!demo && aspirants.length > 12 && (
+                <div className={styles.pickerHint}>
+                  {inProgressCount > 0 ? <b>{inProgressCount} already burning — shown first</b> : "OG souls first"}
+                  {lockedCount > 0 ? ` · ${lockedCount} locked (OG only) at the end` : ""}
+                </div>
+              )}
               <div className="aspirants">
-                {aspirants.map((a) => (
+                {pickerAspirants.map((a) => (
                   <button
                     key={a.id}
                     className={`aspirant${aspirantId === a.id ? " sel" : ""}${a.og ? "" : " " + styles.aspLocked}`}
