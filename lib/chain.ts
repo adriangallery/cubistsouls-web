@@ -234,6 +234,28 @@ export async function getFreed(): Promise<FreedEntry[]> {
  * consumption desc — the leaderboard of the order. Server-only (Tenderly),
  * last-good cached. Returns [] when the facet isn't live yet (no events).
  */
+// ¿Sigue abierta la Last Call? ReaperFacetV5 expone `reaperWindowOpen()` (0x8ff33d7b)
+// y `REOPEN_UNTIL()` (0x5fde227d), una constante de bytecode sin setter. Se lee aquí
+// para que la página ENLAZADA no anuncie un cierre que la cadena todavía no aplica.
+// Fail-closed: si la lectura falla, se comporta como hasta ahora (cerrada).
+let memoWindow: Memo<{ open: boolean; until: number | null }> | null = null;
+export async function getReaperWindow(): Promise<{ open: boolean; until: number | null }> {
+  if (fresh(memoWindow)) return memoWindow!.value;
+  try {
+    const [openRes, untilRes] = await Promise.all([
+      rpc("eth_call", [{ to: SOULS, data: "0x8ff33d7b" }, "latest"], 8000),
+      rpc("eth_call", [{ to: SOULS, data: "0x5fde227d" }, "latest"], 8000),
+    ]);
+    const open = /[1-9a-f]/.test(String(openRes).slice(2));
+    const until = parseInt(String(untilRes), 16) || null;
+    const value = { open, until };
+    memoWindow = { value, ts: Date.now() };
+    return value;
+  } catch {
+    return memoWindow?.value ?? { open: false, until: null };
+  }
+}
+
 export async function getReapers(): Promise<ReaperOrderEntry[]> {
   if (fresh(memoReapers)) return memoReapers!.value;
   const filter = { address: SOULS, topics: [REAPER_ASCENDED_TOPIC] };

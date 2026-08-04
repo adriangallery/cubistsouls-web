@@ -377,6 +377,14 @@
   padding: clamp(0.8rem, 3vw, 1.2rem);
   margin-bottom: clamp(1rem, 3vw, 1.4rem);
 }
+/* El grid del picker no puede crecer sin fin (ver /last-call): altura acotada. */
+.picker :global(.aspirants) {
+  max-height: min(52vh, 460px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.3rem;
+}
+
 .pickerLab {
   font-family: var(--mono);
   font-size: 0.62rem;

@@ -253,6 +253,13 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   const { switchChainAsync } = useSwitchChain();
   const mobileNoInjected = useIsMobileNoInjected();
 
+  // ⚠️ LA VENTANA MANDA (04-ago). La Last Call de 48h reabrió la puerta en
+  // ReaperFacetV5, pero esta página —la ENLAZADA en el menú— seguía aplicando la
+  // regla del cierre: un holder con su soul a medias (#2474, 6/30) la veía
+  // bloqueada y encima etiquetada "OG only", cuando es OG y el diamond SÍ le
+  // aceptaría la ofrenda. Se lee `reaperWindowOpen()` de la cadena, así que
+  // mañana a las 19:00 UTC la página se vuelve a cerrar sola, sin deploy.
+  const [windowOpen, setWindowOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [sheet, setSheet] = useState(false);
   // ?demo=1 forces the playable demo (teaser preview) even for a connected wallet.
@@ -279,6 +286,20 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
   const [showCanvases, setShowCanvases] = useState(false);
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!publicClient) return;
+    let alive = true;
+    publicClient
+      .readContract({
+        address: SOULS as `0x${string}`,
+        abi: [{ type: "function", name: "reaperWindowOpen", stateMutability: "view", inputs: [], outputs: [{ type: "bool" }] }] as const,
+        functionName: "reaperWindowOpen",
+      })
+      .then((v) => { if (alive && typeof v === "boolean") setWindowOpen(v); })
+      .catch(() => {}); // selector ausente / RPC caído → cerrado, el comportamiento de siempre
+    return () => { alive = false; };
+  }, [publicClient]);
 
   useEffect(() => {
     setMounted(true);
@@ -346,9 +367,26 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
       name: `№${String(id).padStart(4, "0")}`,
       base: layerData ? baseLayersOf(id, layerData) : {},
       state: states.get(id),
-      og: isOG(cohorts.get(id)) && (states.get(id)?.consumed ?? 0) >= ASCEND_AT,
+      og: isOG(cohorts.get(id)) && (windowOpen || (states.get(id)?.consumed ?? 0) >= ASCEND_AT),
     }));
-  }, [demo, ownedSouls, layerData, states, cohorts]);
+  }, [demo, ownedSouls, layerData, states, cohorts, windowOpen]);
+
+  // Orden del picker: el rito EN CURSO primero (una wallet grande tenía su soul a
+  // medias enterrada entre cientos de miniaturas), luego el resto de elegibles y al
+  // final las bloqueadas. Ver el mismo arreglo en /last-call.
+  const pickerAspirants: Aspirant[] = useMemo(() => {
+    const rank = (a: Aspirant) => {
+      if (!a.og) return 2;
+      const c = a.state?.consumed ?? 0;
+      return c > 0 && c < ASCEND_AT ? 0 : 1;
+    };
+    return [...aspirants].sort(
+      (x, y) =>
+        rank(x) - rank(y) ||
+        (y.state?.consumed ?? 0) - (x.state?.consumed ?? 0) ||
+        x.id - y.id,
+    );
+  }, [aspirants]);
 
   // PROPOSED soul (Adrian): your OG with the MOST souls already consumed — keep
   // feeding the one that is progressing (never scatter burns across souls and reach
@@ -367,6 +405,13 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
 
   const aspirant = aspirants.find((a) => a.id === aspirantId) ?? aspirants.find((a) => a.id === defaultAspId) ?? aspirants[0];
   const hasOG = aspirants.some((a) => a.og);
+
+  // Con la puerta abierta un soul se bloquea SOLO por no ser OG; con la puerta
+  // cerrada, por no ser reaper. Etiquetar "OG only" a un OG a medias era mentira.
+  const lockTag = windowOpen ? "OG only" : "Reapers only";
+  const lockReason = windowOpen
+    ? "Only OG souls can take the scythe"
+    : "The Order is closed — only souls already at 30 can feed the fire";
 
   const pickSoul = (id: number, og: boolean) => {
     if (!og) return;
@@ -581,11 +626,15 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     return (
       <div className="rite">
         <div className={styles.connect}>
-          <p className={styles.connectLead}>The fire answers only to the twelve.</p>
+          <p className={styles.connectLead}>
+            {windowOpen ? "The doors are open — for a few more hours." : "The fire answers only to the twelve."}
+          </p>
           <button type="button" className="btn btn-primary" onClick={startConnect}>
             Connect wallet
           </button>
-          <p className="cta-note">Hold a Soul Reaper to keep feeding it</p>
+          <p className="cta-note">
+            {windowOpen ? "Any OG soul can burn until the window closes" : "Hold a Soul Reaper to keep feeding it"}
+          </p>
         </div>
         <MobileWalletSheet open={sheet} onClose={() => setSheet(false)} onWalletConnect={() => openConnectModal?.()} />
       </div>
@@ -609,9 +658,13 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
     return (
       <div className="rite">
         <div className={styles.connect}>
-          <p className={styles.connectLead}>The Order is closed.</p>
+          <p className={styles.connectLead}>
+            {windowOpen ? "Only OG souls can take the scythe." : "The Order is closed."}
+          </p>
           <p className="cta-note">
-            No Soul Reaper in this wallet. The twelve keep reaping — nobody new joins.
+            {windowOpen
+              ? "No OG soul in this wallet — the ones freed before the eras."
+              : "No Soul Reaper in this wallet. The Order keeps reaping — nobody new joins."}
           </p>
         </div>
       </div>
@@ -666,7 +719,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
 
             <div className={styles.propInfo}>
               <div className={styles.propHead}>
-                <span className={styles.propLabel}>Your reaper</span>
+                <span className={styles.propLabel}>{windowOpen && !alreadyReaper ? "Your aspirant" : "Your reaper"}</span>
                 {aspirants.length > 1 && (
                   <button type="button" className={styles.changeLink} onClick={() => setPickerOpen((o) => !o)} aria-expanded={pickerOpen}>
                     change soul {pickerOpen ? "▴" : "▾"}
@@ -707,7 +760,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
             <div className={styles.picker}>
               <div className={styles.pickerLab}>Pick a reaper {demo ? "(demo)" : ""}</div>
               <div className="aspirants">
-                {aspirants.map((a) => (
+                {pickerAspirants.map((a) => (
                   <button
                     key={a.id}
                     className={`aspirant${aspirantId === a.id ? " sel" : ""}${a.og ? "" : " " + styles.aspLocked}`}
@@ -715,8 +768,8 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                     disabled={!a.og}
                     aria-disabled={!a.og}
                     aria-pressed={aspirantId === a.id}
-                    aria-label={a.og ? `Reaper ${a.name}` : `${a.name} — not a member of the Order, cannot be used`}
-                    title={a.og ? undefined : "The Order is closed — only souls already at 30 can feed the fire"}
+                    aria-label={a.og ? `Reaper ${a.name}` : `${a.name} — ${lockReason}`}
+                    title={a.og ? undefined : lockReason}
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={IMG(a.id)} alt={`Cubist Soul ${a.name}`} loading="lazy" />
@@ -724,7 +777,7 @@ export default function RiteMock({ live = false }: { live?: boolean }) {
                     {a.og && a.state && a.state.consumed > 0 ? (
                       <span className={styles.aspBadge}>🔥{Math.min(a.state.consumed, ASCEND_AT)}/{ASCEND_AT}</span>
                     ) : null}
-                    {!a.og ? <span className={styles.aspLock}>OG only</span> : null}
+                    {!a.og ? <span className={styles.aspLock}>{lockTag}</span> : null}
                   </button>
                 ))}
               </div>

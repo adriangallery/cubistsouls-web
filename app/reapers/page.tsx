@@ -4,7 +4,7 @@ import Footer from "../components/Footer";
 import RiteMock from "./RiteMock";
 import TheOrder from "./TheOrder";
 import TheConsumed from "./TheConsumed";
-import { getReapers, getRising, getConsumed } from "@/lib/chain";
+import { getReapers, getRising, getConsumed, getReaperWindow } from "@/lib/chain";
 import flags from "@/public/flags.json";
 import styles from "./reapers.module.css";
 
@@ -63,10 +63,11 @@ const HEAD_MB = { marginBottom: "clamp(0.7rem, 2.5vw, 1.1rem)" };
 const RULE_M = { margin: "clamp(0.7rem, 2vw, 1.1rem) auto" };
 
 export default async function ReapersPage() {
-  const [reapers, rising, consumed] = await Promise.all([
+  const [reapers, rising, consumed, reaperWindow] = await Promise.all([
     REAPER_LIVE ? getReapers() : Promise.resolve([]),
     getRising(),
     getConsumed(),
+    getReaperWindow(),
   ]);
 
   // ⚠️ El tamaño de la Orden ya NO se escribe a mano (04-ago): la Last Call de 48h
@@ -75,6 +76,12 @@ export default async function ReapersPage() {
   // así que el día que la ventana cierre la página ya dice el número final sola.
   // Roster vacío = fallo de lectura (TheOrder ya lo dice), NUNCA "cero": en ese caso
   // la página habla de "The Order" sin número en vez de mentir con una cifra.
+  const windowCloses = reaperWindow.until
+    ? new Date(reaperWindow.until * 1000).toLocaleString("en-US", {
+        month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+        timeZone: "UTC", hour12: false,
+      }) + " UTC"
+    : null;
   const orderSize = reapers.length;
   const orderWord = orderSize > 0 ? numberWord(orderSize) : null;
 
@@ -82,7 +89,9 @@ export default async function ReapersPage() {
     <div className="reaper">
       <div className="teaser-strip">
         <span className="ts-dot" />
-        The Order is closed · {orderWord ? `${orderWord}, final` : "final"}
+        {reaperWindow.open
+          ? `The doors are open${windowCloses ? ` · until ${windowCloses}` : ""}`
+          : `The Order is closed · ${orderWord ? `${orderWord}, final` : "final"}`}
       </div>
       <Nav active="reapers" />
 
@@ -138,7 +147,20 @@ export default async function ReapersPage() {
           <details className={styles.fine}>
             <summary className={styles.fineSummary}>The closure — the fine print</summary>
             <ul className={styles.fineList}>
-              <li><b>The Order is closed{orderWord ? ` at ${orderWord}` : ""}.</b> The rule lives in the contract: an offering is only accepted from a Soul already at 30 consumed.</li>
+              <li>
+                {reaperWindow.open ? (
+                  <>
+                    <b>The doors are open again{windowCloses ? ` until ${windowCloses}` : ""}.</b> Holders asked for it, so
+                    the contract itself reopened: until that hour any OG soul can burn and ascend. After it, an offering is
+                    only accepted from a Soul already at 30 consumed — no deploy, no switch, no one awake.
+                  </>
+                ) : (
+                  <>
+                    <b>The Order is closed{orderWord ? ` at ${orderWord}` : ""}.</b> The rule lives in the contract: an
+                    offering is only accepted from a Soul already at 30 consumed.
+                  </>
+                )}
+              </li>
               <li><b>They keep reaping.</b> Burning more canvases still adds to their count — and to everything the count pays for.</li>
               <li><b>Two souls were mid-climb when the doors shut</b> (#1682 and #2474). They stay exactly where they stopped. The museum keeps that record.</li>
               <li>Every soul consumed by a reaper is <b>1 raffle ticket. Forever.</b></li>
