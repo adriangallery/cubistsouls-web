@@ -24,25 +24,37 @@ export const revalidate = 300;
 
 const REAPER_LIVE = (flags as { reaperLive?: boolean }).reaperLive === true;
 
-export const metadata: Metadata = {
-  title: "The Order — 12 Soul Reapers",
-  description:
-    "Twelve Cubist Souls burned 30 Pikkazos each and became Soul Reapers. The Order is closed — sealed on chain.",
-  alternates: { canonical: "/reapers" },
-  openGraph: {
-    type: "website",
-    title: "The Order — 12 Soul Reapers",
-    description: "Twelve Souls. Thirty canvases each. The Order is closed.",
-    url: "https://cubistsouls.com/reapers",
-    images: ["https://cubistsouls.com/api/img?id=136"],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: "The Order — 12 Soul Reapers",
-    description: "Twelve Souls. Thirty canvases each. The Order is closed.",
-    images: ["https://cubistsouls.com/api/img?id=136"],
-  },
-};
+// El título y el OG también salían con "12" a mano. Van por el mismo roster que la
+// página (getReapers está memoizada: no añade una lectura extra) y, si la lectura
+// falla, se cae a una redacción SIN número en vez de anunciar una cifra falsa.
+export async function generateMetadata(): Promise<Metadata> {
+  const n = REAPER_LIVE ? (await getReapers()).length : 0;
+  const title = n > 0 ? `The Order — ${n} Soul Reapers` : "The Order — Soul Reapers";
+  const long = n > 0
+    ? `${n} Cubist Souls burned 30 Pikkazos each and became Soul Reapers. The Order is closed — sealed on chain.`
+    : "Cubist Souls burned 30 Pikkazos each and became Soul Reapers. The Order is closed — sealed on chain.";
+  const short = n > 0
+    ? `${n} Souls. Thirty canvases each. The Order is closed.`
+    : "Thirty canvases each. The Order is closed.";
+  return {
+    title,
+    description: long,
+    alternates: { canonical: "/reapers" },
+    openGraph: {
+      type: "website",
+      title,
+      description: short,
+      url: "https://cubistsouls.com/reapers",
+      images: ["https://cubistsouls.com/api/img?id=136"],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description: short,
+      images: ["https://cubistsouls.com/api/img?id=136"],
+    },
+  };
+}
 
 // Tight vertical rhythm (Adrian 26-jul — "demasiados espacios muertos"): sections
 // hug their content and the reaper dividers are discreet.
@@ -57,11 +69,20 @@ export default async function ReapersPage() {
     getConsumed(),
   ]);
 
+  // ⚠️ El tamaño de la Orden ya NO se escribe a mano (04-ago): la Last Call de 48h
+  // reabrió las puertas y entraron dos más (#2852, #5728) mientras el hero seguía
+  // diciendo TWELVE con catorce en el roster de abajo. Ahora sale del propio roster,
+  // así que el día que la ventana cierre la página ya dice el número final sola.
+  // Roster vacío = fallo de lectura (TheOrder ya lo dice), NUNCA "cero": en ese caso
+  // la página habla de "The Order" sin número en vez de mentir con una cifra.
+  const orderSize = reapers.length;
+  const orderWord = orderSize > 0 ? numberWord(orderSize) : null;
+
   return (
     <div className="reaper">
       <div className="teaser-strip">
         <span className="ts-dot" />
-        The Order is closed · twelve, final
+        The Order is closed · {orderWord ? `${orderWord}, final` : "final"}
       </div>
       <Nav active="reapers" />
 
@@ -70,7 +91,7 @@ export default async function ReapersPage() {
       <header className="rp-hero">
         <div className="wrap">
           <span className="rp-kicker"><span className="scythe">🜃</span>The Order</span>
-          <h1 className="rp-title">THE <em>TWELVE</em></h1>
+          <h1 className="rp-title">THE <em>{orderWord ? orderWord.toUpperCase() : "ORDER"}</em></h1>
         </div>
       </header>
 
@@ -117,8 +138,8 @@ export default async function ReapersPage() {
           <details className={styles.fine}>
             <summary className={styles.fineSummary}>The closure — the fine print</summary>
             <ul className={styles.fineList}>
-              <li><b>The Order is twelve, and it is closed.</b> The rule lives in the contract: an offering is only accepted from a Soul already at 30 consumed.</li>
-              <li><b>The twelve keep reaping.</b> Burning more canvases still adds to their count — and to everything the count pays for.</li>
+              <li><b>The Order is closed{orderWord ? ` at ${orderWord}` : ""}.</b> The rule lives in the contract: an offering is only accepted from a Soul already at 30 consumed.</li>
+              <li><b>They keep reaping.</b> Burning more canvases still adds to their count — and to everything the count pays for.</li>
               <li><b>Two souls were mid-climb when the doors shut</b> (#1682 and #2474). They stay exactly where they stopped. The museum keeps that record.</li>
               <li>Every soul consumed by a reaper is <b>1 raffle ticket. Forever.</b></li>
               <li>Each reaper <b>inherits</b> the hours of every soul it consumed — +1 Museum Hour per hour, kept forever (up to 60).</li>
@@ -133,4 +154,15 @@ export default async function ReapersPage() {
       <Footer />
     </div>
   );
+}
+
+// 12 → "twelve". Fuera del rango, el dígito: la Orden nunca va a ser tan grande,
+// pero la página no se rompe si lo fuera.
+const WORDS = [
+  "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",
+  "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen", "sixteen",
+  "seventeen", "eighteen", "nineteen", "twenty",
+];
+function numberWord(n: number): string {
+  return WORDS[n] ?? String(n);
 }

@@ -80,7 +80,7 @@ export default function TheOrder({
           <span className={styles.orderScythe}>🜃</span>
           <p className={styles.orderEmptyLead}>The Order could not be read.</p>
           <p className={styles.orderEmptySub}>
-            Twelve reapers are on chain — this is a reader hiccup, not an empty roster.
+            The reapers are on chain — this is a reader hiccup, not an empty roster.
           </p>
         </div>
       )}
