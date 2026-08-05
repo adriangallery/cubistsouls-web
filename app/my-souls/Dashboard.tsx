@@ -43,6 +43,7 @@ export default function Dashboard({
   boardPhase,
   boardUpdatedAt,
   reaperLive,
+  custodyCount = 0,
   onTransferred,
 }: {
   mode: "self" | "public";
@@ -61,6 +62,9 @@ export default function Dashboard({
   boardPhase: DashPhase;
   boardUpdatedAt: number | null;
   reaperLive: boolean;
+  // souls kept behind this wallet's reapers: they count for the standing, but
+  // they are not in the wallet and cannot be picked or transferred
+  custodyCount?: number;
   // refresh after a batch send (mode "self" only — /curator stays read-only)
   onTransferred?: () => void;
 }) {
@@ -97,8 +101,8 @@ export default function Dashboard({
             </div>
           ) : null}
           <div className="dk-stat">
-            <b>{data.owned.length}</b>
-            <span>held now</span>
+            <b>{data.owned.length + custodyCount}</b>
+            <span>{custodyCount > 0 ? `held now · ${custodyCount} behind reapers` : "held now"}</span>
           </div>
         </div>
         {shareRow ? <div className="dk-actions">{shareRow}</div> : null}
@@ -126,7 +130,11 @@ export default function Dashboard({
         <Panel
           id="collection"
           title={mode === "self" ? "Your collection" : "Collection"}
-          meta={`${gridOwned.length} soul${gridOwned.length === 1 ? "" : "s"}`}
+          meta={
+            custodyCount > 0
+              ? `${gridOwned.length} in your wallet · ${custodyCount} behind your reapers`
+              : `${gridOwned.length} soul${gridOwned.length === 1 ? "" : "s"}`
+          }
           wide
         >
           {gridOwned.length ? (

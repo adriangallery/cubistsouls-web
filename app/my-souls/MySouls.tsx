@@ -170,6 +170,7 @@ export default function MySouls() {
         ) : (
           data && (
             <Dashboard
+          custodyCount={h.custody?.extra.length ?? 0}
               mode="self"
               data={data}
               shareRow={shareRow}
