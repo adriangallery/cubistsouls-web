@@ -5,6 +5,7 @@ import { usePublicClient } from "wagmi";
 import { loadSouls, tierOf, type SoulsData } from "@/lib/souls";
 import { buildMyMH, boardForAccount, type MyMHResult, type MHBoardResult, type BoardData } from "@/lib/mh";
 import { getReaperState, type ReaperState } from "@/lib/reaper";
+import { loadCustody, type Custody } from "@/lib/custody";
 import { mineFrom, type MineEntry } from "./MyReapers";
 import flags from "@/public/flags.json";
 
@@ -18,6 +19,7 @@ export type HolderPhase = "idle" | "loading" | "loaded" | "error";
 // same derived plaque figures. The only per-view difference is what the UI wraps
 // around this data (share/collab actions on self; identity header on public).
 export type HolderData = {
+  custody: Custody | null;
   phase: HolderPhase;
   data: SoulsData | null;
   reaper: Map<number, ReaperState> | null;
@@ -55,6 +57,7 @@ export function useHolderData(account: string | undefined, enabled = true): Hold
   const [phase, setPhase] = useState<HolderPhase>("idle");
   const [data, setData] = useState<SoulsData | null>(null);
   const [reaper, setReaper] = useState<Map<number, ReaperState> | null>(null);
+  const [custody, setCustody] = useState<Custody | null>(null);
   const [myMh, setMyMh] = useState<MyMHResult | null>(null);
   const [mhPhase, setMhPhase] = useState<HolderPhase>("idle");
   const [board, setBoard] = useState<MHBoardResult | null>(null);
@@ -67,6 +70,7 @@ export function useHolderData(account: string | undefined, enabled = true): Hold
     setPhase("idle");
     setData(null);
     setReaper(null);
+    setCustody(null);
     setMyMh(null);
     setBoard(null);
     setBoardUpdatedAt(null);
@@ -81,6 +85,7 @@ export function useHolderData(account: string | undefined, enabled = true): Hold
       setPhase("loading");
       setData(null);
       setReaper(null);
+    setCustody(null);
       setMyMh(null);
       setBoard(null);
       setBoardUpdatedAt(null);
@@ -106,16 +111,39 @@ export function useHolderData(account: string | undefined, enabled = true): Hold
         if (reqId !== reqRef.current) return;
         setData(d);
         setPhase("loaded");
+
+        // Souls kept behind a reaper this wallet holds — or fused into one of its
+        // Memento Mori — never left. They must count for hours, for the
+        // collection and for govern, and their clock must not have restarted.
+        let effective = d;
+        if (d.owned.length > 0) {
+          const state = REAPER_LIVE ? await getReaperState(client, d.owned) : new Map<number, ReaperState>();
+          const myReapers = [...state].filter(([, v]) => v.isReaper).map(([id]) => id);
+          if (myReapers.length) {
+            const cust = await loadCustody(client, acct, myReapers);
+            if (reqId !== reqRef.current) return;
+            if (cust.extra.length) {
+              setCustody(cust);
+              effective = {
+                ...d,
+                owned: [...new Set([...d.owned, ...cust.extra])].sort((a, b) => a - b),
+                acq: { ...d.acq, ...cust.acq },
+              };
+              setData(effective);
+            }
+          }
+        }
+        const dEff = effective;
         // Run the reaper + MH pass whenever the wallet HOLDS souls or has freed any —
         // covers pure holders (freed 0, bought on secondary) on the public profile.
-        if (d.owned.length > 0 || d.freed > 0) {
-          const rmap = REAPER_LIVE ? await getReaperState(client, d.owned) : new Map<number, ReaperState>();
+        if (dEff.owned.length > 0 || dEff.freed > 0) {
+          const rmap = REAPER_LIVE ? await getReaperState(client, dEff.owned) : new Map<number, ReaperState>();
           if (reqId !== reqRef.current) return;
           setReaper(rmap);
           const consumedById = new Map([...rmap].map(([id, s]) => [id, s.consumed]));
           setMhPhase("loading");
           try {
-            const my = await buildMyMH(client, acct, d.owned, d.freed, d.acq, consumedById, REAPER_LIVE);
+            const my = await buildMyMH(client, acct, dEff.owned, dEff.freed, dEff.acq, consumedById, REAPER_LIVE);
             if (reqId !== reqRef.current) return;
             setMyMh(my);
             setMhPhase("loaded");
@@ -149,6 +177,7 @@ export function useHolderData(account: string | undefined, enabled = true): Hold
   const tier = tierOf(contribution);
 
   return {
+    custody,
     phase,
     data,
     reaper,

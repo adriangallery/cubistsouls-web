@@ -23,6 +23,38 @@ import {
 // progress → one discreet line with a CTA, never a big empty panel.
 
 const IMG = (id: number) => `/api/img?id=${id}`;
+/// The museum's ceiling on the souls-behind bonus (mirrors weightParams).
+const BEHIND_CAP = 30;
+
+/// One measure of a reaper's power. They stack, so a new one is a new line — not
+/// a redesign.
+function PowerBar({
+  label,
+  value,
+  max,
+  note,
+  tone = "fire",
+}: {
+  label: string;
+  value: number;
+  max: number;
+  note?: string;
+  tone?: "fire" | "order";
+}) {
+  const pct = Math.min(100, max > 0 ? Math.round((value / max) * 100) : 0);
+  return (
+    <div className={`rm-power rm-power-${tone}`}>
+      <div className="rm-bar" role="progressbar" aria-valuenow={value} aria-valuemax={max} aria-label={label}>
+        <span style={{ width: `${pct}%` }} />
+      </div>
+      <div className="rm-prog">
+        <b>{value}</b>/{max}
+        <span className="rm-power-label">{label}</span>
+        {note ? <span className="rm-left">{note}</span> : null}
+      </div>
+    </div>
+  );
+}
 
 export type MineEntry = { id: number; consumed: number; marks: number[]; isReaper: boolean };
 
@@ -124,24 +156,24 @@ export default function MyReapers({
                     </>
                   )}
                 </div>
-                <div className="rm-bar" role="progressbar" aria-valuenow={e.consumed} aria-valuemax={ASCEND_AT}>
-                  <span style={{ width: `${pct}%` }} />
-                </div>
-                <div className="rm-prog">
-                  <b>{e.consumed}</b>/{ASCEND_AT}
-                  <span className="rm-left">
-                    {e.isReaper ? "ascended 🜃" : `${left} to ascend`}
-                  </span>
-                </div>
+                <PowerBar
+                  label="souls consumed"
+                  value={e.consumed}
+                  max={ASCEND_AT}
+                  note={e.isReaper ? "ascended 🜃" : `${left} to ascend`}
+                />
                 {e.isReaper && vaults.get(e.id)?.deployed ? (
-                  <div className="rm-marks">
-                    <span
-                      className={`rm-behind${(vaults.get(e.id)!.kept ?? 0) > 0 ? " on" : ""}`}
-                      title="Souls kept in this reaper's vault. Each adds a ticket to its odds in the draw, up to thirty. They are not burned — but they belong to the reaper: sell it and they go with it."
-                    >
-                      🜃 {vaults.get(e.id)!.kept || 0} soul{vaults.get(e.id)!.kept === 1 ? "" : "s"} behind it
-                    </span>
-                  </div>
+                  <PowerBar
+                    label="souls behind it"
+                    value={vaults.get(e.id)!.kept ?? 0}
+                    max={BEHIND_CAP}
+                    tone="order"
+                    note={
+                      (vaults.get(e.id)!.kept ?? 0) >= BEHIND_CAP
+                        ? "at the ceiling"
+                        : `+${vaults.get(e.id)!.kept ?? 0} tickets`
+                    }
+                  />
                 ) : null}
                 {e.isReaper && mode === "self" && vaults.get(e.id)?.deployed ? (
                   <button className="rm-reinforce" onClick={() => setReinforcing(e.id)}>
