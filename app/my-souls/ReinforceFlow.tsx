@@ -53,6 +53,7 @@ export default function ReinforceFlow({
   const [tab, setTab] = useState<"in" | "out">("in");
   const [kept, setKept] = useState<number[] | null>(null);
   const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [cap, setCap] = useState(30); // the museum's bonus ceiling, read on chain
   const [phase, setPhase] = useState<Phase>("idle");
   const [err, setErr] = useState<string | null>(null);
   const [hash, setHash] = useState<string | null>(null);
@@ -100,6 +101,15 @@ export default function ReinforceFlow({
       stale = true;
     };
   }, [client, vault, phase]);
+
+  // the ceiling comes from the contract, never from a number typed here
+  useEffect(() => {
+    if (!client) return;
+    client
+      .readContract({ address: SOULS, abi: ORDER_ABI, functionName: "weightParams" })
+      .then((p) => setCap(Number((p as readonly [number, number])[1])))
+      .catch(() => {});
+  }, [client]);
 
   const list = tab === "in" ? eligible : (kept ?? []);
   const label = tab === "in" ? "Place behind the reaper" : "Take back";
@@ -158,6 +168,9 @@ export default function ReinforceFlow({
   }, [walletClient, client, address, picked, chainId, switchChainAsync, tab, vault, onDone]);
 
   const keptCount = kept?.length ?? 0;
+  // how many more still buy odds — beyond this a soul is only stored, not counted
+  const roomLeft = Math.max(0, cap - keptCount);
+  const useless = tab === "in" ? Math.max(0, picked.size - roomLeft) : 0;
 
   return (
     <div className={styles.backdrop} onClick={onClose}>
@@ -187,6 +200,10 @@ export default function ReinforceFlow({
           <button className={`${styles.tab}${tab === "in" ? ` ${styles.tabOn}` : ""}`} onClick={() => setTab("in")}>
             Place souls
           </button>
+          <span className={styles.room}>
+            {keptCount}/{cap} counted
+            {roomLeft > 0 ? ` · ${roomLeft} still add odds` : " · at the ceiling"}
+          </span>
           <button className={`${styles.tab}${tab === "out" ? ` ${styles.tabOn}` : ""}`} onClick={() => setTab("out")}>
             Take back {keptCount > 0 ? `(${keptCount})` : ""}
           </button>
@@ -233,6 +250,13 @@ export default function ReinforceFlow({
               </div>
             )}
 
+            {useless > 0 ? (
+              <p className={styles.cap}>
+                Only <b>{Math.min(picked.size, roomLeft)}</b> of these will add odds — a reaper counts at most{" "}
+                <b>{cap}</b> souls, and this one already counts <b>{keptCount}</b>. The other{" "}
+                <b>{useless}</b> would be kept safe behind it, but change nothing in the draw.
+              </p>
+            ) : null}
             {err ? <p className={styles.err}>{err}</p> : null}
             <button className={styles.btn} disabled={picked.size === 0 || phase !== "idle"} onClick={send}>
               {phase === "wallet"
