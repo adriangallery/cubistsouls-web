@@ -139,6 +139,7 @@ export default function CuratorProfile({ param }: { param: string }) {
           <p className="note">Couldn&apos;t reach the chain right now. Try again in a moment.</p>
         ) : data && (data.freed > 0 || data.owned.length > 0) ? (
           <Dashboard
+          custodyCount={h.custody?.extra.length ?? 0}
             mode="public"
             data={data}
             address={target ?? ""}

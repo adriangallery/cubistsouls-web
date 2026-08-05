@@ -113,9 +113,15 @@ export function useHolderData(account: string | undefined, enabled = true): Hold
         setPhase("loaded");
 
         // Souls kept behind a reaper this wallet holds — or fused into one of its
-        // Memento Mori — never left. They must count for hours, for the
-        // collection and for govern, and their clock must not have restarted.
-        let effective = d;
+        // Memento Mori — never left, so they must count for hours and for the
+        // standing, with their clock intact.
+        //
+        // But they are NOT in the wallet, and `data.owned` is what every picker
+        // and every transfer builds on: offering them would produce a batch the
+        // chain rejects with NotYourSoul. So the literal wallet stays literal,
+        // custody rides alongside, and only the stats add the two together.
+        let effOwned = d.owned;
+        let effAcq = d.acq;
         if (d.owned.length > 0) {
           const state = REAPER_LIVE ? await getReaperState(client, d.owned) : new Map<number, ReaperState>();
           const myReapers = [...state].filter(([, v]) => v.isReaper).map(([id]) => id);
@@ -124,16 +130,12 @@ export function useHolderData(account: string | undefined, enabled = true): Hold
             if (reqId !== reqRef.current) return;
             if (cust.extra.length) {
               setCustody(cust);
-              effective = {
-                ...d,
-                owned: [...new Set([...d.owned, ...cust.extra])].sort((a, b) => a - b),
-                acq: { ...d.acq, ...cust.acq },
-              };
-              setData(effective);
+              effOwned = [...new Set([...d.owned, ...cust.extra])].sort((a, b) => a - b);
+              effAcq = { ...d.acq, ...cust.acq };
             }
           }
         }
-        const dEff = effective;
+        const dEff = { ...d, owned: effOwned, acq: effAcq };
         // Run the reaper + MH pass whenever the wallet HOLDS souls or has freed any —
         // covers pure holders (freed 0, bought on secondary) on the public profile.
         if (dEff.owned.length > 0 || dEff.freed > 0) {
