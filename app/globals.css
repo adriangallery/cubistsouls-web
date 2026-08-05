@@ -1181,3 +1181,7 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
 .rm-vault-eth{margin-left:auto;color:var(--reaper-lite)}
 .rm-vault-go{color:var(--mute)}
 .vessel-art{width:100%;aspect-ratio:1;display:block;image-rendering:pixelated;border-bottom:1px solid rgba(167,101,209,.28)}
+.rm-reinforce{display:block;width:100%;margin-top:.55rem;padding:.45rem .6rem;cursor:pointer;
+  font-family:var(--mono);font-size:.64rem;letter-spacing:.02em;color:#140408;
+  background:var(--reaper-lite);border:0;border-radius:8px}
+.rm-reinforce:hover{filter:brightness(1.08)}

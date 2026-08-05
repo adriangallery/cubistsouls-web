@@ -119,7 +119,7 @@ export default function Dashboard({
           mode={mode}
         />
 
-        {reaperLive ? <MyReapers mine={mine} mode={mode} /> : null}
+        {reaperLive ? <MyReapers mine={mine} mode={mode} owned={gridOwned} onChanged={onTransferred} /> : null}
 
         <MyVessels vessels={vessels} mode={mode} />
 

@@ -4,6 +4,7 @@ import Footer from "../components/Footer";
 import RiteMock from "./RiteMock";
 import TheOrder from "./TheOrder";
 import TheConsumed from "./TheConsumed";
+import TheDraw from "./TheDraw";
 import { getReapers, getRising, getConsumed, getReaperWindow } from "@/lib/chain";
 import flags from "@/public/flags.json";
 import styles from "./reapers.module.css";
@@ -108,6 +109,19 @@ export default async function ReapersPage() {
       <section className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB }}>
         <div className="wrap">
           <TheOrder live={REAPER_LIVE} reapers={reapers} rising={rising} />
+        </div>
+      </section>
+
+      <div className="rp-rule" style={RULE_M}><div className="line" /></div>
+
+      {/* ---------- THE DRAW — half of every burn, paid to one member ---------- */}
+      <section id="draw" className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB, scrollMarginTop: "80px" }}>
+        <div className="wrap">
+          <div className="sec-head" style={HEAD_MB}>
+            <span className="eyebrow">What the Order earns</span>
+            <h2>THE <span className="rp-hot">DRAW</span></h2>
+          </div>
+          <TheDraw />
         </div>
       </section>
 
