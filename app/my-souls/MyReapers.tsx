@@ -22,7 +22,10 @@ import {
 // soul shows the marks it forged (never a blend over the flat PNG). No reapers in
 // progress → one discreet line with a CTA, never a big empty panel.
 
-const IMG = (id: number) => `/api/img?id=${id}`;
+// The reaper as the chain currently has it: its marks, and the tide if its vault
+// keeps souls. One source for the art everywhere — the site can never show a
+// reaper the token itself would not.
+const IMG = (id: number) => `/api/reaper-img?id=${id}`;
 /// The museum's ceiling on the souls-behind bonus (mirrors weightParams).
 const BEHIND_CAP = 30;
 
@@ -128,7 +131,9 @@ export default function MyReapers({
       </div>
       <div className="rm-grid">
         {mine.map((e) => {
-          const stack = layerData ? composeStack(e.id, layerData, e.marks) : [];
+          // an ascended reaper is drawn by the compositor (it knows the tide); a
+          // soul still climbing keeps the crisp local vector stack
+          const stack = e.isReaper ? [] : layerData ? composeStack(e.id, layerData, e.marks) : [];
           const pct = Math.min(100, Math.round((e.consumed / ASCEND_AT) * 100));
           const left = Math.max(0, ASCEND_AT - e.consumed);
           return (

@@ -270,6 +270,53 @@ export function composeFromBase(
   return stack;
 }
 
+/// THE TIDE — the water pieces, by the slot code the on-chain renderer uses
+/// (0 background · 1 base · 3 head · 4 mouth · 6 nose · 8 fx). The eyes are not
+/// in here on purpose: they are what keeps a drowned reaper recognisable.
+export const WATER_BY_SLOT: Record<number, string> = {
+  0: `${T}/water/opensea.svg`,
+  1: `${T}/water/underwater-love.svg`,
+  3: `${T}/water/go-with-the-flow.svg`,
+  4: `${T}/water/cold-lips.svg`,
+  6: `${T}/water/touch-sea-grass.svg`,
+  8: `${T}/water/drowning-dreams.svg`,
+};
+
+const SLOT_BY_CODE: Record<number, Slot> = { 0: "ab", 1: "base", 3: "head", 4: "mouth", 6: "nose" };
+
+/// The stack a drowned reaper draws: the water takes the slots it has claimed,
+/// the clothes come off with it, the eyes never move. Mirrors SoulRendererV7 —
+/// if these two ever disagree, the chain is right.
+export function composeWithTide(
+  base: Partial<Record<Slot, string>>,
+  markKeys: (number | string)[],
+  depth: number,
+  order: number[],
+): string[] {
+  if (!depth || order.length < 6) return composeFromBase(base, markKeys);
+  const wet = new Set(order.slice(0, depth));
+  const marks = markKeys
+    .map((k) => (typeof k === "number" ? MARK_BY_ID.get(k) : REAPER_MARKS.find((m) => m.id === k)))
+    .filter(Boolean) as Mark[];
+  const bySlot: Partial<Record<Slot | "fx", string>> = {};
+  for (const m of marks) bySlot[m.slot] = m.file;
+
+  const stack: string[] = [];
+  for (const s of SLOT_ORDER) {
+    if (s === "clothes") continue; // the water takes the clothes with it
+    const code = Number(Object.keys(SLOT_BY_CODE).find((c) => SLOT_BY_CODE[Number(c)] === s) ?? -1);
+    if (code >= 0 && wet.has(code)) {
+      stack.push(WATER_BY_SLOT[code]);
+      continue;
+    }
+    const src = bySlot[s] ?? base[s];
+    if (src) stack.push(src);
+  }
+  if (wet.has(8)) stack.push(WATER_BY_SLOT[8]);
+  else if (bySlot.fx) stack.push(bySlot.fx);
+  return stack;
+}
+
 // The composed src stack for a token id, with the given worn marks substituting
 // their slots. If `data` is missing, returns [] (caller falls back to /api/img).
 export function composeStack(

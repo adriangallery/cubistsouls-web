@@ -25,6 +25,7 @@ import {
   bitmaskToMarkIds,
   baseLayersOf,
   composeFromBase,
+  composeWithTide,
   type LayerData,
   type TraitsIdx,
 } from "@/lib/reaper";
@@ -33,6 +34,13 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const SOULS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
+// THE TIDE. A reaper that keeps souls in its vault is taken by the water, one
+// piece every five souls. Depth and order are read from the on-chain renderer
+// itself, so this image can never disagree with the token's own metadata —
+// which is the point of putting the art on chain in the first place.
+const SEL_RENDERER = "0x8ada6b0f"; // renderer()
+const SEL_TIDE = "0x4c0a4877"; // tide(uint256) -> (depth, kept)
+const SEL_DROWN = "0x8348c1f3"; // drownOrder(uint256) -> uint8[6]
 const SEL_MARKS_OF = "0xfb115701"; // marksOf(uint256) -> uint256 bitmask
 const SEL_SOULS_CONSUMED = "0x5b99ce59"; // soulsConsumed(uint256) -> uint256
 const RPC = "https://gateway.tenderly.co/public/mainnet"; // only gateway that answers from a datacenter IP
@@ -104,6 +112,45 @@ async function readMarks(id: number): Promise<bigint | null> {
   return m;
 }
 
+/// A read against an arbitrary contract (the renderer, not the diamond).
+async function callAt(to: string, data: string): Promise<string | null> {
+  try {
+    const r = await fetch(RPC, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_call", params: [{ to, data }, "latest"] }),
+      signal: AbortSignal.timeout(4000),
+    });
+    const j = await r.json();
+    if (j.error || !j.result || j.result === "0x") return null;
+    return j.result as string;
+  } catch {
+    return null;
+  }
+}
+
+/// How deep the water has taken this reaper and the order it drowns in, read
+/// from the LIVE renderer so this image can never disagree with the token's own
+/// metadata. Fail-open to dry: a reader hiccup must not invent a transformation.
+async function readTide(id: number): Promise<{ depth: number; order: number[] } | null> {
+  const arg = id.toString(16).padStart(64, "0");
+  const rendererRaw = await callAt(SOULS, SEL_RENDERER);
+  if (!rendererRaw) return null;
+  const renderer = "0x" + rendererRaw.slice(-40);
+  const [tideRaw, orderRaw] = await Promise.all([
+    callAt(renderer, SEL_TIDE + arg),
+    callAt(renderer, SEL_DROWN + arg),
+  ]);
+  if (!tideRaw) return null;
+  const depth = parseInt(tideRaw.slice(2, 66), 16) || 0;
+  const order: number[] = [];
+  if (orderRaw) {
+    const body = orderRaw.slice(2);
+    for (let i = 0; i < 6; i++) order.push(parseInt(body.slice(i * 64, (i + 1) * 64), 16));
+  }
+  return { depth, order };
+}
+
 function imgRedirect(origin: string, id: number): Response {
   return Response.redirect(`${origin}/api/img?id=${id}`, 307);
 }
@@ -149,8 +196,19 @@ export async function GET(req: Request) {
   const data = await loadLayerDataServer();
   if (!data) return imgRedirect(origin, id); // layer data unavailable → fail-open
 
-  const stack = composeFromBase(baseLayersOf(id, data), markIds);
+  let stack = composeFromBase(baseLayersOf(id, data), markIds);
   if (stack.length === 0) return imgRedirect(origin, id); // nothing to draw (e.g. 1/1 with no vector set)
+
+  // THE TIDE — the same reading the token's own metadata makes. `?tide=` forces a
+  // depth for previews, exactly like `?marks=` does for the fire.
+  const forcedTide = url.searchParams.get("tide");
+  const tide =
+    forcedTide !== null
+      ? { depth: Math.max(0, Math.min(6, Number(forcedTide) || 0)), order: (await readTide(id))?.order ?? [] }
+      : await readTide(id);
+  if (tide && tide.depth > 0 && tide.order.length === 6) {
+    stack = composeWithTide(baseLayersOf(id, data), markIds, tide.depth, tide.order);
+  }
 
   const layers = await Promise.all(stack.map(rasterLayer));
   const composites = layers

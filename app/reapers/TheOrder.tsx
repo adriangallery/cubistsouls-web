@@ -36,7 +36,8 @@ export type OrderEntry = {
 };
 export type RisingEntry = { id: number; consumed: number; marks: number[]; holder?: string };
 
-const IMG = (id: number) => `/api/img?id=${id}`;
+// the composed art, which now carries the tide as well as the marks
+const IMG = (id: number) => `/api/reaper-img?id=${id}`;
 const SOULS_OS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
@@ -143,7 +144,9 @@ function OrderGrid({
   return (
     <div className={styles.orderGrid}>
       {list.map((r, i) => {
-        const stack = layerData ? composeStack(r.id, layerData, r.marks) : [];
+        // the compositor draws a member of the Order: it is the only place that
+        // knows how deep the water has taken it
+        const stack: string[] = [];
         return (
           <article className={styles.orderCard} key={`${r.id}-${i}`}>
             <div className="tryon-stack">
