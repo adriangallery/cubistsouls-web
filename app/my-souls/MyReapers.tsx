@@ -25,7 +25,7 @@ import {
 // The reaper as the chain currently has it: its marks, and the tide if its vault
 // keeps souls. One source for the art everywhere — the site can never show a
 // reaper the token itself would not.
-const IMG = (id: number) => `/api/reaper-img?id=${id}`;
+const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}`;
 /// The museum's ceiling on the souls-behind bonus (mirrors weightParams).
 const BEHIND_CAP = 30;
 
@@ -146,7 +146,12 @@ export default function MyReapers({
                   ))
                 ) : (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img className="lyr" src={IMG(e.id)} alt={`Soul #${e.id}`} loading="lazy" />
+                  <img
+                    className="lyr"
+                    src={IMG(e.id, vaults.get(e.id)?.kept ?? 0)}
+                    alt={`Soul #${e.id}`}
+                    loading="lazy"
+                  />
                 )}
               </div>
               <div className="rm-body">
