@@ -5,7 +5,7 @@ import RiteMock from "./RiteMock";
 import TheOrder from "./TheOrder";
 import TheConsumed from "./TheConsumed";
 import TheDraw from "./TheDraw";
-import { getReapers, getRising, getConsumed, getReaperWindow } from "@/lib/chain";
+import { getReapers, getRising, getConsumed, getReaperWindow, getReaperKept } from "@/lib/chain";
 import flags from "@/public/flags.json";
 import styles from "./reapers.module.css";
 
@@ -70,6 +70,9 @@ export default async function ReapersPage() {
     getConsumed(),
     getReaperWindow(),
   ]);
+  // La marea, leída aquí: el HTML ya sale pidiendo el arte correcto (antes salía
+  // con kept=0 y el cliente repetía las 16 imágenes con el número real).
+  const kept0 = await getReaperKept(reapers.map((r) => r.id));
 
   // ⚠️ El tamaño de la Orden ya NO se escribe a mano (04-ago): la Last Call de 48h
   // reabrió las puertas y entraron dos más (#2852, #5728) mientras el hero seguía
@@ -108,7 +111,7 @@ export default async function ReapersPage() {
       {/* ---------- THE TWELVE — straight to the roster, no second heading ------ */}
       <section className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB }}>
         <div className="wrap">
-          <TheOrder live={REAPER_LIVE} reapers={reapers} rising={rising} />
+          <TheOrder live={REAPER_LIVE} reapers={reapers} rising={rising} kept0={kept0} />
         </div>
       </section>
 

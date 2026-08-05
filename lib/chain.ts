@@ -546,6 +546,44 @@ export function fmtEth(wei: string): string {
   return frac ? `${whole}.${frac}` : `${whole}`;
 }
 
+/// HOW DEEP EACH REAPER IS DROWNED, read on the server.
+///
+/// The compositor needs this number to draw the right art, and until now it only
+/// reached it from the browser — so the server rendered every face with `kept=0`
+/// and the client immediately asked for the same faces again with the real
+/// number. Two fetches per reaper, and if the chain read behind the compositor
+/// ever hiccups on that first pass, the hint it falls back to is a lie (dry).
+///
+/// Reading it here fixes both: the HTML ships the right URL the first time.
+/// One `tide` call per member, memoized like every other reader, under an ISR of
+/// five minutes — so in practice a handful of calls per regeneration.
+const SEL_TIDE = "0x4c0a4877"; // tide(uint256) -> (uint8 depth, uint256 kept)
+let memoKept: Memo<Record<number, number>> | null = null;
+
+export async function getReaperKept(ids: number[]): Promise<Record<number, number>> {
+  if (fresh(memoKept)) return memoKept!.value;
+  if (!ids.length) return {};
+  try {
+    const out: Record<number, number> = {};
+    const res = await Promise.all(
+      ids.map((id) =>
+        rpc("eth_call", [{ to: SOULS, data: SEL_TIDE + id.toString(16).padStart(64, "0") }, "latest"])
+          .then((r: string) => (r && r.length >= 130 ? parseInt(r.slice(66, 130), 16) : 0))
+          .catch(() => null),
+      ),
+    );
+    ids.forEach((id, i) => {
+      if (res[i] !== null) out[id] = res[i] as number;
+    });
+    memoKept = { value: out, ts: Date.now() };
+    return out;
+  } catch {
+    // a reader hiccup must not blank the roster — last-good beats nothing, and
+    // nothing beats a wrong zero
+    return memoKept?.value ?? {};
+  }
+}
+
 export function fmtDate(sec: number): string {
   return new Date(sec * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }

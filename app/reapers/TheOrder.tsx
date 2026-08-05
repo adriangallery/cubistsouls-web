@@ -54,10 +54,14 @@ const ascDate = (ts?: number | null) =>
 export default function TheOrder({
   live = false,
   reapers = [],
+  kept0 = {},
   rising = [],
 }: {
   live?: boolean;
   reapers?: OrderEntry[];
+  /// souls kept per reaper, read on the SERVER so the first paint already asks
+  /// the compositor for the right art instead of a dry face it must replace
+  kept0?: Record<number, number>;
   rising?: RisingEntry[];
 }) {
   const [layerData, setLayerData] = useState<LayerData | null>(null);
@@ -82,7 +86,7 @@ export default function TheOrder({
     <>
       {/* THE prominent spot — real ascended reapers, or the reserved plate. */}
       {ascended.length > 0 ? (
-        <OrderGrid list={ascended} layerData={layerData} vaults={vaults} />
+        <OrderGrid list={ascended} layerData={layerData} vaults={vaults} kept0={kept0} />
       ) : (
         <div className={styles.orderEmpty}>
           <span className={styles.orderScythe}>🜃</span>
@@ -143,10 +147,12 @@ function OrderGrid({
   list,
   layerData,
   vaults,
+  kept0,
 }: {
   list: OrderEntry[];
   layerData: LayerData | null;
   vaults: Map<number, ReaperVault>;
+  kept0: Record<number, number>;
 }) {
   return (
     <div className={styles.orderGrid}>
@@ -167,7 +173,7 @@ function OrderGrid({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   className="lyr"
-                  src={IMG(r.id, vaults.get(r.id)?.kept ?? 0)}
+                  src={IMG(r.id, vaults.get(r.id)?.kept ?? kept0[r.id] ?? 0)}
                   alt={`Soul Reaper #${r.id}`}
                   loading="lazy"
                 />
