@@ -129,26 +129,65 @@ async function callAt(to: string, data: string): Promise<string | null> {
   }
 }
 
+// Two things that cannot change under us, so they are read once and kept: the
+// renderer address (a cut would change it, and a restart picks that up), and a
+// token's drowning order, which is a pure function of its id.
+let rendererCache: string | null = null;
+const orderCache = new Map<number, number[]>();
+const SOULS_PER_PIECE = 5; // one piece per five souls kept
+const MAX_DEPTH = 6;
+
+async function rendererAddress(): Promise<string | null> {
+  if (rendererCache) return rendererCache;
+  const raw = await callAt(SOULS, SEL_RENDERER);
+  if (!raw) return null;
+  rendererCache = "0x" + raw.slice(-40);
+  return rendererCache;
+}
+
+async function orderOf(renderer: string, id: number): Promise<number[] | null> {
+  const hit = orderCache.get(id);
+  if (hit) return hit;
+  const raw = await callAt(renderer, SEL_DROWN + id.toString(16).padStart(64, "0"));
+  if (!raw) return null;
+  const body = raw.slice(2);
+  const order: number[] = [];
+  for (let i = 0; i < 6; i++) order.push(parseInt(body.slice(i * 64, (i + 1) * 64), 16));
+  if (order.length === 6) orderCache.set(id, order);
+  return order;
+}
+
 /// How deep the water has taken this reaper and the order it drowns in, read
 /// from the LIVE renderer so this image can never disagree with the token's own
-/// metadata. Fail-open to dry: a reader hiccup must not invent a transformation.
-async function readTide(id: number): Promise<{ depth: number; order: number[] } | null> {
-  const arg = id.toString(16).padStart(64, "0");
-  const rendererRaw = await callAt(SOULS, SEL_RENDERER);
-  if (!rendererRaw) return null;
-  const renderer = "0x" + rendererRaw.slice(-40);
-  const [tideRaw, orderRaw] = await Promise.all([
-    callAt(renderer, SEL_TIDE + arg),
-    callAt(renderer, SEL_DROWN + arg),
+/// metadata.
+///
+/// The depth has a FALLBACK, and it matters: the caller already knows how many
+/// souls the vault keeps — it is in the URL — so a reader hiccup falls back to
+/// that instead of falling back to DRY. Showing a dry reaper because a node
+/// blinked would be showing the wrong piece, and the wrong piece is worse than
+/// a slow one.
+async function readTide(id: number, keptHint: number | null): Promise<{ depth: number; order: number[] } | null> {
+  const renderer = await rendererAddress();
+  if (!renderer) return hintOnly(keptHint);
+  const [tideRaw, order] = await Promise.all([
+    callAt(renderer, SEL_TIDE + id.toString(16).padStart(64, "0")),
+    orderOf(renderer, id),
   ]);
-  if (!tideRaw) return null;
-  const depth = parseInt(tideRaw.slice(2, 66), 16) || 0;
-  const order: number[] = [];
-  if (orderRaw) {
-    const body = orderRaw.slice(2);
-    for (let i = 0; i < 6; i++) order.push(parseInt(body.slice(i * 64, (i + 1) * 64), 16));
-  }
+  if (!order) return null; // without the order there is nothing to draw
+  const depth =
+    tideRaw !== null ? parseInt(tideRaw.slice(2, 66), 16) || 0 : depthFromKept(keptHint);
   return { depth, order };
+}
+
+function depthFromKept(kept: number | null): number {
+  if (!kept || kept < 0) return 0;
+  const d = Math.floor(kept / SOULS_PER_PIECE);
+  return d > MAX_DEPTH ? MAX_DEPTH : d;
+}
+
+function hintOnly(kept: number | null): { depth: number; order: number[] } | null {
+  const depth = depthFromKept(kept);
+  return depth > 0 ? null : { depth: 0, order: [] }; // no order, no drawing
 }
 
 function imgRedirect(origin: string, id: number): Response {
@@ -202,10 +241,15 @@ export async function GET(req: Request) {
   // THE TIDE — the same reading the token's own metadata makes. `?tide=` forces a
   // depth for previews, exactly like `?marks=` does for the fire.
   const forcedTide = url.searchParams.get("tide");
+  const keptParam = url.searchParams.get("kept");
+  const keptHint = keptParam !== null && keptParam !== "" ? Number(keptParam) : null;
   const tide =
     forcedTide !== null
-      ? { depth: Math.max(0, Math.min(6, Number(forcedTide) || 0)), order: (await readTide(id))?.order ?? [] }
-      : await readTide(id);
+      ? {
+          depth: Math.max(0, Math.min(6, Number(forcedTide) || 0)),
+          order: (await readTide(id, keptHint))?.order ?? [],
+        }
+      : await readTide(id, keptHint);
   if (tide && tide.depth > 0 && tide.order.length === 6) {
     stack = composeWithTide(baseLayersOf(id, data), markIds, tide.depth, tide.order);
   }
