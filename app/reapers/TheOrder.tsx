@@ -36,8 +36,11 @@ export type OrderEntry = {
 };
 export type RisingEntry = { id: number; consumed: number; marks: number[]; holder?: string };
 
-// the composed art, which now carries the tide as well as the marks
-const IMG = (id: number) => `/api/reaper-img?id=${id}`;
+// The composed art, which now carries the tide as well as the marks. The souls
+// the vault keeps go in the URL on purpose: the art changes whenever they do, so
+// the address has to change with it or a browser will keep showing yesterday's
+// tide for as long as it feels like.
+const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}`;
 const SOULS_OS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
@@ -158,7 +161,12 @@ function OrderGrid({
                 ))
               ) : (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img className="lyr" src={IMG(r.id)} alt={`Soul Reaper #${r.id}`} loading="lazy" />
+                <img
+                  className="lyr"
+                  src={IMG(r.id, vaults.get(r.id)?.kept ?? 0)}
+                  alt={`Soul Reaper #${r.id}`}
+                  loading="lazy"
+                />
               )}
             </div>
             <div className={styles.orderBody}>

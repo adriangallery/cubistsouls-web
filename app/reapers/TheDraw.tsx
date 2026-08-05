@@ -19,7 +19,7 @@ import styles from "./thedraw.module.css";
 
 // a member of the Order wears its marks: the composed art, never the plain
 // canvas it was freed from
-const IMG = (id: number) => `/api/reaper-img?id=${id}`;
+const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}`;
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
 
 export default function TheDraw() {
@@ -72,7 +72,7 @@ export default function TheDraw() {
           return (
             <div className={styles.row} key={m.id} role="listitem">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img className={styles.face} src={IMG(m.id)} alt={`Soul Reaper #${m.id}`} loading="lazy" />
+              <img className={styles.face} src={IMG(m.id, m.kept)} alt={`Soul Reaper #${m.id}`} loading="lazy" />
               <Link className={styles.id} href={`/reapers#${m.id}`}>
                 #{m.id}
               </Link>
