@@ -25,7 +25,11 @@ import {
 // The reaper as the chain currently has it: its marks, and the tide if its vault
 // keeps souls. One source for the art everywhere — the site can never show a
 // reaper the token itself would not.
-const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}`;
+// Bump when the compositor's output changes: it retires every cached image in
+// every browser at once. (Entries served during the flaky-read window were dry
+// when they should have been drowned, and a browser has no way to know that.)
+const ART_VERSION = "t2";
+const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
 /// The museum's ceiling on the souls-behind bonus (mirrors weightParams).
 const BEHIND_CAP = 30;
 

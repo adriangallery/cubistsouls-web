@@ -40,7 +40,11 @@ export type RisingEntry = { id: number; consumed: number; marks: number[]; holde
 // the vault keeps go in the URL on purpose: the art changes whenever they do, so
 // the address has to change with it or a browser will keep showing yesterday's
 // tide for as long as it feels like.
-const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}`;
+// Bump when the compositor's output changes: it retires every cached image in
+// every browser at once. (Entries served during the flaky-read window were dry
+// when they should have been drowned, and a browser has no way to know that.)
+const ART_VERSION = "t2";
+const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
 const SOULS_OS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
