@@ -7,6 +7,7 @@ import {
   loadLayerData,
   composeStack,
   getReaperVaults,
+  ensNameOf,
   vaultEtherscanUrl,
   fmtVaultEth,
   type LayerData,
@@ -204,10 +205,10 @@ function OrderGrid({
                   href={vaultEtherscanUrl(vaults.get(r.id)!.account)}
                   target="_blank"
                   rel="noreferrer"
-                  title="The reaper's vault — an on-chain account bound to the token itself. It travels with the reaper, wherever it hangs."
+                  title={`${ensNameOf(r.id)} is this reaper's vault — a real ENS name for an on-chain account bound to the token itself. Anyone can send to it, and it travels with the reaper wherever it hangs.`}
                 >
-                  <span className={styles.orderVaultMark}>⚱</span> vault{" "}
-                  {short(vaults.get(r.id)!.account)} · {fmtVaultEth(vaults.get(r.id)!.eth)} ↗
+                  <span className={styles.orderVaultMark}>⚱</span> {ensNameOf(r.id)} ·{" "}
+                  {fmtVaultEth(vaults.get(r.id)!.eth)} ↗
                 </a>
               ) : null}
             </div>

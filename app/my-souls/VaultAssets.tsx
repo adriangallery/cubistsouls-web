@@ -18,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useChainId, usePublicClient, useSwitchChain, useWalletClient } from "wagmi";
 import { mainnet } from "wagmi/chains";
 import { encodeFunctionData, formatEther, parseEther, isAddress, getAddress, parseAbi } from "viem";
+import { ensNameOf } from "@/lib/reaper";
 import styles from "./reinforce.module.css";
 
 const ACCOUNT_ABI = parseAbi([
@@ -38,10 +39,12 @@ type Kind = "erc721" | "erc1155" | "erc20";
 type Phase = "idle" | "wallet" | "pending" | "done";
 
 export default function VaultAssets({
+  reaperId,
   vault,
   holder,
   onDone,
 }: {
+  reaperId: number;
   vault: `0x${string}`;
   holder: `0x${string}`;
   onDone?: () => void;
@@ -61,6 +64,7 @@ export default function VaultAssets({
   const [phase, setPhase] = useState<Phase>("idle");
   const [err, setErr] = useState<string | null>(null);
   const [hash, setHash] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!client) return;
@@ -196,6 +200,28 @@ export default function VaultAssets({
       <p className={styles.lead}>
         This reaper&apos;s vault is a plain address: anyone can send it ETH or an NFT from any collection.
         Only you can take things out, and only while the reaper is yours.
+      </p>
+
+      {/* THE NAME. This is the half a holder actually needs to hand out, so it
+          is the thing set in type rather than a 42-character address. */}
+      <div className={styles.ensRow}>
+        <span className={styles.ensLabel}>Send to</span>
+        <button
+          className={styles.ensName}
+          onClick={() => {
+            navigator.clipboard?.writeText(ensNameOf(reaperId));
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1400);
+          }}
+          title="Copy this name"
+        >
+          {copied ? "copied ✓" : ensNameOf(reaperId)}
+        </button>
+      </div>
+      <p className={styles.fine}>
+        A real ENS name for this vault — paste it into any wallet instead of the address. Nothing was
+        registered for it: the museum&apos;s resolver works it out from the chain, so every reaper has had
+        one since the moment it ascended.
       </p>
 
       {/* ETH — what the draw pays, and what will be in here most of the time */}

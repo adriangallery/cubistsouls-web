@@ -115,3 +115,37 @@
   font-family: var(--mono); font-size: .6rem; color: var(--gild); margin: 0;
   border-top: 1px solid rgba(224,165,32,.25); padding-top: .6rem;
 }
+
+/* THE VAULT'S NAME — the one line a holder hands to somebody else, so it gets
+   the weight the address never deserved. */
+.ensRow {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
+  margin: 0.7rem 0 0.35rem;
+  padding: 0.55rem 0.7rem;
+  background: rgba(122, 63, 160, 0.14);
+  border: 1px solid rgba(167, 101, 209, 0.34);
+  border-radius: 10px;
+}
+.ensLabel {
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--mute);
+  flex-shrink: 0;
+}
+.ensName {
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  color: var(--bone);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  word-break: break-all;
+}
+.ensName:hover {
+  color: var(--reaper-lite);
+}

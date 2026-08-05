@@ -571,6 +571,20 @@ export async function getReaperVaults(
 
 export const vaultEtherscanUrl = (account: string) => `https://etherscan.io/address/${account}`;
 
+/// THE NAME OF A REAPER.
+///
+/// `136.cubistsouls.eth` is the vault of Soul Reaper #136 — a real ENS name that
+/// any wallet resolves. It takes no lookup to build because nothing was ever
+/// registered: the resolver on `cubistsouls.eth` COMPUTES the answer from the
+/// diamond, so every member has a name the moment it ascends and this page can
+/// print it from the id alone.
+///
+/// Resolver: 0xDAE5C3ab425D283781Ae33042a8b094EaDf91F56 (ENSIP-10 wildcard).
+export const ensNameOf = (id: number) => `${id}.cubistsouls.eth`;
+
+/// Where a holder goes to see the name the way the rest of the world sees it.
+export const ensProfileUrl = (id: number) => `https://app.ens.domains/${ensNameOf(id)}`;
+
 export function fmtVaultEth(wei: bigint): string {
   if (wei === 0n) return "Ξ0";
   const eth = Number(wei) / 1e18;

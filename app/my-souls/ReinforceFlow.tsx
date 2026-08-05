@@ -217,7 +217,7 @@ export default function ReinforceFlow({
         </div>
 
         {tab === "vault" ? (
-          <VaultAssets vault={vault} holder={(address ?? "0x0") as `0x${string}`} onDone={onDone} />
+          <VaultAssets reaperId={reaperId} vault={vault} holder={(address ?? "0x0") as `0x${string}`} onDone={onDone} />
         ) : phase === "done" ? (
           <div className={styles.done}>
             <p>

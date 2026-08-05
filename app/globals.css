@@ -1178,6 +1178,11 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
 .rm-vault:hover{border-color:var(--reaper-lite);background:rgba(122,63,160,.24)}
 .rm-vault-mark{font-size:.8rem;line-height:1}
 .rm-vault-addr{letter-spacing:.02em}
+/* the reaper's ENS name, click-to-copy: a button that has to look like the text
+   it replaced, not like a button */
+.rm-vault-name{font:inherit;color:var(--bone);letter-spacing:.02em;background:none;border:0;
+  padding:0;cursor:pointer;text-align:left}
+.rm-vault-name:hover{color:var(--reaper-lite)}
 .rm-vault-eth{margin-left:auto;color:var(--reaper-lite)}
 .rm-vault-go{color:var(--mute)}
 .vessel-art{width:100%;aspect-ratio:1;display:block;image-rendering:pixelated;border-bottom:1px solid rgba(167,101,209,.28)}
@@ -1194,3 +1199,8 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
 .rm-power .rm-bar{margin:0}
 .rm-power-order .rm-bar span{background:linear-gradient(90deg,var(--reaper),var(--reaper-lite))}
 .rm-power-label{font-size:.6rem;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+
+/* the one line under the roster that explains the reapers' ENS names */
+.rp-ens{margin:.9rem auto 0;max-width:52ch;text-align:center;font-size:.78rem;line-height:1.6;
+  color:var(--mute)}
+.rp-ens b{color:var(--bone);font-family:var(--mono);font-weight:400;font-size:.74rem}

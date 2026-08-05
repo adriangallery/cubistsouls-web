@@ -10,6 +10,7 @@ import {
   ASCEND_AT,
   getReaperVaults,
   vaultEtherscanUrl,
+  ensNameOf,
   fmtVaultEth,
   type LayerData,
   type ReaperState,
@@ -87,6 +88,8 @@ export default function MyReapers({
 }) {
   // which reaper's vault the holder is currently stocking
   const [reinforcing, setReinforcing] = useState<number | null>(null);
+  // which name was just copied, so the holder gets an answer to their click
+  const [copied, setCopied] = useState<number | null>(null);
   // every reaper this wallet holds — none of them may be used as fodder
   const reaperIds = new Set(mine.filter((e) => e.isReaper).map((e) => e.id));
   const [layerData, setLayerData] = useState<LayerData | null>(null);
@@ -195,20 +198,33 @@ export default function MyReapers({
                   </button>
                 ) : null}
                 {e.isReaper && vaults.get(e.id)?.deployed ? (
-                  <a
-                    className="rm-vault"
-                    href={vaultEtherscanUrl(vaults.get(e.id)!.account)}
-                    target="_blank"
-                    rel="noreferrer"
-                    title="The reaper's vault — an on-chain account bound to this token. Whoever holds the reaper commands it."
-                  >
+                  <div className="rm-vault">
                     <span className="rm-vault-mark">⚱</span>
-                    <span className="rm-vault-addr">
-                      {vaults.get(e.id)!.account.slice(0, 6)}…{vaults.get(e.id)!.account.slice(-4)}
-                    </span>
+                    {/* The name IS the address: anyone can send here from any
+                        wallet. Click copies it, because that is what a holder
+                        wants to do with it. */}
+                    <button
+                      className="rm-vault-name"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(ensNameOf(e.id));
+                        setCopied(e.id);
+                        setTimeout(() => setCopied((c) => (c === e.id ? null : c)), 1400);
+                      }}
+                      title={`Copy ${ensNameOf(e.id)} — anyone can send ether or an NFT to this name, from any wallet`}
+                    >
+                      {copied === e.id ? "copied ✓" : ensNameOf(e.id)}
+                    </button>
                     <span className="rm-vault-eth">{fmtVaultEth(vaults.get(e.id)!.eth)}</span>
-                    <span className="rm-vault-go">↗</span>
-                  </a>
+                    <a
+                      className="rm-vault-go"
+                      href={vaultEtherscanUrl(vaults.get(e.id)!.account)}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="The vault on Etherscan"
+                    >
+                      ↗
+                    </a>
+                  </div>
                 ) : null}
               </div>
             </article>

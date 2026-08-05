@@ -112,6 +112,13 @@ export default async function ReapersPage() {
       <section className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB }}>
         <div className="wrap">
           <TheOrder live={REAPER_LIVE} reapers={reapers} rising={rising} kept0={kept0} />
+          {/* Los nombres salen en cada tarjeta desde hoy; una linea basta para
+              explicar que son reales y que nadie tuvo que registrarlos. */}
+          <p className="rp-ens">
+            Every member carries a name: <b>{"<id>"}.cubistsouls.eth</b> is that reaper&apos;s vault, and{" "}
+            <b>cubistsouls.eth</b> is the museum itself. Nothing was registered for them — the resolver works
+            each one out from the chain, so a soul that ascends tomorrow already has its name today.
+          </p>
         </div>
       </section>
 
