@@ -19,6 +19,7 @@ import { mainnet } from "wagmi/chains";
 import { parseAbi } from "viem";
 import { SOULS } from "@/lib/souls";
 import { ORDER_ABI } from "@/lib/order";
+import VaultAssets from "./VaultAssets";
 import styles from "./reinforce.module.css";
 
 const IMG = (id: number) => `/api/img?id=${id}`;
@@ -50,7 +51,7 @@ export default function ReinforceFlow({
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
 
-  const [tab, setTab] = useState<"in" | "out">("in");
+  const [tab, setTab] = useState<"in" | "out" | "vault">("in");
   const [kept, setKept] = useState<number[] | null>(null);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [cap, setCap] = useState(30); // the museum's bonus ceiling, read on chain
@@ -200,16 +201,24 @@ export default function ReinforceFlow({
           <button className={`${styles.tab}${tab === "in" ? ` ${styles.tabOn}` : ""}`} onClick={() => setTab("in")}>
             Place souls
           </button>
-          <span className={styles.room}>
+          <span className={styles.room} hidden={tab === "vault"}>
             {keptCount}/{cap} counted
             {roomLeft > 0 ? ` · ${roomLeft} still add odds` : " · at the ceiling"}
           </span>
           <button className={`${styles.tab}${tab === "out" ? ` ${styles.tabOn}` : ""}`} onClick={() => setTab("out")}>
             Take back {keptCount > 0 ? `(${keptCount})` : ""}
           </button>
+          <button
+            className={`${styles.tab}${tab === "vault" ? ` ${styles.tabOn}` : ""}`}
+            onClick={() => setTab("vault")}
+          >
+            The vault
+          </button>
         </div>
 
-        {phase === "done" ? (
+        {tab === "vault" ? (
+          <VaultAssets vault={vault} holder={(address ?? "0x0") as `0x${string}`} onDone={onDone} />
+        ) : phase === "done" ? (
           <div className={styles.done}>
             <p>
               Done.{" "}
