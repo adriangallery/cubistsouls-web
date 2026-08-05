@@ -179,7 +179,8 @@ export default function ReinforceFlow({
         </p>
         <p className={styles.warn}>
           <b>They belong to the reaper, not to your wallet.</b> If you ever sell or send this reaper, every
-          soul standing behind it goes with it.
+          soul standing behind it goes with it. Reapers of your own are never offered here — one reaper
+          inside another would vanish from your panel and travel with that sale.
         </p>
 
         <div className={styles.tabs}>
