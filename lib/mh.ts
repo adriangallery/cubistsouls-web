@@ -16,6 +16,7 @@ import type { PublicClient } from "viem";
 import { parseAbiItem, zeroAddress } from "viem";
 import { SOULS, getLogsRange } from "./souls";
 import { getConsumedMap } from "./reaper";
+import { custodyOwners } from "./custody";
 
 export const MH_BASE = 1.0;
 export const MH_COHORT_MULT = [2.0, 1.5, 1.25, 1.0, 1.0]; // OG · Era I · II · III · IV
@@ -355,7 +356,7 @@ export async function computeBoardData(
   client: PublicClient,
   reaperLive = false,
 ): Promise<Omit<BoardData, "updatedAt">> {
-  const [rarity, xfers] = await Promise.all([getRarity(), getTransfers(client)]);
+  const [rarity, xfers, custody] = await Promise.all([getRarity(), getTransfers(client), custodyOwners(client)]);
 
   const lastXfer = new Map<number, { from: string; to: string; block: number }>();
   const freedBy = new Map<string, number>();
@@ -364,11 +365,14 @@ export async function computeBoardData(
     lastXfer.set(id, { from, to, block });
     if (from === MH_ZERO) freedBy.set(to, (freedBy.get(to) || 0) + 1);
   }
+  // A soul sitting in a reaper's vault belongs to whoever holds that reaper: the
+  // vault must never appear on the board as a curator of its own.
   const holdings = new Map<string, number[]>();
   for (const [id, x] of lastXfer) {
     if (x.to === MH_ZERO) continue;
-    if (!holdings.has(x.to)) holdings.set(x.to, []);
-    holdings.get(x.to)!.push(id);
+    const who = custody.get(x.to) ?? x.to;
+    if (!holdings.has(who)) holdings.set(who, []);
+    holdings.get(who)!.push(id);
   }
 
   const allIds = [...new Set(([] as number[]).concat(...holdings.values()))];

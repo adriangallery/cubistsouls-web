@@ -1189,3 +1189,8 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
   letter-spacing:.02em;color:var(--mute);background:rgba(122,63,160,.14);
   border:1px solid rgba(167,101,209,.3);padding:.28rem .6rem;border-radius:999px}
 .rm-behind.on{color:var(--bone);border-color:var(--reaper-lite);background:rgba(122,63,160,.3)}
+/* power bars — one line per measure of a reaper's strength */
+.rm-power{margin-top:.5rem}
+.rm-power .rm-bar{margin:0}
+.rm-power-order .rm-bar span{background:linear-gradient(90deg,var(--reaper),var(--reaper-lite))}
+.rm-power-label{font-size:.6rem;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
