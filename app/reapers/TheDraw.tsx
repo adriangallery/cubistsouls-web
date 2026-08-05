@@ -19,7 +19,11 @@ import styles from "./thedraw.module.css";
 
 // a member of the Order wears its marks: the composed art, never the plain
 // canvas it was freed from
-const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}`;
+// Bump when the compositor's output changes: it retires every cached image in
+// every browser at once. (Entries served during the flaky-read window were dry
+// when they should have been drowned, and a browser has no way to know that.)
+const ART_VERSION = "t2";
+const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
 
 export default function TheDraw() {

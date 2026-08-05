@@ -129,11 +129,20 @@ async function callAt(to: string, data: string): Promise<string | null> {
   }
 }
 
-// Two things that cannot change under us, so they are read once and kept: the
-// renderer address (a cut would change it, and a restart picks that up), and a
-// token's drowning order, which is a pure function of its id.
+// Reads are memoised the way the rest of the museum does it (see lib/chain.ts):
+// a warm answer is reused for a few minutes instead of touching a node on every
+// image. That is not only cheaper — it is what stopped the art flickering, since
+// the flicker was nine chained calls per page racing a 2011 machine's patience.
+//
+// Two of these never go stale on their own: the renderer address (only a cut
+// changes it, and a restart picks that up) and a token's drowning order, which
+// is pure maths on its id. The depth does change, so it carries a TTL — and the
+// image URL carries the kept count anyway, so a holder who just moved souls gets
+// a different address and never waits for the memo to expire.
 let rendererCache: string | null = null;
 const orderCache = new Map<number, number[]>();
+const TIDE_TTL_MS = 240_000; // 4 min, same as the museum's other readers
+const depthMemo = new Map<number, { depth: number; ts: number }>();
 const SOULS_PER_PIECE = 5; // one piece per five souls kept
 const MAX_DEPTH = 6;
 
@@ -169,13 +178,26 @@ async function orderOf(renderer: string, id: number): Promise<number[] | null> {
 async function readTide(id: number, keptHint: number | null): Promise<{ depth: number; order: number[] } | null> {
   const renderer = await rendererAddress();
   if (!renderer) return hintOnly(keptHint);
+  const warm = depthMemo.get(id);
+  const fresh = warm && Date.now() - warm.ts < TIDE_TTL_MS;
+
   const [tideRaw, order] = await Promise.all([
-    callAt(renderer, SEL_TIDE + id.toString(16).padStart(64, "0")),
+    fresh ? Promise.resolve(null) : callAt(renderer, SEL_TIDE + id.toString(16).padStart(64, "0")),
     orderOf(renderer, id),
   ]);
   if (!order) return null; // without the order there is nothing to draw
-  const depth =
-    tideRaw !== null ? parseInt(tideRaw.slice(2, 66), 16) || 0 : depthFromKept(keptHint);
+
+  let depth: number;
+  if (fresh) {
+    depth = warm!.depth;
+  } else if (tideRaw !== null) {
+    depth = parseInt(tideRaw.slice(2, 66), 16) || 0;
+    depthMemo.set(id, { depth, ts: Date.now() });
+  } else {
+    // the node did not answer: use what the caller already knows rather than
+    // drawing a dry reaper, which would be the wrong piece
+    depth = depthFromKept(keptHint);
+  }
   return { depth, order };
 }
 
