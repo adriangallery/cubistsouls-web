@@ -48,6 +48,8 @@ export default function MyReapers({
 }) {
   // which reaper's vault the holder is currently stocking
   const [reinforcing, setReinforcing] = useState<number | null>(null);
+  // every reaper this wallet holds — none of them may be used as fodder
+  const reaperIds = new Set(mine.filter((e) => e.isReaper).map((e) => e.id));
   const [layerData, setLayerData] = useState<LayerData | null>(null);
   useEffect(() => {
     if (mine.length) loadLayerData().then(setLayerData).catch(() => {});
@@ -174,7 +176,12 @@ export default function MyReapers({
           vault={vaults.get(reinforcing)!.account}
           // never offer the reaper itself: a token sealed inside its own vault
           // can never be moved again
-          eligible={owned.filter((id) => id !== reinforcing)}
+          // Never offer a reaper as fodder. Its own vault would end up nested
+          // inside another reaper's, it would vanish from this panel, and it
+          // would travel with a sale of the reaper holding it. (The reaper being
+          // reinforced is excluded for a harder reason: a token sealed inside
+          // its own vault can never be moved again.)
+          eligible={owned.filter((id) => id !== reinforcing && !reaperIds.has(id))}
           onDone={() => onChanged?.()}
           onClose={() => setReinforcing(null)}
         />
