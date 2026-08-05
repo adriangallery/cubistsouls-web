@@ -17,7 +17,9 @@ import { usePublicClient } from "wagmi";
 import { loadOrder, loadDraws, fmtEth, pct, type OrderState, type DrawRecord } from "@/lib/order";
 import styles from "./thedraw.module.css";
 
-const IMG = (id: number) => `/api/img?id=${id}`;
+// a member of the Order wears its marks: the composed art, never the plain
+// canvas it was freed from
+const IMG = (id: number) => `/api/reaper-img?id=${id}`;
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
 
 export default function TheDraw() {
