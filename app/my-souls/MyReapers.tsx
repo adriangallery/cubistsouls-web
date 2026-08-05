@@ -6,7 +6,6 @@ import ReinforceFlow from "./ReinforceFlow";
 import {
   loadLayerData,
   composeStack,
-  MARK_BY_ID,
   rankName,
   ASCEND_AT,
   getReaperVaults,
@@ -96,7 +95,6 @@ export default function MyReapers({
       <div className="rm-grid">
         {mine.map((e) => {
           const stack = layerData ? composeStack(e.id, layerData, e.marks) : [];
-          const marks = e.marks.map((m) => MARK_BY_ID.get(m)).filter(Boolean);
           const pct = Math.min(100, Math.round((e.consumed / ASCEND_AT) * 100));
           const left = Math.max(0, ASCEND_AT - e.consumed);
           return (
@@ -133,15 +131,16 @@ export default function MyReapers({
                     {e.isReaper ? "ascended 🜃" : `${left} to ascend`}
                   </span>
                 </div>
-                {marks.length > 0 && (
+                {e.isReaper && vaults.get(e.id)?.deployed ? (
                   <div className="rm-marks">
-                    {marks.map((m) => (
-                      <span className="rm-chip" key={m!.id}>
-                        {m!.name}
-                      </span>
-                    ))}
+                    <span
+                      className={`rm-behind${(vaults.get(e.id)!.kept ?? 0) > 0 ? " on" : ""}`}
+                      title="Souls kept in this reaper's vault. Each one adds a ticket to its odds in the draw, up to thirty. They are not burned — they can leave whenever you want."
+                    >
+                      🜃 {vaults.get(e.id)!.kept || 0} soul{vaults.get(e.id)!.kept === 1 ? "" : "s"} behind it
+                    </span>
                   </div>
-                )}
+                ) : null}
                 {e.isReaper && mode === "self" && vaults.get(e.id)?.deployed ? (
                   <button className="rm-reinforce" onClick={() => setReinforcing(e.id)}>
                     🜃 Place souls behind it

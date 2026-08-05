@@ -1185,3 +1185,7 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
   font-family:var(--mono);font-size:.64rem;letter-spacing:.02em;color:#140408;
   background:var(--reaper-lite);border:0;border-radius:8px}
 .rm-reinforce:hover{filter:brightness(1.08)}
+.rm-behind{display:inline-flex;align-items:center;gap:.35rem;font-family:var(--mono);font-size:.62rem;
+  letter-spacing:.02em;color:var(--mute);background:rgba(122,63,160,.14);
+  border:1px solid rgba(167,101,209,.3);padding:.28rem .6rem;border-radius:999px}
+.rm-behind.on{color:var(--bone);border-color:var(--reaper-lite);background:rgba(122,63,160,.3)}
