@@ -21,7 +21,7 @@
 .lead { font-size: .82rem; color: var(--mute); line-height: 1.6; margin: 0 0 .9rem; }
 .lead b { color: var(--bone); }
 
-.tabs { display: flex; gap: .4rem; margin-bottom: .8rem; }
+.tabs { display: flex; gap: .4rem; margin-bottom: .8rem; align-items: center; }
 .tab {
   font-family: var(--mono); font-size: .66rem; color: var(--mute); cursor: pointer;
   background: rgba(122,63,160,.12); border: 1px solid rgba(167,101,209,.28);
@@ -63,3 +63,13 @@
   border-radius: 10px; padding: .6rem .75rem; margin: 0 0 .9rem;
 }
 .warn b { color: var(--gild); }
+.room {
+  font-family: var(--mono); font-size: .6rem; color: var(--mute);
+  margin-left: auto; align-self: center;
+}
+.cap {
+  font-size: .76rem; line-height: 1.55; color: var(--mute);
+  background: rgba(224,165,32,.08); border: 1px solid rgba(224,165,32,.35);
+  border-radius: 10px; padding: .55rem .7rem; margin: .9rem 0 0;
+}
+.cap b { color: var(--gild); }
