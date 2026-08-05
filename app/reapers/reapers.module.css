@@ -1521,15 +1521,20 @@
   gap: 0.35rem;
   margin-top: 0.4rem;
   font-family: var(--mono);
-  font-size: 0.62rem;
-  letter-spacing: 0.02em;
+  /* El nombre + el saldo tienen que caber en UNA linea: si la pastilla se parte
+     (pasaba con los reapers que tienen ether, #487 y #8777), esa tarjeta crece y
+     rompe la alineacion de toda la fila. */
+  font-size: 0.58rem;
+  letter-spacing: 0;
+  white-space: nowrap;
+  max-width: 100%;
   color: var(--bone);
   text-decoration: none;
-  padding: 0.3rem 0.5rem;
+  padding: 0.3rem 0.45rem;
   background: rgba(122, 63, 160, 0.14);
   border: 1px solid rgba(167, 101, 209, 0.34);
   border-radius: 8px;
   transition: border-color 0.15s ease;
 }
 .orderVault:hover { border-color: var(--reaper-lite); }
-.orderVaultMark { font-size: 0.75rem; line-height: 1; }
+.orderVaultMark { font-size: 0.7rem; line-height: 1; flex-shrink: 0; }
