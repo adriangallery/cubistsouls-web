@@ -465,7 +465,12 @@ export const VAULT_ABI = parseAbi([
   "function reaperAccount(uint256 reaperId) view returns (address account, bool deployed)",
 ]);
 
-export type ReaperVault = { account: `0x${string}`; deployed: boolean; eth: bigint };
+export type ReaperVault = {
+  account: `0x${string}`;
+  deployed: boolean;
+  eth: bigint;
+  kept: number; // souls standing behind the reaper — its weight in the draw
+};
 
 export async function getReaperVaults(
   client: PublicClient,
@@ -494,11 +499,25 @@ export async function getReaperVaults(
       }
     }),
   );
+
+  // and how many souls stand behind each one — the thing that moves its odds
+  const KEPT_ABI = parseAbi(["function balanceOf(address owner) view returns (uint256)"]);
+  const keptRes = await client.multicall({
+    allowFailure: true,
+    contracts: res.map((r) => {
+      const account =
+        r.status === "success"
+          ? (r.result as readonly [`0x${string}`, boolean])[0]
+          : ("0x0000000000000000000000000000000000000000" as `0x${string}`);
+      return { address: SOULS, abi: KEPT_ABI, functionName: "balanceOf" as const, args: [account] as const };
+    }),
+  });
   ids.forEach((id, i) => {
     const r = res[i];
     if (r.status !== "success") return;
     const [account, deployed] = r.result as readonly [`0x${string}`, boolean];
-    out.set(id, { account, deployed, eth: balances[i] });
+    const kept = keptRes[i]?.status === "success" ? Number(keptRes[i].result as bigint) : 0;
+    out.set(id, { account, deployed, eth: balances[i], kept });
   });
   return out;
 }
