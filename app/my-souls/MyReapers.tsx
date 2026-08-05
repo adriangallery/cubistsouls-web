@@ -135,7 +135,7 @@ export default function MyReapers({
                   <div className="rm-marks">
                     <span
                       className={`rm-behind${(vaults.get(e.id)!.kept ?? 0) > 0 ? " on" : ""}`}
-                      title="Souls kept in this reaper's vault. Each one adds a ticket to its odds in the draw, up to thirty. They are not burned — they can leave whenever you want."
+                      title="Souls kept in this reaper's vault. Each adds a ticket to its odds in the draw, up to thirty. They are not burned — but they belong to the reaper: sell it and they go with it."
                     >
                       🜃 {vaults.get(e.id)!.kept || 0} soul{vaults.get(e.id)!.kept === 1 ? "" : "s"} behind it
                     </span>

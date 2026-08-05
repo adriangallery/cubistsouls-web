@@ -2,10 +2,12 @@
 
 // REINFORCE — put souls behind your reaper, or take them back.
 //
-// The whole point, said plainly wherever it appears: this is NOT burning. A soul
-// placed in a reaper's vault is not consumed and not spent. It stays the
-// holder's, it can leave whenever they want, and while it is there it adds a
-// ticket to that reaper's odds in the draw.
+// Said plainly wherever it appears, because both halves matter:
+//   • this is NOT burning — the soul is not consumed and not spent; and
+//   • the soul now belongs to the REAPER, not to the wallet. While you hold the
+//     reaper you can pull it out at any time, but if you sell the reaper, every
+//     soul standing behind it goes with the sale.
+// Getting the second half wrong would cost somebody their collection.
 //
 // Both directions are one transaction, using the batch courier already on the
 // diamond: in, the holder calls it; out, the vault calls it on the holder's
@@ -171,9 +173,13 @@ export default function ReinforceFlow({
 
         {/* the sentence that stops the confusion */}
         <p className={styles.lead}>
-          Souls placed here are <b>not burned</b> and <b>not spent</b>. They stay yours, held in the reaper&apos;s
-          own vault, and you can take them back or move them to another reaper whenever you like. While they
-          stand behind it, each one adds a ticket to this reaper&apos;s odds in the draw.
+          Souls placed here are <b>not burned</b> and <b>not spent</b> — each one adds a ticket to this
+          reaper&apos;s odds in the draw. While the reaper is yours you can take them back or move them
+          whenever you like.
+        </p>
+        <p className={styles.warn}>
+          <b>They belong to the reaper, not to your wallet.</b> If you ever sell or send this reaper, every
+          soul standing behind it goes with it.
         </p>
 
         <div className={styles.tabs}>
@@ -235,7 +241,8 @@ export default function ReinforceFlow({
                   : `${label} · ${picked.size || 0}`}
             </button>
             <p className={styles.fine}>
-              One transaction, no approvals. {tab === "in" ? "Souls remain yours the whole time." : null}
+              One transaction, no approvals.{" "}
+              {tab === "in" ? "Take them back at any time — while the reaper is yours." : null}
             </p>
           </>
         )}

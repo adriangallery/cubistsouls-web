@@ -57,3 +57,9 @@
 .fine { font-family: var(--mono); font-size: .6rem; color: var(--mute); margin-top: .6rem; }
 .done { text-align: center; padding: 1.2rem 0 .4rem; color: var(--bone); }
 .done a { color: var(--reaper-lite); }
+.warn {
+  font-size: .78rem; line-height: 1.55; color: var(--bone);
+  background: rgba(224,165,32,.08); border: 1px solid rgba(224,165,32,.42);
+  border-radius: 10px; padding: .6rem .75rem; margin: 0 0 .9rem;
+}
+.warn b { color: var(--gild); }
