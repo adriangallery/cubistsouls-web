@@ -557,17 +557,28 @@ export function fmtEth(wei: string): string {
 /// Reading it here fixes both: the HTML ships the right URL the first time.
 /// One `tide` call per member, memoized like every other reader, under an ISR of
 /// five minutes — so in practice a handful of calls per regeneration.
+/// ⚠️ `tide` vive en el RENDERER, no en el Diamond — pedírselo al Diamond
+/// revierte con FunctionNotFound y devuelve ceros silenciosos (o sea, reapers
+/// secos). Se pregunta primero por la dirección del renderer vivo, igual que
+/// hace el compositor, para que esta lectura no pueda contradecir al arte.
+const SEL_RENDERER = "0x8ada6b0f"; // renderer()
 const SEL_TIDE = "0x4c0a4877"; // tide(uint256) -> (uint8 depth, uint256 kept)
 let memoKept: Memo<Record<number, number>> | null = null;
+let rendererAddr: string | null = null; // inmutable en la práctica: se cachea sin TTL
 
 export async function getReaperKept(ids: number[]): Promise<Record<number, number>> {
   if (fresh(memoKept)) return memoKept!.value;
   if (!ids.length) return {};
   try {
+    if (!rendererAddr) {
+      const raw: string = await rpc("eth_call", [{ to: SOULS, data: SEL_RENDERER }, "latest"]);
+      if (!raw || raw.length < 42) return memoKept?.value ?? {};
+      rendererAddr = "0x" + raw.slice(-40);
+    }
     const out: Record<number, number> = {};
     const res = await Promise.all(
       ids.map((id) =>
-        rpc("eth_call", [{ to: SOULS, data: SEL_TIDE + id.toString(16).padStart(64, "0") }, "latest"])
+        rpc("eth_call", [{ to: rendererAddr, data: SEL_TIDE + id.toString(16).padStart(64, "0") }, "latest"])
           .then((r: string) => (r && r.length >= 130 ? parseInt(r.slice(66, 130), 16) : 0))
           .catch(() => null),
       ),
