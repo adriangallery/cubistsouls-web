@@ -1,0 +1,59 @@
+/* REINFORCE — placing souls behind a reaper, and taking them back. */
+.backdrop {
+  position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center;
+  background: rgba(6, 2, 4, .78); backdrop-filter: blur(3px); padding: 1rem;
+}
+.modal {
+  width: min(560px, 100%); max-height: 88vh; overflow-y: auto;
+  background: linear-gradient(180deg, rgba(30,8,16,.98), rgba(16,4,9,.98));
+  border: 1px solid rgba(167,101,209,.42); border-radius: 16px;
+  padding: clamp(1rem, 3vw, 1.4rem);
+  box-shadow: 0 30px 80px -30px rgba(0,0,0,.9);
+}
+.head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; margin-bottom: .6rem; }
+.title { font-family: var(--disp); font-weight: 800; color: var(--bone); font-size: 1rem; }
+.mark { color: var(--reaper-lite); }
+.close {
+  background: none; border: 0; color: var(--mute); font-size: 1rem; cursor: pointer; padding: .2rem .4rem;
+}
+.close:hover { color: var(--bone); }
+
+.lead { font-size: .82rem; color: var(--mute); line-height: 1.6; margin: 0 0 .9rem; }
+.lead b { color: var(--bone); }
+
+.tabs { display: flex; gap: .4rem; margin-bottom: .8rem; }
+.tab {
+  font-family: var(--mono); font-size: .66rem; color: var(--mute); cursor: pointer;
+  background: rgba(122,63,160,.12); border: 1px solid rgba(167,101,209,.28);
+  border-radius: 999px; padding: .38rem .8rem;
+}
+.tabOn { color: var(--bone); border-color: var(--reaper-lite); background: rgba(122,63,160,.3); }
+
+.grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: .4rem;
+  max-height: 300px; overflow-y: auto; padding: .25rem;
+  border: 1px solid rgba(167,101,209,.16); border-radius: 10px; background: rgba(20,4,8,.3);
+}
+.pick {
+  position: relative; border: 2px solid transparent; border-radius: 8px; overflow: hidden;
+  background: rgba(20,4,8,.4); padding: 0; cursor: pointer;
+}
+.pick img { width: 100%; aspect-ratio: 1; display: block; image-rendering: pixelated; }
+.pick span {
+  position: absolute; bottom: 2px; right: 3px; font-family: var(--mono); font-size: .52rem;
+  color: var(--bone); background: rgba(0,0,0,.6); padding: .06rem .26rem; border-radius: 5px;
+}
+.picked { border-color: var(--reaper-lite); box-shadow: 0 0 16px -6px rgba(167,101,209,.9); }
+
+.btn {
+  margin-top: 1rem; width: 100%; font-family: var(--disp); font-weight: 800;
+  text-transform: uppercase; letter-spacing: .04em; font-size: .82rem;
+  color: #140408; background: var(--reaper-lite); border: 0; border-radius: 999px;
+  padding: .7rem 1.2rem; cursor: pointer;
+}
+.btn:disabled { opacity: .35; cursor: not-allowed; }
+.dim { font-family: var(--mono); font-size: .74rem; color: var(--mute); padding: .8rem 0; }
+.err { font-family: var(--mono); font-size: .7rem; color: #ff7a7a; margin: .7rem 0 0; }
+.fine { font-family: var(--mono); font-size: .6rem; color: var(--mute); margin-top: .6rem; }
+.done { text-align: center; padding: 1.2rem 0 .4rem; color: var(--bone); }
+.done a { color: var(--reaper-lite); }

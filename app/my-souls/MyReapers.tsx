@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { usePublicClient } from "wagmi";
+import ReinforceFlow from "./ReinforceFlow";
 import {
   loadLayerData,
   composeStack,
@@ -35,7 +36,19 @@ export function mineFrom(reaper: Map<number, ReaperState> | null, owned: number[
     .sort((a, b) => b.consumed - a.consumed || a.id - b.id);
 }
 
-export default function MyReapers({ mine, mode = "self" }: { mine: MineEntry[]; mode?: "self" | "public" }) {
+export default function MyReapers({
+  mine,
+  mode = "self",
+  owned = [],
+  onChanged,
+}: {
+  mine: MineEntry[];
+  mode?: "self" | "public";
+  owned?: number[];
+  onChanged?: () => void;
+}) {
+  // which reaper's vault the holder is currently stocking
+  const [reinforcing, setReinforcing] = useState<number | null>(null);
   const [layerData, setLayerData] = useState<LayerData | null>(null);
   useEffect(() => {
     if (mine.length) loadLayerData().then(setLayerData).catch(() => {});
@@ -129,6 +142,11 @@ export default function MyReapers({ mine, mode = "self" }: { mine: MineEntry[]; 
                     ))}
                   </div>
                 )}
+                {e.isReaper && mode === "self" && vaults.get(e.id)?.deployed ? (
+                  <button className="rm-reinforce" onClick={() => setReinforcing(e.id)}>
+                    🜃 Place souls behind it
+                  </button>
+                ) : null}
                 {e.isReaper && vaults.get(e.id)?.deployed ? (
                   <a
                     className="rm-vault"
@@ -150,6 +168,18 @@ export default function MyReapers({ mine, mode = "self" }: { mine: MineEntry[]; 
           );
         })}
       </div>
+
+      {reinforcing !== null && vaults.get(reinforcing)?.account ? (
+        <ReinforceFlow
+          reaperId={reinforcing}
+          vault={vaults.get(reinforcing)!.account}
+          // never offer the reaper itself: a token sealed inside its own vault
+          // can never be moved again
+          eligible={owned.filter((id) => id !== reinforcing)}
+          onDone={() => onChanged?.()}
+          onClose={() => setReinforcing(null)}
+        />
+      ) : null}
     </section>
   );
 }
