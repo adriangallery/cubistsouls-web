@@ -579,7 +579,10 @@ export const vaultEtherscanUrl = (account: string) => `https://etherscan.io/addr
 /// diamond, so every member has a name the moment it ascends and this page can
 /// print it from the id alone.
 ///
-/// Resolver: 0xDAE5C3ab425D283781Ae33042a8b094EaDf91F56 (ENSIP-10 wildcard).
+/// Resolver: 0xbd3Cfd235D26D865431b99FF238D5443D49EA37d. It answers both ways a
+/// client can ask — the ENSIP-10 wildcard that modern libraries use, and the
+/// flat `addr(node)` that MetaMask mobile uses. The sixteen subdomains are also
+/// written into the ENS registry, because that flat path needs them to exist.
 export const ensNameOf = (id: number) => `${id}.cubistsouls.eth`;
 
 /// Where a holder goes to see the name the way the rest of the world sees it.
