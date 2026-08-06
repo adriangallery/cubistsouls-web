@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useFireOpen } from "@/lib/fire";
 import Panel from "../components/Panel";
 import { MHHero, BoardBody, type DashPhase } from "./MuseumParts";
 import { MH_COHORT_NAME, type MyMHResult, type MHExhibit, type MHBoardResult } from "@/lib/mh";
@@ -236,6 +237,9 @@ function MilestonesCard({
   mode?: "self" | "public";
 }) {
   const self = mode === "self";
+  // El rito de quemar esta cerrado en el contrato: los empujones que llevan a el
+  // se callan solos mientras lo este.
+  const fireOpen = useFireOpen();
   const nudges: { txt: ReactNode; href?: string }[] = [];
 
   // (a) a soul in the fire, closest to ascending (action link only on your own page)
@@ -248,7 +252,7 @@ function MilestonesCard({
             <b>{30 - rising.consumed}</b> more on #{rising.id} → SOUL REAPER
           </>
         ),
-        ...(self ? { href: "/reapers#rite" } : {}),
+        ...(self && fireOpen ? { href: "/reapers#rite" } : {}),
       });
     }
   }
@@ -366,6 +370,7 @@ function CohortChips({ exhibits, loading, reaperLive, mode = "self" }: { exhibit
   for (const e of exhibits) counts[e.cohort]++;
   const parts = counts.map((n, i) => (n > 0 ? { name: MH_COHORT_NAME[i], n } : null)).filter(Boolean) as { name: string; n: number }[];
   const og = counts[0];
+  const fireOpen = useFireOpen();
   if (loading) return <div className="mh-cohorts"><SkelLines n={1} /></div>;
   if (!parts.length) return null;
   return (
@@ -377,7 +382,7 @@ function CohortChips({ exhibits, loading, reaperLive, mode = "self" }: { exhibit
         </span>
       ))}
       {/* the scythe CTA is an action — only on your own page */}
-      {mode === "self" && reaperLive && og > 0 ? (
+      {mode === "self" && reaperLive && og > 0 && fireOpen ? (
         <a className="mh-cohorts-cta" href="/reapers#rite">
           OG souls can take the scythe →
         </a>

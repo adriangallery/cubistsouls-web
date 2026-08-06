@@ -595,6 +595,28 @@ export async function getReaperKept(ids: number[]): Promise<Record<number, numbe
   }
 }
 
+/// IS THE BURNING RITE OPEN? Read from the diamond so the page follows the
+/// contract instead of a flag in a file — Adrian closed it on 6-ago and the day
+/// he opens it again the section returns with no deploy.
+///
+/// On a reader hiccup it holds the last known answer, and failing that reports
+/// CLOSED: showing a ritual that can only produce failed transactions is worse
+/// than showing nothing.
+const SEL_PAUSED = "0x991573b2"; // reaperPaused()
+let memoFire: Memo<boolean> | null = null;
+
+export async function getFireOpen(): Promise<boolean> {
+  if (fresh(memoFire)) return memoFire!.value;
+  try {
+    const raw: string = await rpc("eth_call", [{ to: SOULS, data: SEL_PAUSED }, "latest"]);
+    const paused = raw !== null && parseInt(raw.slice(-1), 16) === 1;
+    memoFire = { value: !paused, ts: Date.now() };
+    return !paused;
+  } catch {
+    return memoFire?.value ?? false;
+  }
+}
+
 export function fmtDate(sec: number): string {
   return new Date(sec * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }

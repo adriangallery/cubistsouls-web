@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useFireOpen } from "@/lib/fire";
 import { useAccount, useSignMessage } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { useHolderData } from "../my-souls/useHolderData";
@@ -30,6 +31,7 @@ export default function MyEntries({ raffle, open }: { raffle: Raffle; open: bool
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const [mounted, setMounted] = useState(false);
+  const fireOpen = useFireOpen();
   useEffect(() => setMounted(true), []);
 
   const holder = useHolderData(address, mounted && isConnected);
@@ -178,7 +180,7 @@ export default function MyEntries({ raffle, open }: { raffle: Raffle; open: bool
       {open && earning >= 0 ? (
         <p className={styles.mineLead}>
           {consumed > 0 || ascended > 0 ? "Every canvas you burn from here adds another." : "Burn a Pikkazo and this number grows."}{" "}
-          <a href="/reapers#rite">Feed the fire →</a>
+          {fireOpen ? <a href="/reapers#rite">Feed the fire →</a> : null}
         </p>
       ) : null}
 

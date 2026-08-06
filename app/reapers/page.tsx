@@ -5,7 +5,7 @@ import RiteMock from "./RiteMock";
 import TheOrder from "./TheOrder";
 import TheConsumed from "./TheConsumed";
 import TheDraw from "./TheDraw";
-import { getReapers, getRising, getConsumed, getReaperWindow, getReaperKept } from "@/lib/chain";
+import { getReapers, getRising, getConsumed, getReaperWindow, getReaperKept, getFireOpen } from "@/lib/chain";
 import flags from "@/public/flags.json";
 import styles from "./reapers.module.css";
 
@@ -73,6 +73,9 @@ export default async function ReapersPage() {
   // La marea, leída aquí: el HTML ya sale pidiendo el arte correcto (antes salía
   // con kept=0 y el cliente repetía las 16 imágenes con el número real).
   const kept0 = await getReaperKept(reapers.map((r) => r.id));
+  // El rito de quemar esta cerrado en el contrato desde el 6-ago (reaperPaused).
+  // La seccion sigue a la cadena: el dia que se despause vuelve sola, sin deploy.
+  const fireOpen = await getFireOpen();
 
   // ⚠️ El tamaño de la Orden ya NO se escribe a mano (04-ago): la Last Call de 48h
   // reabrió las puertas y entraron dos más (#2852, #5728) mientras el hero seguía
@@ -135,22 +138,25 @@ export default async function ReapersPage() {
         </div>
       </section>
 
-      <div className="rp-rule" style={RULE_M}><div className="line" /></div>
-
-      {/* ---------- THE FIRE — still burning, members only ---------- */}
-      <section id="rite" className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB, scrollMarginTop: "80px" }}>
-        <div className="wrap">
-          <div className="sec-head" style={HEAD_MB}>
-            <span className="eyebrow">Members only</span>
-            <h2>FEED <span className="rp-hot">THE FIRE</span></h2>
-          </div>
-          <p className={styles.closedLead}>
-            A Soul Reaper can keep burning canvases forever — its count climbs past 30.
-            Any soul below 30 is refused by the contract itself.
-          </p>
-          <RiteMock live={REAPER_LIVE} />
-        </div>
-      </section>
+      {/* ---------- THE FIRE — only while the diamond accepts offerings ------- */}
+      {fireOpen ? (
+        <>
+          <div className="rp-rule" style={RULE_M}><div className="line" /></div>
+          <section id="rite" className="section" style={{ paddingTop: 0, paddingBottom: SEC_PB, scrollMarginTop: "80px" }}>
+            <div className="wrap">
+              <div className="sec-head" style={HEAD_MB}>
+                <span className="eyebrow">Members only</span>
+                <h2>FEED <span className="rp-hot">THE FIRE</span></h2>
+              </div>
+              <p className={styles.closedLead}>
+                A Soul Reaper can keep burning canvases forever — its count climbs past 30.
+                Any soul below 30 is refused by the contract itself.
+              </p>
+              <RiteMock live={REAPER_LIVE} />
+            </div>
+          </section>
+        </>
+      ) : null}
 
       <div className="rp-rule" style={RULE_M}><div className="line" /></div>
 

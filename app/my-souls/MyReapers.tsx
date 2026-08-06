@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { usePublicClient } from "wagmi";
 import ReinforceFlow from "./ReinforceFlow";
+import { useFireOpen } from "@/lib/fire";
 import {
   loadLayerData,
   composeStack,
@@ -88,6 +89,8 @@ export default function MyReapers({
 }) {
   // which reaper's vault the holder is currently stocking
   const [reinforcing, setReinforcing] = useState<number | null>(null);
+  // El rito esta cerrado en el contrato: no invitamos a algo que revierte.
+  const fireOpen = useFireOpen();
   // which name was just copied, so the holder gets an answer to their click
   const [copied, setCopied] = useState<number | null>(null);
   // every reaper this wallet holds — none of them may be used as fodder
@@ -116,9 +119,11 @@ export default function MyReapers({
       <div className="rm-none">
         <span className="rm-none-mark">🜃</span>
         <span>None of your souls carry the fire yet.</span>
-        <a className="rm-none-cta" href="/reapers#rite">
-          Take up the scythe →
-        </a>
+        {fireOpen ? (
+          <a className="rm-none-cta" href="/reapers#rite">
+            Take up the scythe →
+          </a>
+        ) : null}
       </div>
     );
   }
@@ -130,7 +135,7 @@ export default function MyReapers({
           <span className="rm-mark">🜃</span> {mode === "self" ? "YOUR REAPERS" : "REAPERS"}
         </span>
         <span className="rm-meta">{mine.length} in the fire</span>
-        {mode === "self" ? (
+        {mode === "self" && fireOpen ? (
           <a className="rm-cta" href="/reapers#rite">
             Feed the fire →
           </a>
