@@ -23,10 +23,29 @@
 }
 
 /* the comparison */
+/* DOS COLUMNAS a partir de tablet (Adrian 6-ago): dieciseis barras casi identicas
+   a lo ancho de la pagina eran mucho aire muerto. En columnas la lista se lee
+   de una ojeada y las diferencias de porcentaje quedan juntas para comparar.
+   Movil sigue en una sola columna: partir barras de 14px en dos no ayuda a nadie.
+   `columns` en vez de grid para que el orden sea POR COLUMNAS (1-8 izquierda,
+   9-16 derecha) — es un ranking y leerlo en zigzag lo estropearia. */
 .bars { display: flex; flex-direction: column; gap: .4rem; }
+@media (min-width: 760px) {
+  .bars {
+    display: block;
+    column-count: 2;
+    column-gap: 2rem;
+  }
+  .row { break-inside: avoid; margin-bottom: .4rem; }
+}
 .row {
   display: grid; grid-template-columns: 34px 54px 1fr 52px 96px;
   align-items: center; gap: .55rem;
+}
+/* en columna estrecha el texto de las almas ya no necesita 96px fijos */
+@media (min-width: 760px) {
+  .row { grid-template-columns: 30px 48px 1fr 46px 82px; gap: .45rem; }
+  .face { width: 30px; height: 30px; }
 }
 .face { width: 34px; height: 34px; border-radius: 6px; image-rendering: pixelated; display: block; }
 .id { font-family: var(--mono); font-size: .72rem; color: var(--bone); text-decoration: none; }

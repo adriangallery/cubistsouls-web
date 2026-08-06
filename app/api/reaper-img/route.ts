@@ -265,6 +265,9 @@ export async function GET(req: Request) {
   const forcedTide = url.searchParams.get("tide");
   const keptParam = url.searchParams.get("kept");
   const keptHint = keptParam !== null && keptParam !== "" ? Number(keptParam) : null;
+  // Both pinned => this URL names exactly one picture, forever (see Cache-Control).
+  const pinned =
+    forcedTide === null && keptHint !== null && Number.isFinite(keptHint) && url.searchParams.get("v") !== null;
   const tide =
     forcedTide !== null
       ? {
@@ -291,8 +294,23 @@ export async function GET(req: Request) {
       status: 200,
       headers: {
         "Content-Type": "image/png",
-        // Short cache: on-chain marks can change; refresh reasonably fast.
-        "Cache-Control": "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
+        // CACHE: a minute was far too short. Composing one of these takes the
+        // mini up to five seconds, and /reapers asks for sixteen at once — so a
+        // 60s cache meant re-rendering the whole Order every minute, per visitor.
+        // Under that load connections drop and the browser draws a broken image,
+        // which is exactly what holders were seeing.
+        //
+        // When the caller pins BOTH the tide (`kept`) and the art version (`v`),
+        // the URL already names its own content: the same address can never mean
+        // a different picture, because a reaper that gains a soul asks for a
+        // different `kept`. So it is safe to cache it forever — and a new version
+        // retires every old entry at once.
+        //
+        // Anything else (previews, `?tide=`, hand-typed URLs) keeps the old short
+        // cache, since those are not pinned to anything.
+        "Cache-Control": pinned
+          ? "public, max-age=31536000, immutable"
+          : "public, max-age=60, s-maxage=300, stale-while-revalidate=600",
       },
     });
   } catch {

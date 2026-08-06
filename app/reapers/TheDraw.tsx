@@ -22,7 +22,10 @@ import styles from "./thedraw.module.css";
 // Bump when the compositor's output changes: it retires every cached image in
 // every browser at once. (Entries served during the flaky-read window were dry
 // when they should have been drowned, and a browser has no way to know that.)
-const ART_VERSION = "t2";
+// t3 (6-ago): retira las entradas que quedaron envenenadas cuando el mini iba
+// ahogado — dos reapers salian rotos en el navegador aunque el servidor los
+// servia bien. Con el cache largo de /api/reaper-img esto ya no deberia repetirse.
+const ART_VERSION = "t3";
 const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
 
