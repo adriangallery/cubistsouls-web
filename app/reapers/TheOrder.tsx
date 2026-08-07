@@ -8,6 +8,7 @@ import {
   composeStack,
   getReaperVaults,
   ensNameOf,
+  BEHIND_CAP,
   vaultEtherscanUrl,
   fmtVaultEth,
   type LayerData,
@@ -213,6 +214,16 @@ function OrderGrid({
                   <span className={styles.orderVaultMark}>⚱</span> {ensNameOf(r.id)} ·{" "}
                   {fmtVaultEth(vaults.get(r.id)!.eth)} ↗
                 </a>
+              ) : null}
+              {/* EL TECHO. Quien envia desde OpenSea pegando el nombre no ve
+                  ninguno de nuestros avisos, y un alma de mas alli no da ningun
+                  boleto: se guarda y ya. Decirlo donde se copia el nombre es el
+                  unico sitio donde llega a tiempo. */}
+              {(vaults.get(r.id)?.kept ?? 0) >= BEHIND_CAP ? (
+                <div className={styles.orderFull} title="A reaper counts at most 30 souls toward the draw.">
+                  Vault full · {BEHIND_CAP}/{BEHIND_CAP} — more souls sent here are kept safe, but add no
+                  odds
+                </div>
               ) : null}
             </div>
           </article>

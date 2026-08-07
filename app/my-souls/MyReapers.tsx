@@ -12,6 +12,7 @@ import {
   getReaperVaults,
   vaultEtherscanUrl,
   ensNameOf,
+  BEHIND_CAP,
   fmtVaultEth,
   type LayerData,
   type ReaperState,
@@ -36,26 +37,34 @@ import {
 const ART_VERSION = "t3";
 const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
 /// The museum's ceiling on the souls-behind bonus (mirrors weightParams).
-const BEHIND_CAP = 30;
 
 /// One measure of a reaper's power. They stack, so a new one is a new line — not
 /// a redesign.
+/// Una barra de poder. `sealed` marca las que ya NO se mueven.
+///
+/// Las dos barras de un reaper significan lo contrario y se veian iguales: las
+/// almas consumidas son historia cerrada — irreversible, y desde que el fuego se
+/// apago tampoco puede crecer — mientras que las almas de la boveda entran y
+/// salen cuando el holder quiera. Pintarlas igual invitaba a confundirlas, que es
+/// justo el error caro: creer que meter almas en la boveda las quema.
 function PowerBar({
   label,
   value,
   max,
   note,
   tone = "fire",
+  sealed = false,
 }: {
   label: string;
   value: number;
   max: number;
   note?: string;
   tone?: "fire" | "order";
+  sealed?: boolean;
 }) {
   const pct = Math.min(100, max > 0 ? Math.round((value / max) * 100) : 0);
   return (
-    <div className={`rm-power rm-power-${tone}`}>
+    <div className={`rm-power rm-power-${tone}${sealed ? " rm-power-sealed" : ""}`}>
       <div className="rm-bar" role="progressbar" aria-valuenow={value} aria-valuemax={max} aria-label={label}>
         <span style={{ width: `${pct}%` }} />
       </div>
@@ -181,11 +190,21 @@ export default function MyReapers({
                     </>
                   )}
                 </div>
+                {/* Historia. Con el fuego apagado este numero ya no puede
+                    cambiar nunca, asi que no se promete un ascenso imposible:
+                    antes decia "N to ascend" a almas que ya no pueden llegar. */}
                 <PowerBar
                   label="souls consumed"
                   value={e.consumed}
                   max={ASCEND_AT}
-                  note={e.isReaper ? "ascended 🜃" : `${left} to ascend`}
+                  sealed={fireOpen === false}
+                  note={
+                    e.isReaper
+                      ? "ascended 🜃"
+                      : fireOpen === false
+                        ? "the fire is closed"
+                        : `${left} to ascend`
+                  }
                 />
                 {e.isReaper && vaults.get(e.id)?.deployed ? (
                   <PowerBar

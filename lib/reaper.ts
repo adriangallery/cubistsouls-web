@@ -583,6 +583,12 @@ export const vaultEtherscanUrl = (account: string) => `https://etherscan.io/addr
 /// client can ask — the ENSIP-10 wildcard that modern libraries use, and the
 /// flat `addr(node)` that MetaMask mobile uses. The sixteen subdomains are also
 /// written into the ENS registry, because that flat path needs them to exist.
+/// Cuantas almas de la boveda cuentan para el sorteo. La VERDAD esta en el
+/// contrato (`weightParams`) y el modal la lee de ahi antes de dejar firmar;
+/// esto es solo el valor por defecto para pintar barras y avisos sin esperar a
+/// una lectura. Si algun dia difieren, manda el contrato.
+export const BEHIND_CAP = 30;
+
 export const ensNameOf = (id: number) => `${id}.cubistsouls.eth`;
 
 /// Where a holder goes to see the name the way the rest of the world sees it.

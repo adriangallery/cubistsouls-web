@@ -1206,6 +1206,15 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
 .rm-power .rm-bar{margin:0}
 .rm-power-order .rm-bar span{background:linear-gradient(90deg,var(--reaper),var(--reaper-lite))}
 .rm-power-label{font-size:.6rem;letter-spacing:.04em;text-transform:uppercase;color:var(--mute)}
+/* SELLADA: historia cerrada, no una barra que aun se pueda mover. Se apaga el
+   relleno y se raya en diagonal para que no compita con la boveda, que si esta
+   viva. Confundirlas es el error caro: creer que meter almas en la boveda las
+   quema. */
+.rm-power-sealed{opacity:.62}
+.rm-power-sealed .rm-bar span{
+  background:repeating-linear-gradient(135deg,
+    rgba(214,120,60,.55) 0 5px, rgba(214,120,60,.22) 5px 10px)}
+.rm-power-sealed .rm-left{color:var(--mute);font-style:italic}
 
 /* the one line under the roster that explains the reapers' ENS names */
 .rp-ens{margin:.9rem auto 0;max-width:52ch;text-align:center;font-size:.78rem;line-height:1.6;

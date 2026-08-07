@@ -1538,3 +1538,17 @@
 }
 .orderVault:hover { border-color: var(--reaper-lite); }
 .orderVaultMark { font-size: 0.7rem; line-height: 1; flex-shrink: 0; }
+
+/* El aviso del techo, justo bajo el nombre que la gente copia para enviar desde
+   OpenSea: es el ultimo sitio donde llega a tiempo. */
+.orderFull {
+  margin-top: 0.35rem;
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  line-height: 1.5;
+  color: var(--reaper-lite);
+  background: rgba(122, 63, 160, 0.1);
+  border: 1px dashed rgba(167, 101, 209, 0.4);
+  border-radius: 7px;
+  padding: 0.3rem 0.45rem;
+}
