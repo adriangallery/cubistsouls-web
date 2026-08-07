@@ -22,7 +22,10 @@ import { ORDER_ABI } from "@/lib/order";
 import VaultAssets from "./VaultAssets";
 import styles from "./reinforce.module.css";
 
-const IMG = (id: number) => `/api/img?id=${id}`;
+// La rejilla dibuja sellos de ~60px: pedir el arte a resolucion completa eran
+// 330 KB por alma, o sea DIEZ MEGAS para treinta. De ahi los diez segundos en
+// blanco la primera vez que se abria.
+const IMG = (id: number) => `/api/img?id=${id}&w=160`;
 
 const BATCH_ABI = parseAbi(["function batchTransfer(address to, uint256[] tokenIds)"]);
 const ACCOUNT_ABI = parseAbi([
