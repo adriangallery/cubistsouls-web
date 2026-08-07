@@ -219,16 +219,13 @@ export default function MyReapers({
                     }
                   />
                 ) : null}
-                {/* UNA puerta, rotulada en las DOS direcciones. Antes decia solo
-                    "Place souls behind it" y por eso los holders preguntaban como
-                    sacarlas: la salida existia, detras de ese mismo boton, pero
-                    nada lo insinuaba. */}
+                {/* UNA puerta, y el nombre ya dice las dos direcciones: a una
+                    boveda se entra y se sale. Antes decia "Place souls behind it"
+                    y por eso los holders preguntaban como sacarlas -- la salida
+                    existia detras de ese mismo boton, pero nada lo insinuaba. */}
                 {e.isReaper && mode === "self" && vaults.get(e.id)?.deployed ? (
                   <button className="rm-reinforce" onClick={() => setReinforcing(e.id)}>
-                    <span className="rm-reinforce-t">
-                      <span className="rm-vault-mark">⚱</span> Open the vault
-                    </span>
-                    <span className="rm-reinforce-s">put souls in · take them out · withdraw ether</span>
+                    <span className="rm-vault-mark">⚱</span> Open the vault
                   </button>
                 ) : null}
                 {e.isReaper && vaults.get(e.id)?.deployed ? (

@@ -1171,13 +1171,6 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
 .amp{font-family:var(--disp);font-weight:800;letter-spacing:-.01em}
 
 /* the reaper's vault — ERC-6551 account line on ascended cards (my-souls) */
-/* La puerta de la boveda: dos lineas, porque el rotulo tiene que decir tanto
-   que se entra como que se sale. */
-.rm-reinforce{display:flex;flex-direction:column;align-items:center;gap:.15rem;line-height:1.3}
-.rm-reinforce-t{display:inline-flex;align-items:center;gap:.35rem}
-.rm-reinforce-s{font-family:var(--mono);font-size:.58rem;letter-spacing:.01em;opacity:.72;
-  text-transform:none;font-weight:400}
-
 .rm-vault{display:flex;align-items:center;gap:.45rem;margin-top:.55rem;padding:.4rem .55rem;
   font-family:var(--mono);font-size:.66rem;color:var(--bone);text-decoration:none;
   background:rgba(122,63,160,.14);border:1px solid rgba(167,101,209,.34);border-radius:8px;
@@ -1193,7 +1186,9 @@ a.lb-row.me.lb-link:hover{background:linear-gradient(90deg,rgba(224,165,32,.24),
 .rm-vault-eth{margin-left:auto;color:var(--reaper-lite)}
 .rm-vault-go{color:var(--mute)}
 .vessel-art{width:100%;aspect-ratio:1;display:block;image-rendering:pixelated;border-bottom:1px solid rgba(167,101,209,.28)}
-.rm-reinforce{display:block;width:100%;margin-top:.55rem;padding:.45rem .6rem;cursor:pointer;
+/* La puerta de la boveda. Una linea: el nombre ya dice las dos direcciones. */
+.rm-reinforce{display:flex;align-items:center;justify-content:center;gap:.35rem;
+  width:100%;margin-top:.55rem;padding:.45rem .6rem;cursor:pointer;
   font-family:var(--mono);font-size:.64rem;letter-spacing:.02em;color:#140408;
   background:var(--reaper-lite);border:0;border-radius:8px}
 .rm-reinforce:hover{filter:brightness(1.08)}
