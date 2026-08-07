@@ -198,8 +198,8 @@ export default function VaultAssets({
   return (
     <div className={styles.vaultTab}>
       <p className={styles.lead}>
-        This reaper&apos;s vault is a plain address: anyone can send it ETH or an NFT from any collection.
-        Only you can take things out, and only while the reaper is yours.
+        Besides souls, this vault can hold ether and NFTs from any collection. Anyone can send to it;
+        only you can take things out, and only while the reaper is yours.
       </p>
 
       {/* THE NAME. This is the half a holder actually needs to hand out, so it
@@ -249,7 +249,7 @@ export default function VaultAssets({
 
       {/* anything else — we do not index other collections, so we hand over the key */}
       <div className={styles.rescue}>
-        <span className={styles.assetLabel}>Anything else</span>
+        <span className={styles.assetLabel}>Anything else in here</span>
         <p className={styles.fine}>
           We do not index other collections, so nothing is listed here automatically. If you know something is
           in this vault, take it out with its contract address — nothing can get stranded.

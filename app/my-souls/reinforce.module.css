@@ -64,8 +64,11 @@
 }
 .warn b { color: var(--gild); }
 .room {
-  font-family: var(--mono); font-size: .6rem; color: var(--mute);
-  margin-left: auto; align-self: center;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--mute);
+  margin: 0.55rem 0 0.2rem;
+  text-align: center;
 }
 .cap {
   font-size: .76rem; line-height: 1.55; color: var(--mute);
@@ -149,3 +152,26 @@
 .ensName:hover {
   color: var(--reaper-lite);
 }
+
+/* «How this works»: el detalle a un clic, no delante de la cara. */
+.how {
+  font: inherit;
+  font-size: 0.78rem;
+  color: var(--reaper-lite);
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.how:hover { color: var(--bone); }
+.leadMore {
+  font-size: 0.82rem;
+  line-height: 1.6;
+  color: var(--mute);
+  margin: 0.5rem 0 0.7rem;
+  padding-left: 0.7rem;
+  border-left: 2px solid rgba(167, 101, 209, 0.34);
+}
+.leadMore b { color: var(--bone); font-family: var(--mono); font-size: 0.76rem; font-weight: 400; }

@@ -52,6 +52,9 @@ export default function ReinforceFlow({
   const { switchChainAsync } = useSwitchChain();
 
   const [tab, setTab] = useState<"in" | "out" | "vault">("in");
+  // La explicacion completa arranca PLEGADA: quien ya sabe lo que hace no deberia
+  // leer ochenta palabras antes de poder pulsar nada.
+  const [how, setHow] = useState(false);
   const [kept, setKept] = useState<number[] | null>(null);
   const [picked, setPicked] = useState<Set<number>>(new Set());
   const [cap, setCap] = useState(30); // the museum's bonus ceiling, read on chain
@@ -113,7 +116,6 @@ export default function ReinforceFlow({
   }, [client]);
 
   const list = tab === "in" ? eligible : (kept ?? []);
-  const label = tab === "in" ? "Place behind the reaper" : "Take back";
 
   const toggle = useCallback((id: number) => {
     setPicked((prev) => {
@@ -178,43 +180,56 @@ export default function ReinforceFlow({
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.head}>
           <span className={styles.title}>
-            <span className={styles.mark}>🜃</span> Soul Reaper #{reaperId}
+            <span className={styles.mark}>⚱</span> Vault of Soul Reaper #{reaperId}
           </span>
           <button className={styles.close} onClick={onClose} aria-label="Close">
             ✕
           </button>
         </div>
 
-        {/* the sentence that stops the confusion */}
+        {/* Una linea, y el detalle a un clic. El aviso de propiedad NO se pliega:
+            es el unico que puede costarle la coleccion a alguien. */}
         <p className={styles.lead}>
-          Souls placed here are <b>not burned</b> and <b>not spent</b> — each one adds a ticket to this
-          reaper&apos;s odds in the draw. While the reaper is yours you can take them back or move them
-          whenever you like.
+          Souls kept here are <b>not burned</b> and <b>not spent</b>. Put them in, take them out, whenever
+          you like.{" "}
+          <button className={styles.how} onClick={() => setHow((v) => !v)} aria-expanded={how}>
+            {how ? "Hide details" : "How this works"}
+          </button>
         </p>
+        {how ? (
+          <p className={styles.leadMore}>
+            Each soul in the vault adds one ticket to this reaper&apos;s odds in the draw, up to {cap}. The
+            vault is a real address of its own — <b>{`${reaperId}.cubistsouls.eth`}</b> — so anyone can send
+            it souls, ether or any NFT, from any wallet. Only you can take things out, and only while the
+            reaper is yours.
+          </p>
+        ) : null}
         <p className={styles.warn}>
           <b>They belong to the reaper, not to your wallet.</b> If you ever sell or send this reaper, every
-          soul standing behind it goes with it. Reapers of your own are never offered here — one reaper
-          inside another would vanish from your panel and travel with that sale.
+          soul in its vault goes with it. Reapers of your own are never offered here — one reaper inside
+          another would vanish from your panel and travel with that sale.
         </p>
 
+        {/* Tres puertas del mismo peso visual: meter, sacar, y lo que no son almas.
+            Antes "Take back" quedaba detras de un contador y parecia secundaria. */}
         <div className={styles.tabs}>
           <button className={`${styles.tab}${tab === "in" ? ` ${styles.tabOn}` : ""}`} onClick={() => setTab("in")}>
-            Place souls
+            ↓ Put souls in
           </button>
-          <span className={styles.room} hidden={tab === "vault"}>
-            {keptCount}/{cap} counted
-            {roomLeft > 0 ? ` · ${roomLeft} still add odds` : " · at the ceiling"}
-          </span>
           <button className={`${styles.tab}${tab === "out" ? ` ${styles.tabOn}` : ""}`} onClick={() => setTab("out")}>
-            Take back {keptCount > 0 ? `(${keptCount})` : ""}
+            ↑ Take souls out{keptCount > 0 ? ` (${keptCount})` : ""}
           </button>
           <button
             className={`${styles.tab}${tab === "vault" ? ` ${styles.tabOn}` : ""}`}
             onClick={() => setTab("vault")}
           >
-            The vault
+            Ether &amp; other
           </button>
         </div>
+        <p className={styles.room} hidden={tab === "vault"}>
+          {keptCount}/{cap} in the vault
+          {roomLeft > 0 ? ` · ${roomLeft} more still add odds` : " · at the ceiling, more are kept but add no odds"}
+        </p>
 
         {tab === "vault" ? (
           <VaultAssets reaperId={reaperId} vault={vault} holder={(address ?? "0x0") as `0x${string}`} onDone={onDone} />
@@ -235,12 +250,12 @@ export default function ReinforceFlow({
         ) : (
           <>
             {tab === "out" && kept === null ? (
-              <p className={styles.dim}>Reading what this reaper keeps…</p>
+              <p className={styles.dim}>Reading what is in the vault…</p>
             ) : list.length === 0 ? (
               <p className={styles.dim}>
                 {tab === "in"
                   ? "No free souls in your wallet right now."
-                  : "This reaper keeps no souls yet."}
+                  : "This vault is empty — there is nothing to take out yet."}
               </p>
             ) : (
               <div className={styles.grid}>
@@ -272,11 +287,19 @@ export default function ReinforceFlow({
                 ? "Confirm in wallet…"
                 : phase === "pending"
                   ? "Moving…"
-                  : `${label} · ${picked.size || 0}`}
+                  : picked.size === 0
+                    ? tab === "in"
+                      ? "Pick the souls to put in"
+                      : "Pick the souls to take out"
+                    : tab === "in"
+                      ? `Put ${picked.size} soul${picked.size === 1 ? "" : "s"} in the vault`
+                      : `Take ${picked.size} soul${picked.size === 1 ? "" : "s"} out`}
             </button>
             <p className={styles.fine}>
               One transaction, no approvals.{" "}
-              {tab === "in" ? "Take them back at any time — while the reaper is yours." : null}
+              {tab === "in"
+                ? "You can take them out again at any time — while the reaper is yours."
+                : "They go straight back to your wallet."}
             </p>
           </>
         )}

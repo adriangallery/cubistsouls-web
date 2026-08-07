@@ -189,7 +189,7 @@ export default function MyReapers({
                 />
                 {e.isReaper && vaults.get(e.id)?.deployed ? (
                   <PowerBar
-                    label="souls behind it"
+                    label="souls in the vault"
                     value={vaults.get(e.id)!.kept ?? 0}
                     max={BEHIND_CAP}
                     tone="order"
@@ -200,9 +200,16 @@ export default function MyReapers({
                     }
                   />
                 ) : null}
+                {/* UNA puerta, rotulada en las DOS direcciones. Antes decia solo
+                    "Place souls behind it" y por eso los holders preguntaban como
+                    sacarlas: la salida existia, detras de ese mismo boton, pero
+                    nada lo insinuaba. */}
                 {e.isReaper && mode === "self" && vaults.get(e.id)?.deployed ? (
                   <button className="rm-reinforce" onClick={() => setReinforcing(e.id)}>
-                    🜃 Place souls behind it
+                    <span className="rm-reinforce-t">
+                      <span className="rm-vault-mark">⚱</span> Open the vault
+                    </span>
+                    <span className="rm-reinforce-s">put souls in · take them out · withdraw ether</span>
                   </button>
                 ) : null}
                 {e.isReaper && vaults.get(e.id)?.deployed ? (
