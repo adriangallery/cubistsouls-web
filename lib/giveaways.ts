@@ -309,18 +309,37 @@ export async function getLinkByWallet(wallet: string): Promise<WalletLink | null
   }
 }
 
-/** wallet → "@username" (or null), batched for winner lists. */
-export async function handlesFor(wallets: string[]): Promise<(string | null)[]> {
+/** wallet → full link (or null), batched. */
+export async function linksFor(wallets: string[]): Promise<(WalletLink | null)[]> {
   if (wallets.length === 0) return [];
   const raws = (await redis(["MGET", ...wallets.map((w) => LINK_W(w))])) as (string | null)[];
   return raws.map((raw) => {
     if (!raw) return null;
     try {
-      return (JSON.parse(raw) as WalletLink).username ?? null;
+      return JSON.parse(raw) as WalletLink;
     } catch {
       return null;
     }
   });
+}
+
+/** wallet → "@username" (or null), batched for winner lists. */
+export async function handlesFor(wallets: string[]): Promise<(string | null)[]> {
+  return (await linksFor(wallets)).map((l) => l?.username ?? null);
+}
+
+/** The winner list as the feed and the wall publish it. The discordId is
+ *  there so SoulWatcher can TAG the winners in the drawn announcement —
+ *  the one moment the museum does call people out. */
+export async function winnersInfoFor(
+  winners: string[],
+): Promise<{ address: string; username: string | null; discordId: string | null }[]> {
+  const links = await linksFor(winners).catch(() => winners.map(() => null));
+  return winners.map((address, i) => ({
+    address,
+    username: links[i]?.username ?? null,
+    discordId: links[i]?.discordId ?? null,
+  }));
 }
 
 // ─── Bot-to-site auth (S2S) ──────────────────────────────────────────────

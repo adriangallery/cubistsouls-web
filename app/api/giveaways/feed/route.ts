@@ -3,7 +3,7 @@
 // published_log), so this endpoint stays stateless: same list every time,
 // newest first, compact fields only.
 
-import { entryCount, handlesFor, listGiveaways, storageConfigured } from "@/lib/giveaways";
+import { entryCount, listGiveaways, storageConfigured, winnersInfoFor } from "@/lib/giveaways";
 
 export const runtime = "nodejs";
 // Same trap as /api/giveaways: a parameterless GET would be frozen at build.
@@ -18,11 +18,9 @@ export async function GET() {
     const [counts, infos] = await Promise.all([
       Promise.all(items.map((g) => entryCount(g.id).catch(() => 0))),
       Promise.all(
-        items.map(async (g) => {
-          if (g.status !== "drawn" || g.winners.length === 0) return [];
-          const handles = await handlesFor(g.winners).catch(() => g.winners.map(() => null));
-          return g.winners.map((address, j) => ({ address, username: handles[j] }));
-        }),
+        items.map(async (g) =>
+          g.status === "drawn" && g.winners.length > 0 ? winnersInfoFor(g.winners) : [],
+        ),
       ),
     ]);
     return Response.json(

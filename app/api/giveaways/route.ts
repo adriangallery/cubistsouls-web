@@ -1,7 +1,7 @@
 // Public list of collab giveaways — what the /giveaways wall renders.
 // Entry signatures never leave the store; this is titles, counts and winners.
 
-import { entryCount, handlesFor, listGiveaways, storageConfigured, type Giveaway } from "@/lib/giveaways";
+import { entryCount, listGiveaways, storageConfigured, winnersInfoFor, type Giveaway } from "@/lib/giveaways";
 
 export const runtime = "nodejs";
 // A parameterless GET gets statically evaluated at build time unless told
@@ -12,8 +12,9 @@ export type PublicGiveaway = Omit<Giveaway, "createdBy"> & {
   entries: number;
   /** Only the name — the manager's Discord id stays server-side. */
   createdBy: string;
-  /** Winner handles (parallel to `winners`), for drawn giveaways. */
-  winnersInfo: { address: string; username: string | null }[];
+  /** Winner identities (parallel to `winners`), for drawn giveaways. The
+   *  discordId is what lets the bot tag winners in its announcement. */
+  winnersInfo: { address: string; username: string | null; discordId: string | null }[];
 };
 
 export async function GET() {
@@ -25,11 +26,9 @@ export async function GET() {
     const [counts, infos] = await Promise.all([
       Promise.all(items.map((g) => entryCount(g.id).catch(() => 0))),
       Promise.all(
-        items.map(async (g) => {
-          if (g.status !== "drawn" || g.winners.length === 0) return [];
-          const handles = await handlesFor(g.winners).catch(() => g.winners.map(() => null));
-          return g.winners.map((address, j) => ({ address, username: handles[j] }));
-        }),
+        items.map(async (g) =>
+          g.status === "drawn" && g.winners.length > 0 ? winnersInfoFor(g.winners) : [],
+        ),
       ),
     ]);
     const giveaways: PublicGiveaway[] = items.map((g, i) => ({
