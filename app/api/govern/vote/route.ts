@@ -27,6 +27,9 @@ async function redis(cmd: any[]) {
     method: "POST",
     headers: { Authorization: "Bearer " + ENV.UPSTASH_REDIS_REST_TOKEN, "content-type": "application/json" },
     body: JSON.stringify(cmd),
+    // Next's patched fetch can freeze a POST response in its Data Cache
+    // (bit the giveaways feed, 10-ago) - Redis commands are never cacheable.
+    cache: "no-store",
   });
   if (!r.ok) throw new Error("redis " + r.status);
   const j = await r.json();

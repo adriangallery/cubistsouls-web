@@ -36,6 +36,11 @@ export async function redis(cmd: unknown[]): Promise<unknown> {
       "content-type": "application/json",
     },
     body: JSON.stringify(cmd),
+    // Next patches fetch inside route handlers and will happily FREEZE a
+    // POST's first response in its Data Cache — the deployed feed served the
+    // pre-seed empty list forever while the store had data (10-ago). Redis
+    // commands are state reads, never cacheable.
+    cache: "no-store",
   });
   if (!r.ok) throw new Error("redis " + r.status);
   const j = await r.json();

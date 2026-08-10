@@ -40,6 +40,10 @@ async function redis(cmd: unknown[]) {
       "content-type": "application/json",
     },
     body: JSON.stringify(cmd),
+    // Same trap the giveaways feed hit (10-ago): Next's patched fetch can
+    // freeze a POST response in its Data Cache, and a frozen HLEN would pin
+    // the entry counter to whatever it said the first time it was asked.
+    cache: "no-store",
   });
   if (!r.ok) throw new Error("redis " + r.status);
   const j = await r.json();
