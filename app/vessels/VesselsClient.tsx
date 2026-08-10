@@ -22,10 +22,14 @@ import { loadSouls } from "@/lib/souls";
 import {
   UNION_SIZE,
   VESSEL_ABI,
+  RITE_ABI,
   getVessels,
   getAvailableCanvases,
   filterEligible,
+  splitVessels,
+  readRites,
   type VesselEntry,
+  type RiteState,
 } from "@/lib/vessel";
 import styles from "./vessels.module.css";
 
@@ -65,6 +69,14 @@ export default function VesselsClient() {
   const account = devAs ?? address;
   const connected = !!devAs || isConnected;
 
+  // THE RESURRECTION — private preview (Adrian 10-ago): the section only exists
+  // behind ?rite=1, in any environment, until the museum announces the rite.
+  // Same convention as the pre-launch ?reaper=1 gate.
+  const [riteFlag, setRiteFlag] = useState(false);
+  useEffect(() => {
+    setRiteFlag(new URLSearchParams(window.location.search).get("rite") === "1");
+  }, []);
+
   const [vessels, setVessels] = useState<VesselEntry[] | null>(null);
   const [fee, setFee] = useState<bigint | null>(null);
   const [eligible, setEligible] = useState<number[] | null>(null);
@@ -76,6 +88,15 @@ export default function VesselsClient() {
   const [phase, setPhase] = useState<"idle" | "wallet" | "pending" | "done">("idle");
   const [txHash, setTxHash] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
+
+  // rite state (only read behind the flag)
+  const [myVessels, setMyVessels] = useState<number[] | null>(null);
+  const [riteFee, setRiteFee] = useState<bigint | null>(null);
+  const [ritePaused, setRitePaused] = useState(false);
+  const [riteOnChain, setRiteOnChain] = useState<boolean | null>(null);
+  const [rites, setRites] = useState<Map<number, RiteState>>(new Map());
+  const [riteBusy, setRiteBusy] = useState<number | null>(null);
+  const [riteErr, setRiteErr] = useState<string | null>(null);
 
   useEffect(() => {
     if (!client) return;
@@ -117,6 +138,62 @@ export default function VesselsClient() {
       stale = true;
     };
   }, [client, account, reload]);
+
+  // read the keeper's vessels + their rite state (fail-soft pre-cut)
+  useEffect(() => {
+    if (!riteFlag || !client || !account) {
+      setMyVessels(null);
+      return;
+    }
+    let stale = false;
+    (async () => {
+      const data = await loadSouls(client, account);
+      const { vessels: mine } = await splitVessels(client, data.owned);
+      const rite = await readRites(client, mine);
+      if (stale) return;
+      setMyVessels(mine);
+      if (rite === null) {
+        setRiteOnChain(false);
+      } else {
+        setRiteOnChain(true);
+        setRiteFee(rite.fee);
+        setRitePaused(rite.paused);
+        setRites(rite.states);
+      }
+    })().catch(() => {
+      if (!stale) setMyVessels([]);
+    });
+    return () => {
+      stale = true;
+    };
+  }, [riteFlag, client, account, reload]);
+
+  const resurrect = useCallback(
+    async (vesselId: number) => {
+      if (!walletClient || !client || riteFee === null || riteBusy !== null) return;
+      setRiteErr(null);
+      setRiteBusy(vesselId);
+      try {
+        if (chainId !== mainnet.id) await switchChainAsync({ chainId: mainnet.id });
+        const hash = await walletClient.writeContract({
+          address: SOULS,
+          abi: RITE_ABI,
+          functionName: "resurrect",
+          args: [BigInt(vesselId)],
+          value: riteFee,
+        });
+        await client.waitForTransactionReceipt({ hash });
+        setReload((n) => n + 1);
+      } catch (e: unknown) {
+        const m =
+          (e as { shortMessage?: string; message?: string })?.shortMessage || (e as Error)?.message || "failed";
+        setRiteErr(/reject|denied/i.test(m) ? "The wallet said no — nothing moved." : m);
+      } finally {
+        setRiteBusy(null);
+      }
+    },
+    [walletClient, client, riteFee, riteBusy, chainId, switchChainAsync],
+  );
 
   const toggle = useCallback((id: number) => {
     setPicked((prev) => {
@@ -375,6 +452,70 @@ export default function VesselsClient() {
           </>
         )}
       </section>
+
+      {/* ---------- THE RESURRECTION — private preview, ?rite=1 only ---------- */}
+      {riteFlag ? (
+        <section className={styles.wing} aria-label="The resurrection">
+          <div className={styles.secHead}>
+            <span className={styles.eyebrow}>The wake rite</span>
+            <h2>
+              THE <span className={styles.hot}>RESURRECTION</span>
+            </h2>
+          </div>
+          <p className={styles.stepLead}>
+            A Memento Mori is born <b>dormant</b>. Its keeper may wake it —{" "}
+            <b>{riteFee !== null ? `Ξ${formatEther(riteFee)}` : "…"}</b> to the museum, one transaction. The
+            rite belongs to you and the piece together: <b>sell it and it falls dormant again</b> — the next
+            keeper must perform their own.
+          </p>
+          {!connected ? (
+            <div className={styles.connect}>
+              <ConnectButton />
+            </div>
+          ) : riteOnChain === false ? (
+            <p className={styles.dim}>The rite is not on-chain yet.</p>
+          ) : ritePaused ? (
+            <p className={styles.dim}>The rite is paused.</p>
+          ) : myVessels === null ? (
+            <p className={styles.dim}>Reading your vessels…</p>
+          ) : myVessels.length === 0 ? (
+            <p className={styles.dim}>You keep no Memento Mori yet — the rite waits for a vessel.</p>
+          ) : (
+            <div className={styles.grid}>
+              {myVessels.map((id) => {
+                const st = rites.get(id);
+                const awake = st?.awake ?? false;
+                return (
+                  <article className={styles.card} key={id}>
+                    <Masked id={id} className={styles.art} />
+                    <div className={styles.body}>
+                      <div className={styles.name}>
+                        <span className={styles.mark}>{awake ? "☥" : "⚱"}</span> Memento Mori #{id}
+                      </div>
+                      <div className={styles.sub}>
+                        {awake ? <b>awake — the rite holds while you do</b> : <b>dormant</b>}
+                        {st && st.count > 0 ? <> · resurrected {st.count}×</> : null}
+                      </div>
+                      {awake ? null : (
+                        <button
+                          className={styles.btn}
+                          disabled={riteBusy !== null || riteFee === null}
+                          onClick={() => resurrect(id)}
+                        >
+                          {riteBusy === id
+                            ? "Waking…"
+                            : `Resurrect · ${riteFee !== null ? `Ξ${formatEther(riteFee)}` : "…"}`}
+                        </button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+          {riteErr ? <p className={styles.err}>{riteErr}</p> : null}
+        </section>
+      ) : null}
 
       {/* ---------- THE WING — vessels already fused ---------- */}
       <section className={styles.wing} aria-label="Fused vessels">

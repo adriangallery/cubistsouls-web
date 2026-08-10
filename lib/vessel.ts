@@ -23,6 +23,59 @@ export const VESSEL_ABI = parseAbi([
   "event VesselFused(uint256 indexed vesselId, address indexed founder, address vault, string name, uint256[] members)",
 ]);
 
+// The wake rite (VesselResurrectionFacet). A Memento Mori is born dormant; its
+// CURRENT owner wakes it for the rite fee, and a transfer puts it back to sleep
+// (the rite is bound to the pair vessel+keeper, compared on-chain, no hooks).
+export const RITE_ABI = parseAbi([
+  "function resurrect(uint256 vesselId) payable",
+  "function isResurrected(uint256 vesselId) view returns (bool)",
+  "function resurrectorOf(uint256 vesselId) view returns (address)",
+  "function resurrectionsOf(uint256 vesselId) view returns (uint32)",
+  "function resurrectionFee() view returns (uint256)",
+  "function resurrectionPaused() view returns (bool)",
+]);
+
+export type RiteState = { awake: boolean; count: number };
+
+/// Rite state for a set of vessels. Returns null when the rite surface is not
+/// on-chain yet (pre-cut), so the client can hide the section instead of erroring.
+export async function readRites(
+  client: PublicClient,
+  vesselIds: number[],
+): Promise<{ fee: bigint; paused: boolean; states: Map<number, RiteState> } | null> {
+  try {
+    const fee = (await client.readContract({
+      address: SOULS,
+      abi: RITE_ABI,
+      functionName: "resurrectionFee",
+    })) as bigint;
+    const paused = (await client.readContract({
+      address: SOULS,
+      abi: RITE_ABI,
+      functionName: "resurrectionPaused",
+    })) as boolean;
+    const states = new Map<number, RiteState>();
+    if (vesselIds.length) {
+      const res = await client.multicall({
+        allowFailure: true,
+        contracts: vesselIds.flatMap((id) => [
+          { address: SOULS, abi: RITE_ABI, functionName: "isResurrected" as const, args: [BigInt(id)] as const },
+          { address: SOULS, abi: RITE_ABI, functionName: "resurrectionsOf" as const, args: [BigInt(id)] as const },
+        ]),
+      });
+      vesselIds.forEach((id, i) => {
+        states.set(id, {
+          awake: res[i * 2]?.status === "success" ? Boolean(res[i * 2].result) : false,
+          count: res[i * 2 + 1]?.status === "success" ? Number(res[i * 2 + 1].result) : 0,
+        });
+      });
+    }
+    return { fee, paused, states };
+  } catch {
+    return null; // pre-cut: the selector does not exist yet
+  }
+}
+
 const VESSEL_FUSED_EVENT = parseAbiItem(
   "event VesselFused(uint256 indexed vesselId, address indexed founder, address vault, string name, uint256[] members)",
 );
