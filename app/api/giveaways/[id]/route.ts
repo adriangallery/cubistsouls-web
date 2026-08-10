@@ -15,6 +15,7 @@ import {
   addEntry,
   entryCount,
   getGiveaway,
+  getLinkByWallet,
   giveawayEntryMessage,
   hasEntered,
   redis,
@@ -148,8 +149,17 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     /* a rate-limit hiccup must never drop a legitimate entry */
   }
 
+  // a linked wallet carries its Discord identity into the entry, so the
+  // winner list can greet the person and not just the hex
+  const link = await getLinkByWallet(address).catch(() => null);
   try {
-    await addEntry(id, address, sig);
+    await addEntry(
+      id,
+      address,
+      sig,
+      "web",
+      link ? { id: link.discordId, username: link.username } : undefined,
+    );
   } catch {
     return Response.json({ error: "store failed" }, { status: 502 });
   }

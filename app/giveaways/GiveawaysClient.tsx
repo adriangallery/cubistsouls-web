@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useAccount, useSignMessage } from "wagmi";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
-import { giveawayEntryMessage } from "@/lib/giveaways-client";
+import { giveawayEntryMessage, walletLinkMessage } from "@/lib/giveaways-client";
 import styles from "./giveaways.module.css";
 
 // The public wall. Each card is one partner draw; entering is a SIGNATURE,
@@ -22,14 +22,18 @@ export type GiveawayCard = {
   winnersCount: number;
   endsAt: number;
   requireSouls: number;
+  autoDraw?: boolean;
   status: "open" | "drawn" | "cancelled";
   createdAt: number;
   createdBy: string;
   drawnAt: number | null;
   seed: string | null;
   winners: string[];
+  winnersInfo?: { address: string; username: string | null }[];
   entries: number;
 };
+
+export type Me = { discordId: string; username: string; manager: boolean } | null;
 
 export function timeLeft(endsAt: number, now: number): string {
   const s = endsAt - now;
@@ -64,6 +68,8 @@ export default function GiveawaysClient() {
           entered with nothing but a signature.
         </p>
       </header>
+
+      <LinkPanel />
 
       {list === null ? (
         <p className={styles.empty}>Opening the room…</p>
@@ -139,11 +145,14 @@ function Card({ g, now }: { g: GiveawayCard; now: number }) {
             {g.winners.length === 0 ? (
               <p className={styles.prize}>Nobody entered. The wall stays bare.</p>
             ) : (
-              g.winners.map((w) => (
-                <span key={w} className={styles.winner}>
-                  {w.slice(0, 6)}…{w.slice(-4)}
-                </span>
-              ))
+              (g.winnersInfo?.length ? g.winnersInfo : g.winners.map((address) => ({ address, username: null }))).map(
+                (w) => (
+                  <span key={w.address} className={styles.winner}>
+                    {w.address.slice(0, 6)}…{w.address.slice(-4)}
+                    {w.username ? ` · @${w.username}` : ""}
+                  </span>
+                ),
+              )
             )}
             {g.seed ? <p className={styles.seed}>seed {g.seed} — the entry list + this seed always re-draws the same names</p> : null}
           </div>
@@ -153,6 +162,124 @@ function Card({ g, now }: { g: GiveawayCard; now: number }) {
         {ended ? <p className={styles.fine}>Entries closed — the draw is in the manager&apos;s hands now.</p> : null}
       </div>
     </article>
+  );
+}
+
+/**
+ * The wallet↔Discord link — what powers the one-click Enter button inside the
+ * server. One signature, once; after that, pressing Enter on a SoulWatcher
+ * embed enters THIS wallet. Deliberately its own quiet panel: entering from
+ * the web never requires it.
+ */
+function LinkPanel() {
+  const { address, isConnected } = useAccount();
+  const { signMessageAsync } = useSignMessage();
+  const [mounted, setMounted] = useState(false);
+  const [me, setMe] = useState<Me | undefined>(undefined);
+  const [linked, setLinked] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => setMounted(true), []);
+
+  useEffect(() => {
+    fetch("/api/auth/discord/me")
+      .then((r) => r.json())
+      .then((j: { session: Me }) => {
+        setMe(j.session);
+        if (j.session) {
+          fetch("/api/link")
+            .then((r) => r.json())
+            .then((l: { link: { wallet: string } | null }) => setLinked(l.link?.wallet ?? null))
+            .catch(() => setLinked(null));
+        }
+      })
+      .catch(() => setMe(null));
+  }, []);
+
+  const link = useCallback(async () => {
+    if (!address || !me) return;
+    setErr(null);
+    setBusy(true);
+    try {
+      const sig = await signMessageAsync({ message: walletLinkMessage(me.discordId, address) });
+      const r = await fetch("/api/link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ address, sig }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "could not link");
+      setLinked(j.link.wallet);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "something went wrong";
+      setErr(/rejected|denied|User rejected/i.test(msg) ? null : msg);
+    } finally {
+      setBusy(false);
+    }
+  }, [address, me, signMessageAsync]);
+
+  const unlink = useCallback(async () => {
+    setBusy(true);
+    try {
+      await fetch("/api/link", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ unlink: true }),
+      });
+      setLinked(null);
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
+  if (!mounted || me === undefined) return null;
+
+  return (
+    <section className={styles.linkPanel}>
+      <span className={styles.winnersK}>⚡ One-click entries from Discord</span>
+      {me === null ? (
+        <div className={styles.enterRow}>
+          <p className={styles.prize}>
+            Link a wallet to your Discord and the Enter button on SoulWatcher&apos;s announcements
+            works with a single press — no site visit, no signature each time.
+          </p>
+          <a className={styles.discordBtn} href="/api/auth/discord/login?next=/giveaways">
+            Sign in with Discord
+          </a>
+        </div>
+      ) : linked ? (
+        <div className={styles.enterRow}>
+          <span className={styles.inChip}>
+            ✓ {linked.slice(0, 6)}…{linked.slice(-4)} linked to @{me.username}
+          </span>
+          <button className={styles.linkBtn} onClick={unlink} disabled={busy}>
+            Unlink
+          </button>
+          {isConnected && address && address.toLowerCase() !== linked ? (
+            <button className={styles.linkBtn} onClick={link} disabled={busy}>
+              {busy ? "…" : `Re-link to ${address.slice(0, 6)}…${address.slice(-4)}`}
+            </button>
+          ) : null}
+        </div>
+      ) : !isConnected ? (
+        <div className={styles.enterRow}>
+          <p className={styles.prize}>
+            Signed in as <b>@{me.username}</b>. Connect the wallet you want the Enter button to use.
+          </p>
+          <ConnectButton chainStatus="none" showBalance={false} accountStatus="address" />
+        </div>
+      ) : (
+        <div className={styles.enterRow}>
+          <button className={styles.enterBtn} onClick={link} disabled={busy}>
+            {busy
+              ? "Sign in your wallet…"
+              : `Link ${address!.slice(0, 6)}…${address!.slice(-4)} to @${me.username}`}
+          </button>
+          <span className={styles.fine}>One signature, once. Free.</span>
+        </div>
+      )}
+      {err ? <p className={styles.err}>{err}</p> : null}
+    </section>
   );
 }
 

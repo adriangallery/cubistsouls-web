@@ -69,6 +69,9 @@ export type Giveaway = {
   endsAt: number;
   /** ≥1 → the wallet must hold that many souls when it enters. 0 = anyone. */
   requireSouls: number;
+  /** When true the bot's poller settles the draw the moment the close passes —
+   *  no manager click needed. Off by default: some collabs want the drama. */
+  autoDraw?: boolean;
   status: GiveawayStatus;
   createdAt: number;
   createdBy: { discordId: string; username: string };
@@ -76,6 +79,10 @@ export type Giveaway = {
   drawnAt: number | null;
   seed: string | null;
   winners: string[];
+  /** Replacements made after the draw (a winner unreachable, a partner rule).
+   *  Each re-roll is itself seeded off the original seed, so the whole chain
+   *  stays replayable from the entry list. */
+  rerolls?: { out: string; in: string | null; ts: number }[];
 };
 
 const ITEM = (id: number) => `cs:ga:item:${id}`;
@@ -138,12 +145,21 @@ export async function hasEntered(id: number, address: string): Promise<boolean> 
   return (await redis(["HGET", ENTRIES(id), address.toLowerCase()])) != null;
 }
 
-export async function addEntry(id: number, address: string, sig: string): Promise<void> {
+/** One row per wallet. `src` records how it came in (web signature vs the
+ *  Discord button); `d` carries the Discord identity when one is known, so
+ *  winner lists can show a handle next to the address. */
+export async function addEntry(
+  id: number,
+  address: string,
+  sig: string,
+  src: "web" | "discord" = "web",
+  d?: { id: string; username: string },
+): Promise<void> {
   await redis([
     "HSET",
     ENTRIES(id),
     address.toLowerCase(),
-    JSON.stringify({ sig, ts: Math.floor(Date.now() / 1000) }),
+    JSON.stringify({ sig, ts: Math.floor(Date.now() / 1000), src, ...(d ? { d } : {}) }),
   ]);
 }
 
@@ -188,6 +204,136 @@ export function drawWinners(addresses: string[], seed: string, count: number): s
 
 export function makeSeed(): string {
   return "0x" + randomBytes(32).toString("hex");
+}
+
+/** The draw, executed and persisted — one definition shared by the desk's
+ *  button and the bot's auto-draw, so they can never disagree. Caller has
+ *  already decided the draw is allowed. */
+export async function drawAndSave(g: Giveaway): Promise<Giveaway> {
+  const entries = await listEntries(g.id);
+  const seed = makeSeed();
+  const now = Math.floor(Date.now() / 1000);
+  g.winners = drawWinners(entries.map((e) => e.address), seed, g.winnersCount);
+  g.seed = seed;
+  g.drawnAt = now;
+  g.status = "drawn";
+  // an early draw also closes entries — endsAt is what the entry route checks
+  if (g.endsAt > now) g.endsAt = now;
+  await saveGiveaway(g);
+  return g;
+}
+
+/**
+ * Replace one winner. The substitute comes from the entrants NOT currently
+ * holding a seat and not previously rolled out, shuffled with a seed derived
+ * from the original — `${seed}:reroll:${n}` — so the nth re-roll is as
+ * replayable as the draw itself. Returns null substitute when the pool is dry
+ * (the seat is simply vacated).
+ */
+export async function rerollWinner(g: Giveaway, outAddress: string): Promise<Giveaway | null> {
+  const out = outAddress.toLowerCase();
+  const idx = g.winners.indexOf(out);
+  if (idx === -1 || !g.seed) return null;
+
+  const entries = await listEntries(g.id);
+  const excluded = new Set([...g.winners, ...(g.rerolls ?? []).map((r) => r.out)]);
+  const pool = entries.map((e) => e.address.toLowerCase()).filter((a) => !excluded.has(a));
+
+  const n = (g.rerolls ?? []).length + 1;
+  const sub = pool.length > 0 ? drawWinners(pool, `${g.seed}:reroll:${n}`, 1)[0] : null;
+
+  if (sub) g.winners[idx] = sub;
+  else g.winners.splice(idx, 1);
+  g.rerolls = [...(g.rerolls ?? []), { out, in: sub, ts: Math.floor(Date.now() / 1000) }];
+  await saveGiveaway(g);
+  return g;
+}
+
+// ─── Wallet ↔ Discord links (the one-click Enter button) ─────────────────
+//
+// Two keys, both directions, always written together: the button needs
+// discord→wallet, the winner list needs wallet→handle.
+
+const LINK_D = (discordId: string) => `cs:link:d:${discordId}`;
+const LINK_W = (wallet: string) => `cs:link:w:${wallet.toLowerCase()}`;
+
+export type WalletLink = { wallet: string; discordId: string; username: string; ts: number };
+
+export async function getLinkByDiscord(discordId: string): Promise<WalletLink | null> {
+  const raw = (await redis(["GET", LINK_D(discordId)])) as string | null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as WalletLink;
+  } catch {
+    return null;
+  }
+}
+
+export async function setLink(discordId: string, username: string, wallet: string): Promise<void> {
+  const w = wallet.toLowerCase();
+  // a wallet moving between accounts, or an account changing wallets, must
+  // never leave a stale half-link pointing back at the old pairing
+  const [prevOfAccount, prevOfWallet] = await Promise.all([
+    getLinkByDiscord(discordId),
+    redis(["GET", LINK_W(w)]) as Promise<string | null>,
+  ]);
+  const cmds: unknown[][] = [];
+  if (prevOfAccount && prevOfAccount.wallet !== w) cmds.push(["DEL", LINK_W(prevOfAccount.wallet)]);
+  if (prevOfWallet) {
+    try {
+      const p = JSON.parse(prevOfWallet) as WalletLink;
+      if (p.discordId !== discordId) cmds.push(["DEL", LINK_D(p.discordId)]);
+    } catch {
+      /* corrupt reverse row gets overwritten below anyway */
+    }
+  }
+  const value = JSON.stringify({ wallet: w, discordId, username, ts: Math.floor(Date.now() / 1000) });
+  cmds.push(["SET", LINK_D(discordId), value]);
+  cmds.push(["SET", LINK_W(w), value]);
+  for (const c of cmds) await redis(c);
+}
+
+export async function clearLink(discordId: string): Promise<void> {
+  const prev = await getLinkByDiscord(discordId);
+  if (prev) await redis(["DEL", LINK_W(prev.wallet)]);
+  await redis(["DEL", LINK_D(discordId)]);
+}
+
+export async function getLinkByWallet(wallet: string): Promise<WalletLink | null> {
+  const raw = (await redis(["GET", LINK_W(wallet)])) as string | null;
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as WalletLink;
+  } catch {
+    return null;
+  }
+}
+
+/** wallet → "@username" (or null), batched for winner lists. */
+export async function handlesFor(wallets: string[]): Promise<(string | null)[]> {
+  if (wallets.length === 0) return [];
+  const raws = (await redis(["MGET", ...wallets.map((w) => LINK_W(w))])) as (string | null)[];
+  return raws.map((raw) => {
+    if (!raw) return null;
+    try {
+      return (JSON.parse(raw) as WalletLink).username ?? null;
+    } catch {
+      return null;
+    }
+  });
+}
+
+// ─── Bot-to-site auth (S2S) ──────────────────────────────────────────────
+
+/** SoulWatcher's server-to-server key. The bot is the ONLY caller that may
+ *  enter a wallet without a fresh signature (it acts on a stored link), so
+ *  its requests carry a shared secret set on both dokku apps. */
+export function botKeyOk(req: Request): boolean {
+  const expect = (ENV.CS_BOT_API_KEY ?? "").trim();
+  if (!expect) return false;
+  const got = (req.headers.get("x-cs-bot-key") ?? "").trim();
+  if (got.length !== expect.length) return false;
+  return timingSafeEqual(Buffer.from(got), Buffer.from(expect));
 }
 
 // ─── Discord session (collab managers) ───────────────────────────────────

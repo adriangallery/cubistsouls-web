@@ -6,16 +6,23 @@
 // POST {action:"draw", id, force?}       → open → drawn; picks the winners.
 //      Refused while entries are still open unless force=true — a draw before
 //      the announced close is exactly the rug this tool exists to avoid.
+// POST {action:"edit", id, ...fields}    → amend an OPEN giveaway (copy, art,
+//      close, winners count, souls gate, autoDraw). Drawn history is frozen.
+// POST {action:"reroll", id, address}    → replace one winner of a DRAWN
+//      giveaway with a substitute derived from the original seed — Alphabot's
+//      re-roll, kept replayable (see rerollWinner in the lib).
 // GET  ?id=N&csv=entries|winners         → CSV download for the partner
 //      (Alphabot's most-used button: the winner list is what the collab
 //      manager actually hands over for the mint's allowlist).
 
+import { isAddress } from "viem";
 import {
   createGiveaway,
-  drawWinners,
+  drawAndSave,
   getGiveaway,
+  handlesFor,
   listEntries,
-  makeSeed,
+  rerollWinner,
   saveGiveaway,
   sessionFrom,
   storageConfigured,
@@ -93,6 +100,7 @@ export async function POST(req: Request) {
       winnersCount,
       endsAt: Math.floor(endsAt),
       requireSouls,
+      autoDraw: body.autoDraw === true,
       createdBy: { discordId: session.discordId, username: session.username },
     });
     return Response.json({ ok: true, giveaway: g }, { headers: { "Cache-Control": "no-store" } });
@@ -113,24 +121,67 @@ export async function POST(req: Request) {
 
   if (action === "draw") {
     if (g.status !== "open") return Response.json({ error: "already settled" }, { status: 409 });
-    const now = Math.floor(Date.now() / 1000);
-    if (now < g.endsAt && body.force !== true) {
+    if (Math.floor(Date.now() / 1000) < g.endsAt && body.force !== true) {
       return Response.json(
         { error: "entries are still open — wait for the close, or pass force" },
         { status: 409 },
       );
     }
-    const entries = await listEntries(id);
-    const seed = makeSeed();
-    g.winners = drawWinners(entries.map((e) => e.address), seed, g.winnersCount);
-    g.seed = seed;
-    g.drawnAt = now;
-    g.status = "drawn";
-    // closing early (force) also closes entries — the document's endsAt is
-    // what the entry route checks, so pull it back to the draw moment
-    if (g.endsAt > now) g.endsAt = now;
+    const drawn = await drawAndSave(g);
+    return Response.json({ ok: true, giveaway: drawn }, { headers: { "Cache-Control": "no-store" } });
+  }
+
+  if (action === "edit") {
+    if (g.status !== "open") return Response.json({ error: "only open giveaways edit" }, { status: 409 });
+    if (body.title !== undefined) {
+      const t = cleanText(body.title, MAX.title);
+      if (!t) return Response.json({ error: "title cannot be empty" }, { status: 400 });
+      g.title = t;
+    }
+    if (body.project !== undefined) {
+      const p = cleanText(body.project, MAX.project);
+      if (!p) return Response.json({ error: "project cannot be empty" }, { status: 400 });
+      g.project = p;
+    }
+    if (body.prize !== undefined) g.prize = cleanText(body.prize, MAX.prize);
+    if (body.imageUrl !== undefined) g.imageUrl = cleanUrl(body.imageUrl);
+    if (body.projectUrl !== undefined) g.projectUrl = cleanUrl(body.projectUrl);
+    if (body.winnersCount !== undefined) {
+      const w = Number(body.winnersCount);
+      if (!Number.isInteger(w) || w < 1 || w > 5000) {
+        return Response.json({ error: "winners must be 1–5000" }, { status: 400 });
+      }
+      g.winnersCount = w;
+    }
+    if (body.endsAt !== undefined) {
+      const e = Number(body.endsAt);
+      const now = Math.floor(Date.now() / 1000);
+      // an edit may extend or shorten, but never into the past — closing now
+      // is what the draw/cancel buttons are for
+      if (!Number.isFinite(e) || e < now + 300 || e > now + 60 * 86400) {
+        return Response.json({ error: "close must be 5 minutes to 60 days from now" }, { status: 400 });
+      }
+      g.endsAt = Math.floor(e);
+    }
+    if (body.requireSouls !== undefined) {
+      const r = Number(body.requireSouls);
+      if (!Number.isInteger(r) || r < 0 || r > 1000) {
+        return Response.json({ error: "requireSouls must be 0–1000" }, { status: 400 });
+      }
+      g.requireSouls = r;
+    }
+    if (body.autoDraw !== undefined) g.autoDraw = body.autoDraw === true;
     await saveGiveaway(g);
     return Response.json({ ok: true, giveaway: g }, { headers: { "Cache-Control": "no-store" } });
+  }
+
+  if (action === "reroll") {
+    if (g.status !== "drawn") return Response.json({ error: "re-roll needs a drawn giveaway" }, { status: 409 });
+    const address = String(body.address ?? "");
+    if (!isAddress(address)) return Response.json({ error: "bad address" }, { status: 400 });
+    const updated = await rerollWinner(g, address);
+    if (!updated) return Response.json({ error: "that wallet is not a winner" }, { status: 400 });
+    return Response.json({ ok: true, giveaway: updated }, { headers: { "Cache-Control": "no-store" } });
   }
 
   return Response.json({ error: "unknown action" }, { status: 400 });
@@ -152,7 +203,9 @@ export async function GET(req: Request) {
 
   let rows: string[];
   if (kind === "winners") {
-    rows = ["address", ...g.winners];
+    // the partner gets the handle too — chasing winners is half the job
+    const handles = await handlesFor(g.winners).catch(() => g.winners.map(() => null));
+    rows = ["address,discord", ...g.winners.map((w, i) => `${w},${handles[i] ?? ""}`)];
   } else {
     const entries = await listEntries(id);
     entries.sort((a, b) => a.ts - b.ts);

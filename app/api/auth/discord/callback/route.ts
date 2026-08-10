@@ -110,8 +110,12 @@ export async function GET(req: Request) {
     exp: Math.floor(Date.now() / 1000) + SESSION_TTL_S,
   };
 
+  // back to wherever the login started (see the ?next= handling in login) —
+  // strictly same-site, else the desk
+  const nextCookie = (req.headers.get("cookie") ?? "").match(/(?:^|;\s*)cs_oauth_next=([^;]+)/)?.[1];
+  const next = nextCookie ? decodeURIComponent(nextCookie) : "/giveaways/manage";
   const headers = new Headers({
-    Location: "/giveaways/manage",
+    Location: /^\/[a-zA-Z0-9/_-]*$/.test(next) ? next : "/giveaways/manage",
     "Cache-Control": "no-store",
   });
   headers.append(
@@ -119,5 +123,6 @@ export async function GET(req: Request) {
     `${SESSION_COOKIE}=${encodeURIComponent(sealSession(session))}; Path=/; Max-Age=${SESSION_TTL_S}; HttpOnly; Secure; SameSite=Lax`,
   );
   headers.append("Set-Cookie", "cs_oauth_state=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
+  headers.append("Set-Cookie", "cs_oauth_next=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax");
   return new Response(null, { status: 302, headers });
 }

@@ -12,3 +12,15 @@ export function giveawayEntryMessage(giveawayId: number, address: string): strin
     `Wallet: ${address.toLowerCase()}`,
   ].join("\n");
 }
+
+/// The one-time LINK signature: ties a wallet to a Discord account so the
+/// Enter button in the server can act for it. Naming the Discord id in the
+/// signed text is what stops a signature taken for one account being replayed
+/// to link the same wallet to another.
+export function walletLinkMessage(discordId: string, address: string): string {
+  return [
+    "Cubist Souls — linking this wallet to my Discord",
+    `Discord: ${discordId}`,
+    `Wallet: ${address.toLowerCase()}`,
+  ].join("\n");
+}
