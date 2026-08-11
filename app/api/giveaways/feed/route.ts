@@ -14,7 +14,8 @@ export async function GET() {
     return Response.json({ giveaways: [] }, { headers: { "Cache-Control": "no-store" } });
   }
   try {
-    const items = await listGiveaways(50);
+    // archived = housekeeping done; the bot has nothing to say about those
+    const items = (await listGiveaways(50)).filter((g) => g.archived !== true);
     const [counts, infos] = await Promise.all([
       Promise.all(items.map((g) => entryCount(g.id).catch(() => 0))),
       Promise.all(
@@ -36,6 +37,7 @@ export async function GET() {
           endsAt: g.endsAt,
           requireSouls: g.requireSouls,
           autoDraw: g.autoDraw === true,
+          dmWinners: g.dmWinners === true,
           status: g.status,
           createdAt: g.createdAt,
           drawnAt: g.drawnAt,

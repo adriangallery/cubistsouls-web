@@ -16,6 +16,7 @@ import {
   getGiveaway,
   getLinkByDiscord,
   hasEntered,
+  setLink,
   storageConfigured,
 } from "@/lib/giveaways";
 import { SOULS } from "@/lib/raffle";
@@ -74,6 +75,11 @@ export async function POST(req: Request, { params }: { params: { id: string } })
   if (!link) {
     // the bot turns this into "link your wallet first" with the URL
     return Response.json({ error: "no wallet linked", noLink: true }, { status: 404 });
+  }
+  // Discord usernames drift; the id doesn't. Refresh the display name on the
+  // stored link whenever the button hands us a fresher one.
+  if (username && username !== link.username) {
+    await setLink(discordId, username, link.wallet).catch(() => null);
   }
 
   if (await hasEntered(id, link.wallet).catch(() => false)) {

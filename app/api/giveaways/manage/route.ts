@@ -101,6 +101,7 @@ export async function POST(req: Request) {
       endsAt: Math.floor(endsAt),
       requireSouls,
       autoDraw: body.autoDraw === true,
+      dmWinners: body.dmWinners === true,
       createdBy: { discordId: session.discordId, username: session.username },
     });
     return Response.json({ ok: true, giveaway: g }, { headers: { "Cache-Control": "no-store" } });
@@ -171,6 +172,18 @@ export async function POST(req: Request) {
       g.requireSouls = r;
     }
     if (body.autoDraw !== undefined) g.autoDraw = body.autoDraw === true;
+    if (body.dmWinners !== undefined) g.dmWinners = body.dmWinners === true;
+    await saveGiveaway(g);
+    return Response.json({ ok: true, giveaway: g }, { headers: { "Cache-Control": "no-store" } });
+  }
+
+  // Housekeeping, not deletion: an archived giveaway leaves the public wall
+  // and the bot's feed, but its entries and CSVs remain forever.
+  if (action === "archive" || action === "unarchive") {
+    if (g.status === "open") {
+      return Response.json({ error: "settle it first — open giveaways don't archive" }, { status: 409 });
+    }
+    g.archived = action === "archive";
     await saveGiveaway(g);
     return Response.json({ ok: true, giveaway: g }, { headers: { "Cache-Control": "no-store" } });
   }

@@ -15,6 +15,74 @@ const fmt = (n: number) => n.toLocaleString("en-US");
 
 type Me = { discordId: string; username: string; avatar: string | null; manager: boolean };
 
+/** File → /api/giveaways/upload → hosted URL. Shared by create and edit:
+ *  managers drop a file; the museum hosts and serves it (sharp-recompressed),
+ *  so no more third-party image links that rot. */
+function UploadField({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+
+  const upload = useCallback(
+    async (file: File) => {
+      setBusy(true);
+      setErr(null);
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const r = await fetch("/api/giveaways/upload", { method: "POST", body: fd });
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(j.error || "upload failed");
+        onChange(j.url);
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "upload failed");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [onChange],
+  );
+
+  return (
+    <div>
+      <label className={styles.label}>Artwork — upload or paste a URL</label>
+      <div className={styles.uploadRow}>
+        <label className={`${styles.actBtn} ${busy ? styles.actQuiet : ""}`}>
+          {busy ? "Uploading…" : "Upload image"}
+          <input
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            disabled={busy}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) upload(f);
+              e.target.value = "";
+            }}
+          />
+        </label>
+        <input
+          className={styles.input}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder="https://…"
+          style={{ flex: 1 }}
+        />
+      </div>
+      {value ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={value} alt="" className={styles.uploadPreview} />
+      ) : null}
+      {err ? <p className={styles.err}>{err}</p> : null}
+    </div>
+  );
+}
+
 const DURATIONS: { label: string; hours: number }[] = [
   { label: "6 hours", hours: 6 },
   { label: "12 hours", hours: 12 },
@@ -97,6 +165,7 @@ export type Prefill = {
   winnersCount: number;
   requireSouls: number;
   autoDraw: boolean;
+  dmWinners: boolean;
 };
 
 function Desk({ me, onLogout }: { me: Me; onLogout: () => void }) {
@@ -127,6 +196,7 @@ function Desk({ me, onLogout }: { me: Me; onLogout: () => void }) {
       winnersCount: g.winnersCount,
       requireSouls: g.requireSouls,
       autoDraw: g.autoDraw === true,
+      dmWinners: g.dmWinners === true,
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   }, []);
@@ -179,6 +249,7 @@ function CreateForm({ onCreated, prefill }: { onCreated: () => void; prefill: Pr
   const [hours, setHours] = useState("24");
   const [requireSouls, setRequireSouls] = useState("0");
   const [autoDraw, setAutoDraw] = useState(false);
+  const [dmWinners, setDmWinners] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -193,6 +264,7 @@ function CreateForm({ onCreated, prefill }: { onCreated: () => void; prefill: Pr
     setWinners(String(prefill.winnersCount));
     setRequireSouls(String(prefill.requireSouls));
     setAutoDraw(prefill.autoDraw);
+    setDmWinners(prefill.dmWinners);
     setMsg("Cloned — adjust what changed and hang it.");
   }, [prefill]);
 
@@ -214,6 +286,7 @@ function CreateForm({ onCreated, prefill }: { onCreated: () => void; prefill: Pr
           endsAt: Math.floor(Date.now() / 1000) + Number(hours) * 3600,
           requireSouls: Number(requireSouls),
           autoDraw,
+          dmWinners,
         }),
       });
       const j = await r.json().catch(() => ({}));
@@ -230,7 +303,7 @@ function CreateForm({ onCreated, prefill }: { onCreated: () => void; prefill: Pr
     } finally {
       setBusy(false);
     }
-  }, [title, project, prize, imageUrl, projectUrl, winners, hours, requireSouls, autoDraw, onCreated]);
+  }, [title, project, prize, imageUrl, projectUrl, winners, hours, requireSouls, autoDraw, dmWinners, onCreated]);
 
   return (
     <div className={styles.form}>
@@ -246,9 +319,8 @@ function CreateForm({ onCreated, prefill }: { onCreated: () => void; prefill: Pr
         <label className={styles.label}>Prize — what winning gets you</label>
         <input className={styles.input} value={prize} onChange={(e) => setPrize(e.target.value)} placeholder="Whitelist spot for the mint on …" maxLength={240} />
       </div>
-      <div>
-        <label className={styles.label}>Image URL (optional)</label>
-        <input className={styles.input} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} placeholder="https://…" />
+      <div className={styles.full}>
+        <UploadField value={imageUrl} onChange={setImageUrl} />
       </div>
       <div>
         <label className={styles.label}>Project link (optional)</label>
@@ -278,6 +350,10 @@ function CreateForm({ onCreated, prefill }: { onCreated: () => void; prefill: Pr
         <label className={styles.checkRow}>
           <input type="checkbox" checked={autoDraw} onChange={(e) => setAutoDraw(e.target.checked)} />
           <span>Auto-draw the winners the moment entries close</span>
+        </label>
+        <label className={styles.checkRow}>
+          <input type="checkbox" checked={dmWinners} onChange={(e) => setDmWinners(e.target.checked)} />
+          <span>DM each linked winner when the draw lands</span>
         </label>
         <p className={styles.hint}>Off = you press Draw yourself when it suits the partner.</p>
       </div>
@@ -315,7 +391,7 @@ function Row({
   const ended = g.status === "open" && now >= g.endsAt;
 
   const act = useCallback(
-    async (action: "draw" | "cancel") => {
+    async (action: "draw" | "cancel" | "archive" | "unarchive") => {
       setBusy(true);
       setErr(null);
       try {
@@ -345,6 +421,7 @@ function Row({
           #{g.id} · {g.title}
         </span>
         <span className={styles.rowMeta}>
+          {g.archived ? "archived · " : ""}
           {g.status === "drawn"
             ? `drawn · ${g.winners.length} winner${g.winners.length === 1 ? "" : "s"}`
             : g.status === "cancelled"
@@ -389,6 +466,11 @@ function Row({
           <button className={`${styles.actBtn} ${styles.actQuiet}`} onClick={() => onClone(g)}>
             Clone
           </button>
+          {g.status !== "open" ? (
+            <button className={`${styles.actBtn} ${styles.actQuiet}`} onClick={() => act(g.archived ? "unarchive" : "archive")} disabled={busy}>
+              {g.archived ? "Unarchive" : "Archive"}
+            </button>
+          ) : null}
           <a className={`${styles.actBtn} ${styles.actQuiet}`} href={`/api/giveaways/manage?id=${g.id}&csv=entries`}>
             Entries CSV
           </a>
@@ -416,6 +498,7 @@ function EditForm({ g, onSaved }: { g: GiveawayCard; onSaved: () => void }) {
   const [winners, setWinners] = useState(String(g.winnersCount));
   const [requireSouls, setRequireSouls] = useState(String(g.requireSouls));
   const [autoDraw, setAutoDraw] = useState(g.autoDraw === true);
+  const [dmWinners, setDmWinners] = useState(g.dmWinners === true);
   const [extend, setExtend] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -434,6 +517,7 @@ function EditForm({ g, onSaved }: { g: GiveawayCard; onSaved: () => void }) {
         winnersCount: Number(winners),
         requireSouls: Number(requireSouls),
         autoDraw,
+        dmWinners,
       };
       if (extend) payload.endsAt = Math.floor(Date.now() / 1000) + Number(extend) * 3600;
       const r = await fetch("/api/giveaways/manage", {
@@ -449,7 +533,7 @@ function EditForm({ g, onSaved }: { g: GiveawayCard; onSaved: () => void }) {
     } finally {
       setBusy(false);
     }
-  }, [g.id, title, prize, imageUrl, projectUrl, winners, requireSouls, autoDraw, extend, onSaved]);
+  }, [g.id, title, prize, imageUrl, projectUrl, winners, requireSouls, autoDraw, dmWinners, extend, onSaved]);
 
   return (
     <div className={styles.editBox}>
@@ -466,9 +550,8 @@ function EditForm({ g, onSaved }: { g: GiveawayCard; onSaved: () => void }) {
           <label className={styles.label}>Prize</label>
           <input className={styles.input} value={prize} onChange={(e) => setPrize(e.target.value)} maxLength={240} />
         </div>
-        <div>
-          <label className={styles.label}>Image URL</label>
-          <input className={styles.input} value={imageUrl} onChange={(e) => setImageUrl(e.target.value)} />
+        <div className={styles.full}>
+          <UploadField value={imageUrl} onChange={setImageUrl} />
         </div>
         <div>
           <label className={styles.label}>Project link</label>
@@ -493,6 +576,10 @@ function EditForm({ g, onSaved }: { g: GiveawayCard; onSaved: () => void }) {
           <label className={styles.checkRow}>
             <input type="checkbox" checked={autoDraw} onChange={(e) => setAutoDraw(e.target.checked)} />
             <span>Auto-draw at close</span>
+          </label>
+          <label className={styles.checkRow}>
+            <input type="checkbox" checked={dmWinners} onChange={(e) => setDmWinners(e.target.checked)} />
+            <span>DM each linked winner when the draw lands</span>
           </label>
         </div>
         <div className={styles.full}>

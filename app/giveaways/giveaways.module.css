@@ -380,6 +380,14 @@
 .actQuiet { border-color: rgba(255, 255, 255, 0.18); color: var(--mute); }
 
 .rowWrap { display: flex; flex-direction: column; gap: 0.4rem; }
+.uploadRow { display: flex; align-items: center; gap: 0.6rem; }
+.uploadRow label { flex: 0 0 auto; }
+.uploadPreview {
+  margin-top: 0.5rem;
+  max-height: 120px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
 .editBox {
   border: 1px dashed rgba(255, 255, 255, 0.14);
   border-radius: 10px;

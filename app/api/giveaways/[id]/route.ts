@@ -19,6 +19,8 @@ import {
   giveawayEntryMessage,
   hasEntered,
   redis,
+  sessionFrom,
+  setLink,
   storageConfigured,
 } from "@/lib/giveaways";
 import { SOULS } from "@/lib/raffle";
@@ -149,9 +151,19 @@ export async function POST(req: Request, { params }: { params: { id: string } })
     /* a rate-limit hiccup must never drop a legitimate entry */
   }
 
-  // a linked wallet carries its Discord identity into the entry, so the
-  // winner list can greet the person and not just the hex
-  const link = await getLinkByWallet(address).catch(() => null);
+  // AUTO-LINK: an entry signature already proves this wallet, so if the
+  // visitor also has a Discord session and no link yet, the pairing writes
+  // itself — the Enter button in the server starts working without anyone
+  // hunting for a second signature. An existing link is never overwritten
+  // from here; that stays a deliberate act on the link panel.
+  let link = await getLinkByWallet(address).catch(() => null);
+  if (!link) {
+    const s = sessionFrom(req);
+    if (s) {
+      await setLink(s.discordId, s.username, address).catch(() => null);
+      link = { wallet: address.toLowerCase(), discordId: s.discordId, username: s.username, ts: 0 };
+    }
+  }
   try {
     await addEntry(
       id,

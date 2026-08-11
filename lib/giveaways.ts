@@ -72,6 +72,12 @@ export type Giveaway = {
   /** When true the bot's poller settles the draw the moment the close passes —
    *  no manager click needed. Off by default: some collabs want the drama. */
   autoDraw?: boolean;
+  /** When true the bot DMs each linked winner when the draw lands (besides
+   *  the channel tag). Off by default — DMs are the pushiest channel there is. */
+  dmWinners?: boolean;
+  /** Archived = off the public wall and out of the bot's feed. The data stays
+   *  (CSVs still download); this is housekeeping, not deletion. */
+  archived?: boolean;
   status: GiveawayStatus;
   createdAt: number;
   createdBy: { discordId: string; username: string };
@@ -330,16 +336,60 @@ export async function handlesFor(wallets: string[]): Promise<(string | null)[]> 
 
 /** The winner list as the feed and the wall publish it. The discordId is
  *  there so SoulWatcher can TAG the winners in the drawn announcement —
- *  the one moment the museum does call people out. */
+ *  the one moment the museum does call people out. ENS names ride along
+ *  when mainnet answers in time; a naming lookup must never delay a draw. */
 export async function winnersInfoFor(
   winners: string[],
-): Promise<{ address: string; username: string | null; discordId: string | null }[]> {
-  const links = await linksFor(winners).catch(() => winners.map(() => null));
+): Promise<{ address: string; username: string | null; discordId: string | null; ens: string | null }[]> {
+  const [links, names] = await Promise.all([
+    linksFor(winners).catch(() => winners.map(() => null)),
+    ensNamesFor(winners),
+  ]);
   return winners.map((address, i) => ({
     address,
     username: links[i]?.username ?? null,
     discordId: links[i]?.discordId ?? null,
+    ens: names[i],
   }));
+}
+
+// ─── ENS (display only) ──────────────────────────────────────────────────
+//
+// Reverse lookups against mainnet, memoized forever per process: an ENS
+// reverse record changes rarely and a stale name on a winner list is a
+// cosmetic bug, not a correctness one. Hard 4s budget for the whole batch.
+
+const ensCache = new Map<string, string | null>();
+
+export async function ensNamesFor(wallets: string[]): Promise<(string | null)[]> {
+  if (wallets.length === 0) return [];
+  const missing = wallets.filter((w) => !ensCache.has(w.toLowerCase()));
+  if (missing.length > 0) {
+    try {
+      const { createPublicClient, fallback, http } = await import("viem");
+      const { mainnet } = await import("viem/chains");
+      const client = createPublicClient({
+        chain: mainnet,
+        transport: fallback(
+          [
+            "https://gateway.tenderly.co/public/mainnet",
+            "https://eth.drpc.org",
+            "https://ethereum-rpc.publicnode.com",
+          ].map((url) => http(url, { retryCount: 0, timeout: 4_000 })),
+          { rank: false },
+        ),
+      });
+      const names = await Promise.all(
+        missing.map((w) =>
+          client.getEnsName({ address: w as `0x${string}` }).catch(() => null),
+        ),
+      );
+      missing.forEach((w, i) => ensCache.set(w.toLowerCase(), names[i]));
+    } catch {
+      missing.forEach((w) => ensCache.set(w.toLowerCase(), null));
+    }
+  }
+  return wallets.map((w) => ensCache.get(w.toLowerCase()) ?? null);
 }
 
 // ─── Bot-to-site auth (S2S) ──────────────────────────────────────────────

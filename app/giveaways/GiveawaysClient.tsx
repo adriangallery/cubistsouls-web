@@ -23,13 +23,15 @@ export type GiveawayCard = {
   endsAt: number;
   requireSouls: number;
   autoDraw?: boolean;
+  dmWinners?: boolean;
+  archived?: boolean;
   status: "open" | "drawn" | "cancelled";
   createdAt: number;
   createdBy: string;
   drawnAt: number | null;
   seed: string | null;
   winners: string[];
-  winnersInfo?: { address: string; username: string | null }[];
+  winnersInfo?: { address: string; username: string | null; ens?: string | null }[];
   entries: number;
 };
 
@@ -56,7 +58,7 @@ export default function GiveawaysClient() {
     return () => clearInterval(t);
   }, []);
 
-  const visible = (list ?? []).filter((g) => g.status !== "cancelled");
+  const visible = (list ?? []).filter((g) => g.status !== "cancelled" && g.archived !== true);
 
   return (
     <main className={styles.wrap}>
@@ -80,7 +82,8 @@ export default function GiveawaysClient() {
       )}
 
       <p className={styles.foot}>
-        Holding a soul? The museum&apos;s own draws live at <a href="/raffles">the raffles</a>.
+        <a href="/giveaways/mine">Your entries →</a> · Holding a soul? The museum&apos;s own draws
+        live at <a href="/raffles">the raffles</a>.
       </p>
     </main>
   );
@@ -145,14 +148,15 @@ function Card({ g, now }: { g: GiveawayCard; now: number }) {
             {g.winners.length === 0 ? (
               <p className={styles.prize}>Nobody entered. The wall stays bare.</p>
             ) : (
-              (g.winnersInfo?.length ? g.winnersInfo : g.winners.map((address) => ({ address, username: null }))).map(
-                (w) => (
-                  <span key={w.address} className={styles.winner}>
-                    {w.address.slice(0, 6)}…{w.address.slice(-4)}
-                    {w.username ? ` · @${w.username}` : ""}
-                  </span>
-                ),
-              )
+              (g.winnersInfo?.length
+                ? g.winnersInfo
+                : g.winners.map((address) => ({ address, username: null, ens: null }))
+              ).map((w) => (
+                <span key={w.address} className={styles.winner}>
+                  {w.ens ?? `${w.address.slice(0, 6)}…${w.address.slice(-4)}`}
+                  {w.username ? ` · @${w.username}` : ""}
+                </span>
+              ))
             )}
             {g.seed ? <p className={styles.seed}>seed {g.seed} — the entry list + this seed always re-draws the same names</p> : null}
           </div>
