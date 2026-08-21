@@ -10,6 +10,7 @@ import {
   ensNameOf,
   BEHIND_CAP,
   GROUND_CAP,
+  stagesFromKept,
   vaultEtherscanUrl,
   fmtVaultEth,
   type LayerData,
@@ -50,7 +51,12 @@ export type RisingEntry = { id: number; consumed: number; marks: number[]; holde
 // ahogado — dos reapers salian rotos en el navegador aunque el servidor los
 // servia bien. Con el cache largo de /api/reaper-img esto ya no deberia repetirse.
 const ART_VERSION = "e1"; // the ground: reapers past thirty kept souls repaint
-const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
+// `c` (souls consumed) and `kept` are both things the page already knows, and
+// passing them means the compositor needs NO chain read at all: the marks and
+// both stages of the art are arithmetic on these two numbers. That is what keeps
+// sixteen cards from racing a public gateway and losing.
+const IMG = (id: number, kept = 0, consumed?: number) =>
+  `/api/reaper-img?id=${id}&kept=${kept}${consumed === undefined ? "" : `&c=${consumed}`}&w=768&v=${ART_VERSION}`;
 const SOULS_OS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
@@ -117,7 +123,7 @@ export default function TheOrder({
                 <li className={styles.risingRow} key={r.id}>
                   <span className={styles.risingArt}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={IMG(r.id)} alt={`Soul #${r.id}`} loading="lazy" />
+                    <img src={IMG(r.id, 0, r.consumed)} alt={`Soul #${r.id}`} loading="lazy" />
                   </span>
                   <a
                     className={styles.risingId}
@@ -179,7 +185,7 @@ function OrderGrid({
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   className="lyr"
-                  src={IMG(r.id, vaults.get(r.id)?.kept ?? kept0[r.id] ?? 0)}
+                  src={IMG(r.id, vaults.get(r.id)?.kept ?? kept0[r.id] ?? 0, r.consumed)}
                   alt={`Soul Reaper #${r.id}`}
                   loading="lazy"
                 />
@@ -220,15 +226,36 @@ function OrderGrid({
                   ninguno de nuestros avisos, y un alma de mas alli no da ningun
                   boleto: se guarda y ya. Decirlo donde se copia el nombre es el
                   unico sitio donde llega a tiempo. */}
-              {(vaults.get(r.id)?.kept ?? 0) >= BEHIND_CAP ? (
-                <div
-                  className={styles.orderFull}
-                  title="A reaper counts at most 30 souls toward the draw — but the art keeps reading the vault to sixty."
-                >
-                  Odds full · {BEHIND_CAP}/{BEHIND_CAP} — past here a soul buys no ticket, it buys{" "}
-                  <strong>ground</strong>: one more earth piece every five, to {GROUND_CAP}
-                </div>
-              ) : null}
+              {(() => {
+                const kept = vaults.get(r.id)?.kept ?? 0;
+                if (kept < BEHIND_CAP) return null;
+                const { earth } = stagesFromKept(kept);
+                // Once the ground has actually started, stop selling it and
+                // report it: what it keeps, how much land it stands on, and what
+                // the next piece costs.
+                if (earth > 0) {
+                  return (
+                    <div
+                      className={styles.orderFull}
+                      title="The art reads this reaper's vault: one more earth piece every five souls, from thirty to sixty."
+                    >
+                      <strong>{kept} souls kept</strong> · ground {earth}/6
+                      {kept >= GROUND_CAP
+                        ? " — solid ground"
+                        : ` — ${5 - ((kept - BEHIND_CAP) % 5)} more for the next piece`}
+                    </div>
+                  );
+                }
+                return (
+                  <div
+                    className={styles.orderFull}
+                    title="A reaper counts at most 30 souls toward the draw — but the art keeps reading the vault to sixty."
+                  >
+                    {kept} souls kept · odds full at {BEHIND_CAP} — past here a soul buys no ticket, it
+                    buys <strong>ground</strong>: one more earth piece every five, to {GROUND_CAP}
+                  </div>
+                );
+              })()}
             </div>
           </article>
         );

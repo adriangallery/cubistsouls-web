@@ -27,6 +27,8 @@ import {
   composeFromBase,
   composeWithTide,
   earthOrderOf,
+  tideOrderOf,
+  stagesFromKept,
   type LayerData,
   type TraitsIdx,
 } from "@/lib/reaper";
@@ -60,9 +62,23 @@ type Manifest = { categories: { label: string; options: { label: string; file: s
 
 // ---- warm-instance caches (layer data is stable; marks change, so no read cache) ----
 let _layerData: LayerData | null = null;
+// ⚠️ Memoise the PROMISE, not the result. Sixteen cards land on a cold instance
+// at once; with only the result memoised all sixteen saw null, all sixteen
+// fetched the traits index from GitHub together, GitHub throttled the herd and
+// the losers fell through to the 307 fail-open — black cards on the grid. One
+// flight, sixteen awaiters.
+let _layerDataInFlight: Promise<LayerData | null> | null = null;
 
 async function loadLayerDataServer(): Promise<LayerData | null> {
   if (_layerData) return _layerData;
+  if (_layerDataInFlight) return _layerDataInFlight;
+  _layerDataInFlight = loadLayerDataOnce().finally(() => {
+    _layerDataInFlight = null;
+  });
+  return _layerDataInFlight;
+}
+
+async function loadLayerDataOnce(): Promise<LayerData | null> {
   try {
     const [traits, manifestRaw] = await Promise.all([
       fetch(TRAITS_URL, { signal: AbortSignal.timeout(15000) }).then(
@@ -279,12 +295,12 @@ function imgRedirect(origin: string, id: number): Response {
 }
 
 // Rasterize one 768-viewBox SVG (from the local public set) to a SIZE×SIZE PNG.
-async function rasterLayer(src: string): Promise<Buffer | null> {
+async function rasterLayer(src: string, size: number): Promise<Buffer | null> {
   try {
     const abs = path.join(PUBLIC_DIR, src.replace(/^\//, ""));
     const svg = await fs.readFile(abs);
-    return await sharp(svg, { density: Math.round(72 * (SIZE / 768)) })
-      .resize(SIZE, SIZE, { fit: "fill" })
+    return await sharp(svg, { density: Math.round(72 * (size / 768)) })
+      .resize(size, size, { fit: "fill" })
       .png()
       .toBuffer();
   } catch {
@@ -300,14 +316,38 @@ export async function GET(req: Request) {
     return Response.json({ error: "bad token id" }, { status: 400 });
   }
 
+  // ⚠️ The DEFAULT stays 1536, because that is the address api/meta hands to
+  // marketplaces and it must not shrink under them. `?w=` is for the museum's
+  // own grids, which were downloading sixteen 1536px plates to draw sixteen
+  // ~330px cards — eight times the pixels they show, rasterised layer by layer
+  // on a 2011 machine. Clamped to a few sane steps so it cannot be used to ask
+  // the mini for something enormous.
+  const wParam = Number(url.searchParams.get("w"));
+  const size = [384, 512, 768, 1024, 1536].includes(wParam) ? wParam : SIZE;
+
   // Resolve worn marks. `?marks=` forces a set (preview/try-on/test) and skips chain.
   let markIds: number[];
   const forced = url.searchParams.get("marks");
+  const consumedParam = url.searchParams.get("c");
+  const consumedHint = consumedParam !== null && consumedParam !== "" ? Number(consumedParam) : null;
   if (forced !== null) {
     markIds = forced
       .split(",")
       .map((s) => Number(s.trim()))
       .filter((n) => Number.isInteger(n) && n >= 0 && n <= 7);
+  } else if (consumedHint !== null && Number.isFinite(consumedHint)) {
+    // ⚠️ THE BLACK-CARD FIX. The marks are a pure function of souls consumed
+    // (Orange@6, Flame Crown@12, Phoenix@18, Burning Soul@30) and the page
+    // already knows that number — it is on the card. Asking a public gateway
+    // for it sixteen times at once got the herd throttled, `readMarks` returned
+    // null, and null falls through to the redirect below: the reaper LOST ITS
+    // ART and the grid went dark. Nothing that only needs arithmetic should be
+    // able to fail like that.
+    //
+    // The legacy on-chain bitmask is not consulted here and does not need to be:
+    // it only carries bits 0-3, and by 30 consumed the milestones have set all
+    // four already. Anything that does not pass `c` still goes and asks.
+    markIds = MILESTONES.flatMap((t, i) => (consumedHint >= t ? [i] : []));
   } else {
     const mask = await readMarks(id); // null = RPC failed → fail-open to plain art
     markIds = mask === null ? [] : bitmaskToMarkIds(mask);
@@ -337,23 +377,40 @@ export async function GET(req: Request) {
     keptHint !== null &&
     Number.isFinite(keptHint) &&
     url.searchParams.get("v") !== null;
-  const tide =
-    forcedTide !== null
-      ? {
-          depth: Math.max(0, Math.min(6, Number(forcedTide) || 0)),
-          order: (await readTide(id, keptHint))?.order ?? [],
-        }
-      : await readTide(id, keptHint);
-
-  // THE GROUND — read the same way, and `?earth=` forces it for previews.
-  const renderer = await rendererAddress();
+  // ⚠️ THE FAST PATH, and it is the one the grid always takes. Both depths are
+  // pure functions of `kept`, both orders are pure functions of the id, and the
+  // caller already put `kept` in the URL — so when it is pinned there is NOTHING
+  // to ask a node. Sixteen cards used to mean sixteen renderer lookups plus
+  // sixty-four tide/earth reads against a public gateway; the gateway throttled,
+  // reads timed out at 4s each, and the grid crawled. Now it is CPU only.
+  //
+  // The chain stays the authority: `kept` came from a chain read on the page,
+  // and anything that does NOT pin it still goes and asks.
+  let tide: { depth: number; order: number[] } | null;
   let earth = { depth: 0, order: [] as number[] };
-  if (forcedEarth !== null) {
-    // a preview names the depth; the order is computed, so this works whatever
-    // renderer happens to be live
-    earth = { depth: Math.max(0, Math.min(6, Number(forcedEarth) || 0)), order: earthOrderOf(id) };
-  } else if (renderer && (tide?.depth ?? 0) > 0) {
-    earth = await readEarth(renderer, id, keptHint);
+
+  if (keptHint !== null && Number.isFinite(keptHint) && forcedTide === null && forcedEarth === null) {
+    const { tide: td, earth: ed } = stagesFromKept(keptHint);
+    tide = { depth: td, order: tideOrderOf(id) };
+    earth = { depth: ed, order: earthOrderOf(id) };
+  } else {
+    tide =
+      forcedTide !== null
+        ? {
+            depth: Math.max(0, Math.min(6, Number(forcedTide) || 0)),
+            order: forcedEarth !== null ? tideOrderOf(id) : ((await readTide(id, keptHint))?.order ?? []),
+          }
+        : await readTide(id, keptHint);
+
+    // THE GROUND — read the same way, and `?earth=` forces it for previews.
+    if (forcedEarth !== null) {
+      // a preview names the depth; the order is computed, so this works whatever
+      // renderer happens to be live
+      earth = { depth: Math.max(0, Math.min(6, Number(forcedEarth) || 0)), order: earthOrderOf(id) };
+    } else if ((tide?.depth ?? 0) > 0) {
+      const renderer = await rendererAddress();
+      if (renderer) earth = await readEarth(renderer, id, keptHint);
+    }
   }
 
   if (
@@ -370,14 +427,14 @@ export async function GET(req: Request) {
     );
   }
 
-  const layers = await Promise.all(stack.map(rasterLayer));
+  const layers = await Promise.all(stack.map((src) => rasterLayer(src, size)));
   const composites = layers
     .filter((b): b is Buffer => b !== null)
     .map((input) => ({ input, top: 0, left: 0 }));
   if (composites.length === 0) return imgRedirect(origin, id); // every layer failed to read → fail-open
 
   try {
-    const png = await sharp({ create: { width: SIZE, height: SIZE, channels: 4, background: INK } })
+    const png = await sharp({ create: { width: size, height: size, channels: 4, background: INK } })
       .composite(composites)
       .png()
       .toBuffer();

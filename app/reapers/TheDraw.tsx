@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePublicClient } from "wagmi";
 import { loadOrder, loadDraws, fmtEth, pct, type OrderState, type DrawRecord } from "@/lib/order";
+import { ASCEND_AT } from "@/lib/reaper";
 import styles from "./thedraw.module.css";
 
 // a member of the Order wears its marks: the composed art, never the plain
@@ -26,7 +27,12 @@ import styles from "./thedraw.module.css";
 // ahogado — dos reapers salian rotos en el navegador aunque el servidor los
 // servia bien. Con el cache largo de /api/reaper-img esto ya no deberia repetirse.
 const ART_VERSION = "e1"; // the ground: reapers past thirty kept souls repaint
-const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
+// Being on the roster IS being ascended, so consumed is at least ASCEND_AT and
+// every milestone mark is lit. Saying so in the URL means the compositor never
+// has to ask a node — which is what stopped these thumbnails falling back to the
+// plain canvas whenever a public gateway throttled the page.
+const IMG = (id: number, kept = 0, consumed = ASCEND_AT) =>
+  `/api/reaper-img?id=${id}&kept=${kept}&c=${consumed}&w=384&v=${ART_VERSION}`;
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
 
 export default function TheDraw() {
@@ -92,8 +98,17 @@ export default function TheDraw() {
               <span className={styles.kept}>
                 {m.kept > 0 ? (
                   <>
-                    +{m.kept} soul{m.kept === 1 ? "" : "s"}
-                    {m.kept >= order.bonusCap ? " · full" : ""}
+                    +{m.ticketed} ticket{m.ticketed === 1 ? "" : "s"}
+                    {m.ticketed >= order.bonusCap ? " · full" : ""}
+                    {/* Past the cap the tickets stop but the vault does not, and
+                        the vault is what the art reads — so say the real number
+                        instead of letting it look like a reaper stuck at thirty. */}
+                    {m.kept > order.bonusCap ? (
+                      <>
+                        {" · "}
+                        <span className={styles.keptGround}>{m.kept} souls kept</span>
+                      </>
+                    ) : null}
                   </>
                 ) : (
                   <span className={styles.keptNone}>no souls kept</span>
@@ -106,7 +121,8 @@ export default function TheDraw() {
       <p className={styles.legend}>
         The solid part of each bar is what a reaper carries simply for being one ({order.base}). The rest is
         the souls entrusted to it — one ticket each, up to {order.bonusCap}. Souls tilt the draw; they cannot
-        buy it.
+        buy it. Past {order.bonusCap} a soul stops buying tickets and starts buying ground: the reaper's art
+        keeps reading its vault all the way to 60.
       </p>
 
       {/* the ledger — every draw ever settled, straight from the chain */}

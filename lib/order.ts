@@ -29,7 +29,14 @@ export type Member = {
   id: number;
   vault: `0x${string}`;
   weight: number;
-  kept: number; // souls held in the vault
+  /// Souls actually held in the vault. ⚠️ NOT `weight - base`: the contract caps
+  /// the bonus at `bonusCap` (30), so a reaper keeping sixty weighs the same as
+  /// one keeping thirty. Deriving `kept` from the weight silently clamped it,
+  /// and since this number is what picks the ART, every reaper past thirty was
+  /// drawn still drowned here while the roster showed it on solid ground.
+  kept: number;
+  /// The part of `kept` that actually bought tickets — this IS `weight - base`.
+  ticketed: number;
   share: number; // 0..1 of the draw
 };
 
@@ -62,10 +69,31 @@ export async function loadOrder(client: PublicClient): Promise<OrderState | null
 
     const [base, bonusCap] = params as readonly [number, number];
     const totalW = Number(total as bigint);
+    const vaults = ids.map((_, i) =>
+      res[i * 2 + 1]?.status === "success" ? (res[i * 2 + 1].result as `0x${string}`) : ("0x0" as const),
+    );
+
+    // The true vault count, in the SAME round trip. It costs one more call per
+    // reaper and it is the number the art reads, so it is not optional.
+    const held = await client.multicall({
+      allowFailure: true,
+      contracts: vaults.map((v) => ({
+        address: SOULS,
+        abi: ORDER_ABI,
+        functionName: "balanceOf" as const,
+        args: [v] as const,
+      })),
+    });
+
     const members: Member[] = ids.map((id, i) => {
       const w = res[i * 2]?.status === "success" ? Number(res[i * 2].result as bigint) : base;
-      const vault = (res[i * 2 + 1]?.status === "success" ? res[i * 2 + 1].result : "0x0") as `0x${string}`;
-      return { id, vault, weight: w, kept: Math.max(0, w - base), share: totalW ? w / totalW : 0 };
+      const vault = vaults[i];
+      const ticketed = Math.max(0, w - base);
+      // fall back to the ticketed count if the balance read failed — an
+      // under-reported vault beats a blank one
+      const kept =
+        held[i]?.status === "success" ? Number(held[i].result as bigint) : ticketed;
+      return { id, vault, weight: w, kept, ticketed, share: totalW ? w / totalW : 0 };
     });
     members.sort((a, b) => b.weight - a.weight || a.id - b.id);
     return { members, totalWeight: totalW, pot: pot as bigint, base, bonusCap };

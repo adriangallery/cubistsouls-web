@@ -628,13 +628,11 @@ export const GROUND_CAP = 60;
 /// authority and the reader still prefers it; this is what keeps a blink from
 /// painting water where there should be ground, which is the one failure mode
 /// that matters: a slow picture is fine, a wrong one is not.
-export function earthOrderOf(tokenId: number): number[] {
+function takeOrderOf(tokenId: number, tag: string): number[] {
   const order: number[] = [3]; // the hair, always first
   const rest = [0, 1, 4, 6, 8];
   let seed = BigInt(
-    keccak256(
-      encodeAbiParameters([{ type: "uint256" }, { type: "string" }], [BigInt(tokenId), "cubistsouls.earth"]),
-    ),
+    keccak256(encodeAbiParameters([{ type: "uint256" }, { type: "string" }], [BigInt(tokenId), tag])),
   );
   for (let i = 5; i > 0; i--) {
     const j = Number(seed % BigInt(i));
@@ -644,6 +642,9 @@ export function earthOrderOf(tokenId: number): number[] {
   }
   return order;
 }
+
+export const earthOrderOf = (tokenId: number) => takeOrderOf(tokenId, "cubistsouls.earth");
+export const tideOrderOf = (tokenId: number) => takeOrderOf(tokenId, "cubistsouls.tide");
 
 /// The two stages a reaper's art moves through, from the souls its vault keeps.
 /// Mirrors SoulRendererV8; if these ever disagree, the chain is right.

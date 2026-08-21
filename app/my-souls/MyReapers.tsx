@@ -37,7 +37,10 @@ import {
 // ahogado — dos reapers salian rotos en el navegador aunque el servidor los
 // servia bien. Con el cache largo de /api/reaper-img esto ya no deberia repetirse.
 const ART_VERSION = "e1"; // the ground: reapers past thirty kept souls repaint
-const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
+// consumed goes in the URL too: the marks are arithmetic on it, so the
+// compositor needs no chain read and cannot fall back to the plain canvas.
+const IMG = (id: number, kept = 0, consumed?: number) =>
+  `/api/reaper-img?id=${id}&kept=${kept}${consumed === undefined ? "" : `&c=${consumed}`}&w=768&v=${ART_VERSION}`;
 /// The museum's ceiling on the souls-behind bonus (mirrors weightParams).
 
 /// One measure of a reaper's power. They stack, so a new one is a new line — not
@@ -174,7 +177,7 @@ export default function MyReapers({
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     className="lyr"
-                    src={IMG(e.id, vaults.get(e.id)?.kept ?? 0)}
+                    src={IMG(e.id, vaults.get(e.id)?.kept ?? 0, e.consumed)}
                     alt={`Soul #${e.id}`}
                     loading="lazy"
                   />

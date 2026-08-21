@@ -64,6 +64,8 @@
 .odds { font-family: var(--mono); font-size: .72rem; color: var(--bone); text-align: right; }
 .kept { font-family: var(--mono); font-size: .62rem; color: var(--reaper-lite); }
 .keptNone { color: var(--mute); }
+/* the vault past the ticket cap — the souls that buy ground instead of odds */
+.keptGround { color: #c8a05a; }
 
 .legend { font-family: var(--mono); font-size: .62rem; color: var(--mute); line-height: 1.6; max-width: 70ch; margin: 0; }
 
