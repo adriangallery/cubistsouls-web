@@ -25,7 +25,7 @@ import styles from "./thedraw.module.css";
 // t3 (6-ago): retira las entradas que quedaron envenenadas cuando el mini iba
 // ahogado — dos reapers salian rotos en el navegador aunque el servidor los
 // servia bien. Con el cache largo de /api/reaper-img esto ya no deberia repetirse.
-const ART_VERSION = "t3";
+const ART_VERSION = "e1"; // the ground: reapers past thirty kept souls repaint
 const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
 

@@ -18,7 +18,7 @@
 // If any of these differ on the deployed facet, only this file needs to change.
 
 import type { PublicClient } from "viem";
-import { parseAbi, parseAbiItem, getAddress } from "viem";
+import { parseAbi, parseAbiItem, getAddress, keccak256, encodeAbiParameters } from "viem";
 
 // The diamond IS the facet host. Reuse the canonical checksummed address.
 export const SOULS = getAddress("0x9252fDc0b3945203314Ea1a9b8d64345bc868406");
@@ -282,19 +282,39 @@ export const WATER_BY_SLOT: Record<number, string> = {
   8: `${T}/water/drowning-dreams.svg`,
 };
 
+/// THE GROUND — the earth pieces, same six slot codes as the water. They come
+/// after the tide: once a reaper is fully drowned at thirty kept souls, every
+/// five further souls swaps one more water piece for land, to sixty.
+export const EARTH_BY_SLOT: Record<number, string> = {
+  0: `${T}/earth/all-the-way-to-the-bottom.svg`,
+  1: `${T}/earth/salt-of-the-earth.svg`,
+  3: `${T}/earth/on-top-of-the-world.svg`,
+  4: `${T}/earth/no-hands.svg`,
+  6: `${T}/earth/there-will-be-signs.svg`,
+  8: `${T}/earth/clap-in-the-woods.svg`,
+};
+
 const SLOT_BY_CODE: Record<number, Slot> = { 0: "ab", 1: "base", 3: "head", 4: "mouth", 6: "nose" };
 
-/// The stack a drowned reaper draws: the water takes the slots it has claimed,
-/// the clothes come off with it, the eyes never move. Mirrors SoulRendererV7 —
-/// if these two ever disagree, the chain is right.
+/// The stack a taken reaper draws: the ground takes the slots it has claimed,
+/// then the water takes what is left of its own, the clothes come off with the
+/// water, and the eyes never move. Mirrors SoulRendererV8 — if these two ever
+/// disagree, the chain is right.
+///
+/// `earthDepth`/`earthOrder` are optional: called without them this is exactly
+/// the V7 behaviour it replaces.
 export function composeWithTide(
   base: Partial<Record<Slot, string>>,
   markKeys: (number | string)[],
   depth: number,
   order: number[],
+  earthDepth = 0,
+  earthOrder: number[] = [],
 ): string[] {
-  if (!depth || order.length < 6) return composeFromBase(base, markKeys);
-  const wet = new Set(order.slice(0, depth));
+  const hasEarth = earthDepth > 0 && earthOrder.length >= 6;
+  if ((!depth || order.length < 6) && !hasEarth) return composeFromBase(base, markKeys);
+  const wet = new Set(order.length >= 6 ? order.slice(0, depth) : []);
+  const dirt = new Set(hasEarth ? earthOrder.slice(0, earthDepth) : []);
   const marks = markKeys
     .map((k) => (typeof k === "number" ? MARK_BY_ID.get(k) : REAPER_MARKS.find((m) => m.id === k)))
     .filter(Boolean) as Mark[];
@@ -305,6 +325,10 @@ export function composeWithTide(
   for (const s of SLOT_ORDER) {
     if (s === "clothes") continue; // the water takes the clothes with it
     const code = Number(Object.keys(SLOT_BY_CODE).find((c) => SLOT_BY_CODE[Number(c)] === s) ?? -1);
+    if (code >= 0 && dirt.has(code)) {
+      stack.push(EARTH_BY_SLOT[code]);
+      continue;
+    }
     if (code >= 0 && wet.has(code)) {
       stack.push(WATER_BY_SLOT[code]);
       continue;
@@ -312,7 +336,8 @@ export function composeWithTide(
     const src = bySlot[s] ?? base[s];
     if (src) stack.push(src);
   }
-  if (wet.has(8)) stack.push(WATER_BY_SLOT[8]);
+  if (dirt.has(8)) stack.push(EARTH_BY_SLOT[8]);
+  else if (wet.has(8)) stack.push(WATER_BY_SLOT[8]);
   else if (bySlot.fx) stack.push(bySlot.fx);
   return stack;
 }
@@ -588,6 +613,47 @@ export const vaultEtherscanUrl = (account: string) => `https://etherscan.io/addr
 /// esto es solo el valor por defecto para pintar barras y avisos sin esperar a
 /// una lectura. Si algun dia difieren, manda el contrato.
 export const BEHIND_CAP = 30;
+
+/// Where the ART stops, which is NOT where the odds stop. Thirty is the draw's
+/// ceiling (`weightParams`); past it a soul buys no ticket, but it does buy
+/// ground — one more earth piece every five, to sixty. Saying "vault full" and
+/// nothing else at thirty was true about odds and wrong about the token.
+export const GROUND_CAP = 60;
+
+/// THE ORDER the ground takes a reaper in, computed instead of asked.
+///
+/// It is pure maths on the token id — the same permutation SoulRendererV8 runs,
+/// keccak256(abi.encode(id, "cubistsouls.earth")), hair first — so there is no
+/// reason to depend on a node answering to know it. The chain stays the
+/// authority and the reader still prefers it; this is what keeps a blink from
+/// painting water where there should be ground, which is the one failure mode
+/// that matters: a slow picture is fine, a wrong one is not.
+export function earthOrderOf(tokenId: number): number[] {
+  const order: number[] = [3]; // the hair, always first
+  const rest = [0, 1, 4, 6, 8];
+  let seed = BigInt(
+    keccak256(
+      encodeAbiParameters([{ type: "uint256" }, { type: "string" }], [BigInt(tokenId), "cubistsouls.earth"]),
+    ),
+  );
+  for (let i = 5; i > 0; i--) {
+    const j = Number(seed % BigInt(i));
+    seed /= 7n;
+    order.push(rest[j]);
+    rest[j] = rest[i - 1];
+  }
+  return order;
+}
+
+/// The two stages a reaper's art moves through, from the souls its vault keeps.
+/// Mirrors SoulRendererV8; if these ever disagree, the chain is right.
+export function stagesFromKept(kept: number): { tide: number; earth: number } {
+  const clamp = (n: number) => (n < 0 ? 0 : n > 6 ? 6 : n);
+  return {
+    tide: clamp(Math.floor(kept / 5)),
+    earth: kept > BEHIND_CAP ? clamp(Math.floor((kept - BEHIND_CAP) / 5)) : 0,
+  };
+}
 
 export const ensNameOf = (id: number) => `${id}.cubistsouls.eth`;
 

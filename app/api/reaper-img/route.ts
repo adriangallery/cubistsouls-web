@@ -26,6 +26,7 @@ import {
   baseLayersOf,
   composeFromBase,
   composeWithTide,
+  earthOrderOf,
   type LayerData,
   type TraitsIdx,
 } from "@/lib/reaper";
@@ -41,6 +42,10 @@ const SOULS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 const SEL_RENDERER = "0x8ada6b0f"; // renderer()
 const SEL_TIDE = "0x4c0a4877"; // tide(uint256) -> (depth, kept)
 const SEL_DROWN = "0x8348c1f3"; // drownOrder(uint256) -> uint8[6]
+// THE GROUND. Past thirty kept souls the water is done and the land comes up,
+// one more piece every five souls, to sixty. Same reading, same source.
+const SEL_EARTH = "0x35141a03"; // earth(uint256) -> (depth, kept)
+const SEL_EARTH_ORDER = "0x81f52e6d"; // earthOrder(uint256) -> uint8[6]
 const SEL_MARKS_OF = "0xfb115701"; // marksOf(uint256) -> uint256 bitmask
 const SEL_SOULS_CONSUMED = "0x5b99ce59"; // soulsConsumed(uint256) -> uint256
 const RPC = "https://gateway.tenderly.co/public/mainnet"; // only gateway that answers from a datacenter IP
@@ -143,8 +148,11 @@ let rendererCache: string | null = null;
 const orderCache = new Map<number, number[]>();
 const TIDE_TTL_MS = 240_000; // 4 min, same as the museum's other readers
 const depthMemo = new Map<number, { depth: number; ts: number }>();
+const earthOrderCache = new Map<number, number[]>();
+const earthMemo = new Map<number, { depth: number; ts: number }>();
 const SOULS_PER_PIECE = 5; // one piece per five souls kept
 const MAX_DEPTH = 6;
+const EARTH_FROM = 30; // the tide's ceiling is the ground's floor
 
 async function rendererAddress(): Promise<string | null> {
   if (rendererCache) return rendererCache;
@@ -155,15 +163,63 @@ async function rendererAddress(): Promise<string | null> {
 }
 
 async function orderOf(renderer: string, id: number): Promise<number[] | null> {
-  const hit = orderCache.get(id);
+  return readOrder(renderer, id, SEL_DROWN, orderCache);
+}
+
+/// The order the ground takes this reaper in. Deliberately NOT the tide's: the
+/// second thirty souls should not feel like a replay of the first thirty.
+///
+/// Returns [] (not null) when the renderer does not answer, because a renderer
+/// without earthOrder() is simply V7 and the picture is still correct without it.
+async function earthOrderFor(renderer: string, id: number): Promise<number[]> {
+  const onChain = await readOrder(renderer, id, SEL_EARTH_ORDER, earthOrderCache);
+  if (onChain && onChain.length === 6) return onChain;
+  // The renderer did not answer (a blink, or a renderer older than the ground).
+  // The order is pure maths on the id, so compute it rather than draw water
+  // where there should be ground.
+  return earthOrderOf(id);
+}
+
+async function readOrder(
+  renderer: string,
+  id: number,
+  selector: string,
+  cache: Map<number, number[]>,
+): Promise<number[] | null> {
+  const hit = cache.get(id);
   if (hit) return hit;
-  const raw = await callAt(renderer, SEL_DROWN + id.toString(16).padStart(64, "0"));
+  const raw = await callAt(renderer, selector + id.toString(16).padStart(64, "0"));
   if (!raw) return null;
   const body = raw.slice(2);
   const order: number[] = [];
   for (let i = 0; i < 6; i++) order.push(parseInt(body.slice(i * 64, (i + 1) * 64), 16));
-  if (order.length === 6) orderCache.set(id, order);
+  if (order.length === 6) cache.set(id, order);
   return order;
+}
+
+/// How far the ground has come up, read from the live renderer with the same
+/// fallback discipline as the tide: if the node blinks, use what the caller
+/// already told us it keeps rather than drawing the wrong piece.
+async function readEarth(
+  renderer: string,
+  id: number,
+  keptHint: number | null,
+): Promise<{ depth: number; order: number[] }> {
+  const warm = earthMemo.get(id);
+  const fresh = warm && Date.now() - warm.ts < TIDE_TTL_MS;
+  const [raw, order] = await Promise.all([
+    fresh ? Promise.resolve(null) : callAt(renderer, SEL_EARTH + id.toString(16).padStart(64, "0")),
+    earthOrderFor(renderer, id),
+  ]);
+  if (order.length !== 6) return { depth: 0, order: [] };
+
+  let depth: number;
+  if (fresh) depth = warm!.depth;
+  else if (raw !== null) {
+    depth = parseInt(raw.slice(2, 66), 16) || 0;
+    earthMemo.set(id, { depth, ts: Date.now() });
+  } else depth = earthDepthFromKept(keptHint);
+  return { depth, order };
 }
 
 /// How deep the water has taken this reaper and the order it drowns in, read
@@ -204,6 +260,12 @@ async function readTide(id: number, keptHint: number | null): Promise<{ depth: n
 function depthFromKept(kept: number | null): number {
   if (!kept || kept < 0) return 0;
   const d = Math.floor(kept / SOULS_PER_PIECE);
+  return d > MAX_DEPTH ? MAX_DEPTH : d;
+}
+
+function earthDepthFromKept(kept: number | null): number {
+  if (!kept || kept <= EARTH_FROM) return 0;
+  const d = Math.floor((kept - EARTH_FROM) / SOULS_PER_PIECE);
   return d > MAX_DEPTH ? MAX_DEPTH : d;
 }
 
@@ -263,11 +325,18 @@ export async function GET(req: Request) {
   // THE TIDE — the same reading the token's own metadata makes. `?tide=` forces a
   // depth for previews, exactly like `?marks=` does for the fire.
   const forcedTide = url.searchParams.get("tide");
+  const forcedEarth = url.searchParams.get("earth");
   const keptParam = url.searchParams.get("kept");
   const keptHint = keptParam !== null && keptParam !== "" ? Number(keptParam) : null;
   // Both pinned => this URL names exactly one picture, forever (see Cache-Control).
+  // `kept` fixes BOTH stages, so it still names one picture — as long as neither
+  // stage is being forced by hand.
   const pinned =
-    forcedTide === null && keptHint !== null && Number.isFinite(keptHint) && url.searchParams.get("v") !== null;
+    forcedTide === null &&
+    forcedEarth === null &&
+    keptHint !== null &&
+    Number.isFinite(keptHint) &&
+    url.searchParams.get("v") !== null;
   const tide =
     forcedTide !== null
       ? {
@@ -275,8 +344,30 @@ export async function GET(req: Request) {
           order: (await readTide(id, keptHint))?.order ?? [],
         }
       : await readTide(id, keptHint);
-  if (tide && tide.depth > 0 && tide.order.length === 6) {
-    stack = composeWithTide(baseLayersOf(id, data), markIds, tide.depth, tide.order);
+
+  // THE GROUND — read the same way, and `?earth=` forces it for previews.
+  const renderer = await rendererAddress();
+  let earth = { depth: 0, order: [] as number[] };
+  if (forcedEarth !== null) {
+    // a preview names the depth; the order is computed, so this works whatever
+    // renderer happens to be live
+    earth = { depth: Math.max(0, Math.min(6, Number(forcedEarth) || 0)), order: earthOrderOf(id) };
+  } else if (renderer && (tide?.depth ?? 0) > 0) {
+    earth = await readEarth(renderer, id, keptHint);
+  }
+
+  if (
+    (tide && tide.depth > 0 && tide.order.length === 6) ||
+    (earth.depth > 0 && earth.order.length === 6)
+  ) {
+    stack = composeWithTide(
+      baseLayersOf(id, data),
+      markIds,
+      tide?.depth ?? 0,
+      tide?.order ?? [],
+      earth.depth,
+      earth.order,
+    );
   }
 
   const layers = await Promise.all(stack.map(rasterLayer));

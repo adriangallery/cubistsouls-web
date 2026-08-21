@@ -13,6 +13,8 @@ import {
   vaultEtherscanUrl,
   ensNameOf,
   BEHIND_CAP,
+  GROUND_CAP,
+  stagesFromKept,
   fmtVaultEth,
   type LayerData,
   type ReaperState,
@@ -34,7 +36,7 @@ import {
 // t3 (6-ago): retira las entradas que quedaron envenenadas cuando el mini iba
 // ahogado — dos reapers salian rotos en el navegador aunque el servidor los
 // servia bien. Con el cache largo de /api/reaper-img esto ya no deberia repetirse.
-const ART_VERSION = "t3";
+const ART_VERSION = "e1"; // the ground: reapers past thirty kept souls repaint
 const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
 /// The museum's ceiling on the souls-behind bonus (mirrors weightParams).
 
@@ -206,18 +208,32 @@ export default function MyReapers({
                         : `${left} to ascend`
                   }
                 />
+                {/* DOS TECHOS, no uno. A los 30 se acaban los boletos y ahi
+                    se acababa la barra: el holder leia "at the ceiling" y no
+                    tenia motivo para meter un alma mas. Pero de 30 a 60 el
+                    arte SIGUE moviendose — sube la tierra —, asi que pasado el
+                    techo la barra cambia de vara en vez de quedarse llena. */}
                 {e.isReaper && vaults.get(e.id)?.deployed ? (
-                  <PowerBar
-                    label="souls in the vault"
-                    value={vaults.get(e.id)!.kept ?? 0}
-                    max={BEHIND_CAP}
-                    tone="order"
-                    note={
-                      (vaults.get(e.id)!.kept ?? 0) >= BEHIND_CAP
-                        ? "at the ceiling"
-                        : `+${vaults.get(e.id)!.kept ?? 0} tickets`
-                    }
-                  />
+                  (() => {
+                    const kept = vaults.get(e.id)!.kept ?? 0;
+                    const past = kept >= BEHIND_CAP;
+                    const { earth } = stagesFromKept(kept);
+                    return (
+                      <PowerBar
+                        label={past ? "the ground rises" : "souls in the vault"}
+                        value={kept}
+                        max={past ? GROUND_CAP : BEHIND_CAP}
+                        tone="order"
+                        note={
+                          !past
+                            ? `+${kept} tickets`
+                            : kept >= GROUND_CAP
+                              ? "solid ground · 6/6"
+                              : `${earth}/6 earth · ${5 - ((kept - BEHIND_CAP) % 5)} souls to the next piece`
+                        }
+                      />
+                    );
+                  })()
                 ) : null}
                 {/* UNA puerta, y el nombre ya dice las dos direcciones: a una
                     boveda se entra y se sale. Antes decia "Place souls behind it"

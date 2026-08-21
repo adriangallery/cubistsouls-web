@@ -9,6 +9,7 @@ import {
   getReaperVaults,
   ensNameOf,
   BEHIND_CAP,
+  GROUND_CAP,
   vaultEtherscanUrl,
   fmtVaultEth,
   type LayerData,
@@ -48,7 +49,7 @@ export type RisingEntry = { id: number; consumed: number; marks: number[]; holde
 // t3 (6-ago): retira las entradas que quedaron envenenadas cuando el mini iba
 // ahogado — dos reapers salian rotos en el navegador aunque el servidor los
 // servia bien. Con el cache largo de /api/reaper-img esto ya no deberia repetirse.
-const ART_VERSION = "t3";
+const ART_VERSION = "e1"; // the ground: reapers past thirty kept souls repaint
 const IMG = (id: number, kept = 0) => `/api/reaper-img?id=${id}&kept=${kept}&v=${ART_VERSION}`;
 const SOULS_OS = "0x9252fdc0b3945203314ea1a9b8d64345bc868406";
 
@@ -220,9 +221,12 @@ function OrderGrid({
                   boleto: se guarda y ya. Decirlo donde se copia el nombre es el
                   unico sitio donde llega a tiempo. */}
               {(vaults.get(r.id)?.kept ?? 0) >= BEHIND_CAP ? (
-                <div className={styles.orderFull} title="A reaper counts at most 30 souls toward the draw.">
-                  Vault full · {BEHIND_CAP}/{BEHIND_CAP} — more souls sent here are kept safe, but add no
-                  odds
+                <div
+                  className={styles.orderFull}
+                  title="A reaper counts at most 30 souls toward the draw — but the art keeps reading the vault to sixty."
+                >
+                  Odds full · {BEHIND_CAP}/{BEHIND_CAP} — past here a soul buys no ticket, it buys{" "}
+                  <strong>ground</strong>: one more earth piece every five, to {GROUND_CAP}
                 </div>
               ) : null}
             </div>
