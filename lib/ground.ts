@@ -19,9 +19,13 @@ export const GROUND_CHAIN_ID = 4663;
 export const GROUND_RPC = "https://rpc.mainnet.chain.robinhood.com";
 export const GROUND_EXPLORER = "https://explorer.mainnet.chain.robinhood.com";
 
-/// Set once the router is deployed. Empty means the page shows its "not live
-/// yet" state rather than rendering zeros as if they were real.
-export const GROUND_ROUTER = (process.env.NEXT_PUBLIC_GROUND_ROUTER ?? "") as `0x${string}` | "";
+/// ⚠️ Hardcoded on purpose, with the env var only as an override. A
+/// NEXT_PUBLIC_* variable is baked at BUILD time, and this image is built by a
+/// plain `docker build` that passes no build args — so relying on the env alone
+/// would have shipped a green deploy with an empty address and a page insisting
+/// the router was not live. A deployed contract address is public anyway.
+export const GROUND_ROUTER = (process.env.NEXT_PUBLIC_GROUND_ROUTER ||
+  "0xFEF46435Dea467bb05DC0c51Bad6C720Ee66D6f0") as `0x${string}`;
 
 /// Souls that make a reaper fully earthed. Mirrors the contract; the contract wins.
 export const GROUND_THRESHOLD = 60;

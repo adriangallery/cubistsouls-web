@@ -44,7 +44,7 @@ export default function GroundDesk() {
   const [busy, setBusy] = useState<string | null>(null);
   const [note, setNote] = useState<string | null>(null);
 
-  const live = GROUND_ROUTER !== "";
+  const live = /^0x[0-9a-fA-F]{40}$/.test(GROUND_ROUTER);
 
   const refresh = useCallback(async () => {
     if (!live) return;
@@ -90,14 +90,14 @@ export default function GroundDesk() {
       const hash = await writeContractAsync(
         asset.address
           ? {
-              address: GROUND_ROUTER as `0x${string}`,
+              address: GROUND_ROUTER,
               abi: GROUND_ABI,
               functionName: "distributeToken",
               args: [asset.address],
               chainId: GROUND_CHAIN_ID,
             }
           : {
-              address: GROUND_ROUTER as `0x${string}`,
+              address: GROUND_ROUTER,
               abi: GROUND_ABI,
               functionName: "distribute",
               chainId: GROUND_CHAIN_ID,
