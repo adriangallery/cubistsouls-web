@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePublicClient } from "wagmi";
 import { loadOrder, loadDraws, fmtEth, pct, type OrderState, type DrawRecord } from "@/lib/order";
-import { ASCEND_AT } from "@/lib/reaper";
+import { ASCEND_AT, GROUND_CAP } from "@/lib/reaper";
 import styles from "./thedraw.module.css";
 
 // a member of the Order wears its marks: the composed art, never the plain
@@ -60,8 +60,6 @@ export default function TheDraw() {
   }
   if (!order) return <p className={styles.dim}>Reading the draw…</p>;
 
-  const best = order.members[0]?.weight ?? 1;
-
   return (
     <div className={styles.wrap}>
       {/* the rule, in one line, and what is currently waiting */}
@@ -77,11 +75,21 @@ export default function TheDraw() {
         </div>
       </div>
 
-      {/* the comparison — odds, and how much of them was earned with souls */}
+      {/* The comparison — odds, and how much of them was earned with souls.
+          ⚠️ The scale is ABSOLUTE (base + 60), not relative to the strongest.
+          It used to be relative, which was fine while thirty was the end of the
+          world: every full reaper filled the row and the bar said "done". Now a
+          vault runs to sixty and the second thirty buys something else, so the
+          row has to show the headroom — and the tone has to change at the
+          ticket cap, because past it the souls stop moving these odds. */}
       <div className={styles.bars} role="list" aria-label="The Order's odds">
         {order.members.map((m) => {
-          const width = (m.weight / best) * 100;
-          const basePart = (order.base / m.weight) * 100;
+          const scale = order.base + GROUND_CAP;
+          const basePart = (order.base / scale) * 100;
+          const ticketPart = (Math.min(m.ticketed, order.bonusCap) / scale) * 100;
+          const groundSouls = Math.max(0, Math.min(m.kept, GROUND_CAP) - order.bonusCap);
+          const groundPart = (groundSouls / scale) * 100;
+          const capMark = ((order.base + order.bonusCap) / scale) * 100;
           return (
             <div className={styles.row} key={m.id} role="listitem">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -89,10 +97,16 @@ export default function TheDraw() {
               <Link className={styles.id} href={`/reapers#${m.id}`}>
                 #{m.id}
               </Link>
-              <span className={styles.bar} title={`${m.weight} tickets of ${order.totalWeight}`}>
-                <span className={styles.barFill} style={{ width: `${width}%` }}>
-                  <span className={styles.barBase} style={{ width: `${basePart}%` }} />
-                </span>
+              <span
+                className={styles.bar}
+                title={`${m.weight} tickets of ${order.totalWeight}${
+                  groundSouls > 0 ? ` · ${groundSouls} more souls kept, which buy ground, not odds` : ""
+                }`}
+              >
+                <span className={styles.barBase} style={{ width: `${basePart}%` }} />
+                <span className={styles.barTickets} style={{ width: `${ticketPart}%` }} />
+                <span className={styles.barGround} style={{ width: `${groundPart}%` }} />
+                <i className={styles.barCap} style={{ left: `${capMark}%` }} aria-hidden="true" />
               </span>
               <span className={styles.odds}>{pct(m.share)}</span>
               <span className={styles.kept}>
@@ -118,11 +132,17 @@ export default function TheDraw() {
           );
         })}
       </div>
+      <div className={styles.key} aria-hidden="true">
+        <span className={styles.keyItem}><i className={styles.keyBase} />being a reaper ({order.base})</span>
+        <span className={styles.keyItem}><i className={styles.keyTickets} />souls that buy tickets (to {order.bonusCap})</span>
+        <span className={styles.keyItem}><i className={styles.keyGround} />souls that buy ground ({order.bonusCap}–{GROUND_CAP})</span>
+      </div>
       <p className={styles.legend}>
         The solid part of each bar is what a reaper carries simply for being one ({order.base}). The rest is
         the souls entrusted to it — one ticket each, up to {order.bonusCap}. Souls tilt the draw; they cannot
-        buy it. Past {order.bonusCap} a soul stops buying tickets and starts buying ground: the reaper's art
-        keeps reading its vault all the way to 60.
+        buy it. Past {order.bonusCap} a soul stops buying tickets and starts raising ground: the art keeps
+        reading the vault all the way to {GROUND_CAP}, and what a fully earthed reaper is owed beyond that is
+        being written now.
       </p>
 
       {/* the ledger — every draw ever settled, straight from the chain */}

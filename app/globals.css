@@ -346,8 +346,13 @@ button{font:inherit}
 .rm-name{font-family:var(--disp);font-weight:800;text-transform:uppercase;font-size:.92rem;color:var(--bone);line-height:1.05}
 .rm-name b{color:var(--reaper-lite)}
 .rm-name .rm-mark{color:var(--reaper-lite)}
-.rm-bar{height:7px;border-radius:999px;background:rgba(0,0,0,.4);border:1px solid rgba(167,101,209,.25);overflow:hidden;margin:.55rem 0 .35rem}
+.rm-bar{height:7px;border-radius:999px;background:rgba(0,0,0,.4);border:1px solid rgba(167,101,209,.25);overflow:hidden;margin:.55rem 0 .35rem;position:relative;display:flex}
 .rm-bar span{display:block;height:100%;background:linear-gradient(90deg,var(--ember),var(--reaper-lite));border-radius:999px}
+/* THE SECOND THIRTY. Same bar, different money: these souls buy no draw ticket,
+   they buy ground (and, soon, a share the ground-only reapers collect). Earth
+   tones so the eye reads it as the art it produces, not as more of the same. */
+.rm-bar-ground{background:linear-gradient(90deg,#8a6a2e,#c8a05a)!important;border-radius:0 999px 999px 0}
+.rm-bar-tick{position:absolute;top:-2px;bottom:-2px;width:1px;background:rgba(255,255,255,.45);pointer-events:none}
 .rm-prog{display:flex;align-items:baseline;gap:.5rem;font-family:var(--mono);font-size:.72rem;color:var(--mute)}
 .rm-prog b{color:var(--bone);font-size:.86rem}
 .rm-left{margin-left:auto;color:var(--reaper-lite);font-size:.64rem;letter-spacing:.04em;text-transform:uppercase}

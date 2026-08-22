@@ -52,20 +52,33 @@
 .id:hover { color: var(--reaper-lite); }
 .bar {
   height: 14px; border-radius: 999px; background: rgba(122,63,160,.14);
-  border: 1px solid rgba(167,101,209,.24); overflow: hidden; display: block;
+  border: 1px solid rgba(167,101,209,.24); overflow: hidden; display: flex; position: relative;
 }
 .barFill {
   display: block; height: 100%; border-radius: 999px;
   background: linear-gradient(90deg, var(--reaper), var(--reaper-lite));
   position: relative;
 }
-/* the part earned simply by being a reaper, drawn darker */
-.barBase { position: absolute; inset: 0 auto 0 0; background: rgba(20,4,8,.42); display: block; }
+/* THREE SEGMENTS, laid side by side on one absolute scale (base + 60):
+   what a reaper carries for being one · the souls that bought tickets ·
+   the souls past the cap, which buy ground instead. */
+.barBase { background: rgba(120,70,150,.55); display: block; height: 100%; }
+.barTickets { display: block; height: 100%; background: linear-gradient(90deg, var(--reaper), var(--reaper-lite)); }
+.barGround { display: block; height: 100%; background: linear-gradient(90deg, #8a6a2e, #c8a05a); }
+/* where the tickets stop and the ground begins */
+.barCap { position: absolute; top: -2px; bottom: -2px; width: 1px; background: rgba(255,255,255,.5); pointer-events: none; }
 .odds { font-family: var(--mono); font-size: .72rem; color: var(--bone); text-align: right; }
 .kept { font-family: var(--mono); font-size: .62rem; color: var(--reaper-lite); }
 .keptNone { color: var(--mute); }
 /* the vault past the ticket cap — the souls that buy ground instead of odds */
 .keptGround { color: #c8a05a; }
+
+.key { display: flex; flex-wrap: wrap; gap: .5rem 1.1rem; margin: .1rem 0 .2rem; }
+.keyItem { display: inline-flex; align-items: center; gap: .35rem; font-family: var(--mono); font-size: .6rem; color: var(--mute); }
+.keyItem i { width: 14px; height: 7px; border-radius: 999px; display: inline-block; }
+.keyBase { background: rgba(120,70,150,.55); }
+.keyTickets { background: linear-gradient(90deg, var(--reaper), var(--reaper-lite)); }
+.keyGround { background: linear-gradient(90deg, #8a6a2e, #c8a05a); }
 
 .legend { font-family: var(--mono); font-size: .62rem; color: var(--mute); line-height: 1.6; max-width: 70ch; margin: 0; }
 

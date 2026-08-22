@@ -59,6 +59,7 @@ function PowerBar({
   note,
   tone = "fire",
   sealed = false,
+  split,
 }: {
   label: string;
   value: number;
@@ -66,12 +67,24 @@ function PowerBar({
   note?: string;
   tone?: "fire" | "order";
   sealed?: boolean;
+  /// Where the meaning of the bar changes. Everything up to `split` buys one
+  /// thing, everything past it buys another — so the bar runs the whole scale
+  /// in ONE piece and changes tone at the line, instead of stopping at the
+  /// first ceiling and pretending the rest does not exist.
+  split?: number;
 }) {
   const pct = Math.min(100, max > 0 ? Math.round((value / max) * 100) : 0);
+  const splitPct = split && max > 0 ? Math.min(100, (split / max) * 100) : 0;
+  const firstPct = split ? Math.min(pct, splitPct) : pct;
+  const secondPct = split ? Math.max(0, pct - splitPct) : 0;
   return (
     <div className={`rm-power rm-power-${tone}${sealed ? " rm-power-sealed" : ""}`}>
       <div className="rm-bar" role="progressbar" aria-valuenow={value} aria-valuemax={max} aria-label={label}>
-        <span style={{ width: `${pct}%` }} />
+        <span style={{ width: `${firstPct}%` }} />
+        {secondPct > 0 ? <span className="rm-bar-ground" style={{ width: `${secondPct}%` }} /> : null}
+        {split && splitPct > 0 && splitPct < 100 ? (
+          <i className="rm-bar-tick" style={{ left: `${splitPct}%` }} aria-hidden="true" />
+        ) : null}
       </div>
       <div className="rm-prog">
         <b>{value}</b>/{max}
@@ -211,11 +224,13 @@ export default function MyReapers({
                         : `${left} to ascend`
                   }
                 />
-                {/* DOS TECHOS, no uno. A los 30 se acaban los boletos y ahi
-                    se acababa la barra: el holder leia "at the ceiling" y no
-                    tenia motivo para meter un alma mas. Pero de 30 a 60 el
-                    arte SIGUE moviendose — sube la tierra —, asi que pasado el
-                    techo la barra cambia de vara en vez de quedarse llena. */}
+                {/* UNA barra, DOS tramos. La barra moria a las 30 y el holder
+                    leia "at the ceiling": ningun motivo para meter el alma 31.
+                    Pero solo los boletos topan ahi — de 30 a 60 sube la tierra,
+                    y esas almas compran otra cosa. Asi que la escala es 60 de
+                    principio a fin y lo que cambia es el TONO en la marca de
+                    30: purpura = boletos, tierra = suelo. Un vistazo y ves las
+                    dos economias y en cual estas. */}
                 {e.isReaper && vaults.get(e.id)?.deployed ? (
                   (() => {
                     const kept = vaults.get(e.id)!.kept ?? 0;
@@ -223,16 +238,17 @@ export default function MyReapers({
                     const { earth } = stagesFromKept(kept);
                     return (
                       <PowerBar
-                        label={past ? "the ground rises" : "souls in the vault"}
+                        label="souls in the vault"
                         value={kept}
-                        max={past ? GROUND_CAP : BEHIND_CAP}
+                        max={GROUND_CAP}
+                        split={BEHIND_CAP}
                         tone="order"
                         note={
                           !past
-                            ? `+${kept} tickets`
+                            ? `+${kept} tickets · ${BEHIND_CAP - kept} to the ground`
                             : kept >= GROUND_CAP
-                              ? "solid ground · 6/6"
-                              : `${earth}/6 earth · ${5 - ((kept - BEHIND_CAP) % 5)} souls to the next piece`
+                              ? "solid ground · 6/6 earth"
+                              : `${earth}/6 earth · ${5 - ((kept - BEHIND_CAP) % 5)} to the next piece`
                         }
                       />
                     );
