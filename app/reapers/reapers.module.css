@@ -1588,3 +1588,6 @@
   border-radius: 7px;
   padding: 0.3rem 0.45rem;
 }
+
+/* what the vault holds on Robinhood Chain — the ground dividend's chain */
+.orderVaultGround { color: #c8a05a; }

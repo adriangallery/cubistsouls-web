@@ -237,7 +237,17 @@ function OrderGrid({
                   title={`${ensNameOf(r.id)} is this reaper's vault — a real ENS name for an on-chain account bound to the token itself. Anyone can send to it, and it travels with the reaper wherever it hangs.`}
                 >
                   <span className={styles.orderVaultMark}>⚱</span> {ensNameOf(r.id)} ·{" "}
-                  {fmtVaultEth(vaults.get(r.id)!.eth)} ↗
+                  {fmtVaultEth(vaults.get(r.id)!.eth)}
+                  {/* The vault has the SAME address on Robinhood Chain, where the
+                      ground dividend is paid. Showing only mainnet would under-
+                      report what actually stands behind this reaper. */}
+                  {vaults.get(r.id)!.ground > 0n ? (
+                    <span className={styles.orderVaultGround}>
+                      {" + "}
+                      {fmtVaultEth(vaults.get(r.id)!.ground)} on RH
+                    </span>
+                  ) : null}{" "}
+                  ↗
                 </a>
               ) : null}
               {/* EL TECHO. Quien envia desde OpenSea pegando el nombre no ve

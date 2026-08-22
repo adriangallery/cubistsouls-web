@@ -541,6 +541,11 @@ export type ReaperVault = {
   account: `0x${string}`;
   deployed: boolean;
   eth: bigint;
+  /// ⚠️ What the SAME address holds on Robinhood Chain, where the ground
+  /// dividend is paid. A 6551 account is keyed on its token's chain, not its
+  /// own, so a reaper's vault has one address on both chains — and a card that
+  /// only added up mainnet would under-report what stands behind it.
+  ground: bigint;
   kept: number; // souls standing behind the reaper — its weight in the draw
 };
 
@@ -584,13 +589,51 @@ export async function getReaperVaults(
       return { address: SOULS, abi: KEPT_ABI, functionName: "balanceOf" as const, args: [account] as const };
     }),
   });
+  // and what the same vaults hold on the chain the ground dividend pays on
+  const accounts = res.map((r) =>
+    r.status === "success" ? (r.result as readonly [`0x${string}`, boolean])[0] : null,
+  );
+  const groundBal = await groundBalances(accounts);
+
   ids.forEach((id, i) => {
     const r = res[i];
     if (r.status !== "success") return;
     const [account, deployed] = r.result as readonly [`0x${string}`, boolean];
     const kept = keptRes[i]?.status === "success" ? Number(keptRes[i].result as bigint) : 0;
-    out.set(id, { account, deployed, eth: balances[i], kept });
+    out.set(id, {
+      account,
+      deployed,
+      eth: balances[i],
+      ground: groundBal[account.toLowerCase()] ?? 0n,
+      kept,
+    });
   });
+  return out;
+}
+
+/// Robinhood Chain balances for a list of vault addresses. Fail-open to zero:
+/// a second chain that is having a bad day must never blank a card that the
+/// first chain answered fine.
+async function groundBalances(accounts: (`0x${string}` | null)[]): Promise<Record<string, bigint>> {
+  const out: Record<string, bigint> = {};
+  const live = accounts.filter((a): a is `0x${string}` => a !== null);
+  if (!live.length) return out;
+  await Promise.all(
+    live.map(async (a) => {
+      try {
+        const r = await fetch("https://rpc.mainnet.chain.robinhood.com", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "eth_getBalance", params: [a, "latest"] }),
+          signal: AbortSignal.timeout(6000),
+        });
+        const j = await r.json();
+        if (j?.result) out[a.toLowerCase()] = BigInt(j.result);
+      } catch {
+        /* fail-open */
+      }
+    }),
+  );
   return out;
 }
 
