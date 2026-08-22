@@ -1263,6 +1263,42 @@
   gap: 0.4rem;
 }
 .orderConsumed b { color: var(--flame); font-size: 0.9rem; }
+/* THE HEADLINE STAT. What a reaper holds — the number that actually moves,
+   and the one the art reads. The fire that made it sits underneath as a
+   caption, because thirty is the entry fee and every member paid it. */
+.orderHeld {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  column-gap: 0.45rem;
+  margin: 0.1rem 0 0.15rem;
+}
+.orderHeld > b {
+  font-family: var(--disp);
+  font-weight: 800;
+  font-size: 2.05rem;
+  line-height: 0.95;
+  color: var(--reaper-lite);
+  font-variant-numeric: tabular-nums;
+  grid-row: 1 / span 2;
+}
+.orderHeldGround { color: #c8a05a !important; }
+.orderHeldUnit {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--bone);
+  align-self: end;
+}
+.orderBurned {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--mute);
+  grid-column: 2;
+}
 .orderHolder {
   margin-top: auto;
   font-family: var(--mono);

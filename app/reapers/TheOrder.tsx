@@ -195,9 +195,27 @@ function OrderGrid({
               <div className={styles.orderName}>
                 <span className={styles.orderMark}>🜃</span> Soul Reaper <b>#{r.id}</b>
               </div>
-              <div className={styles.orderConsumed}>
-                <span className="ico">🔥</span> Souls Consumed <b>{r.consumed}</b>
-              </div>
+              {/* LA CIFRA GRANDE ES LA QUE SE MUEVE. Las 30 consumidas son
+                  identicas en los dieciseis — es el precio de entrada, no un
+                  logro, y de titular no decia nada. Lo que distingue a un
+                  reaper hoy es lo que GUARDA, que va de 0 a 60 y ademas manda
+                  sobre el arte. Asi que las almas guardadas van grandes y la
+                  hoguera que lo creo queda de pie de foto. */}
+              {(() => {
+                const kept = vaults.get(r.id)?.kept ?? kept0[r.id] ?? 0;
+                const { earth } = stagesFromKept(kept);
+                return (
+                  <div className={styles.orderHeld}>
+                    <b className={earth > 0 ? styles.orderHeldGround : undefined}>{kept}</b>
+                    <span className={styles.orderHeldUnit}>
+                      soul{kept === 1 ? "" : "s"} held
+                    </span>
+                    <span className={styles.orderBurned}>
+                      <span className="ico">🔥</span> {r.consumed} burned to raise it
+                    </span>
+                  </div>
+                );
+              })()}
               {r.holder && /^0x[0-9a-fA-F]{40}$/.test(r.holder) ? (
                 <Link className={styles.orderHolder} href={`/curator/${r.holder}`}>
                   held by {short(r.holder)} →
@@ -239,10 +257,10 @@ function OrderGrid({
                       className={styles.orderFull}
                       title="The art reads this reaper's vault: one more earth piece every five souls, from thirty to sixty."
                     >
-                      <strong>{kept} souls kept</strong> · ground {earth}/6
+                      Ground <strong>{earth}/6</strong>
                       {kept >= GROUND_CAP
                         ? " — solid ground"
-                        : ` — ${5 - ((kept - BEHIND_CAP) % 5)} more for the next piece`}
+                        : ` — ${5 - ((kept - BEHIND_CAP) % 5)} more souls for the next piece`}
                     </div>
                   );
                 }
@@ -251,8 +269,8 @@ function OrderGrid({
                     className={styles.orderFull}
                     title="A reaper counts at most 30 souls toward the draw — but the art keeps reading the vault to sixty."
                   >
-                    {kept} souls kept · odds full at {BEHIND_CAP} — past here a soul buys no ticket, it
-                    buys <strong>ground</strong>: one more earth piece every five, to {GROUND_CAP}
+                    Odds full at {BEHIND_CAP} — past here a soul buys no ticket, it buys{" "}
+                    <strong>ground</strong>: one more earth piece every five, to {GROUND_CAP}
                   </div>
                 );
               })()}
