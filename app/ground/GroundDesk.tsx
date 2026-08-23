@@ -194,10 +194,10 @@ export default function GroundDesk() {
       <div className={styles.rule}>
         <span className={styles.mark}>🜃</span>
         Everything here is split <b>equally between reapers holding {GROUND_THRESHOLD} souls or more</b> —
-        checked against Ethereum <b>at the moment of the split</b>, in two steps anyone can take:{" "}
-        <b>1&#41; read Ethereum</b> (a message carries the counts across, five to ten minutes), then{" "}
-        <b>2&#41; split</b> while the reading is under 30 minutes old. Nobody posts anything and nobody is
-        trusted: the numbers are read on chain, by a contract, from the vaults themselves.
+        checked against Ethereum <b>at the moment of the split</b>. One button does it all:{" "}
+        <b>Read &amp; split</b> has a contract on Ethereum read the vaults and send the counts across, and{" "}
+        <b>the split happens the instant they land</b>, five to ten minutes later, in the same transaction.
+        Nobody posts anything and nobody is trusted — and nobody has to come back at the right moment.
       </div>
 
       {/* THE CLOCK — everything below obeys it */}
@@ -212,16 +212,16 @@ export default function GroundDesk() {
           ) : inFlight ? (
             <>
               A reading left Ethereum <b>{Math.max(0, Math.round((Date.now() / 1000 - inFlight.sentAt) / 60))} min
-              ago</b> and is crossing the bridge — it lands in five to ten minutes and this page refreshes
-              itself. No need to send another.
+              ago</b> and is crossing the bridge. When it lands — five to ten minutes — <b>the split happens
+              by itself</b> in the same transaction, and this page refreshes. Nothing else to press.
             </>
           ) : (
             <>
               The reading is <b>stale</b>
-              {gstate.age < 86400 * 300 ? ` (${Math.round(gstate.age / 60)} min old)` : ""} — splits are
-              refused until someone reads Ethereum again.{" "}
+              {gstate.age < 86400 * 300 ? ` (${Math.round(gstate.age / 60)} min old)` : ""} — and that is
+              fine: one press reads Ethereum and splits whatever is waiting, on landing.{" "}
               <button className={styles.relayBtn} disabled={busy !== null} onClick={refreshRoster}>
-                {busy === "relay" ? "…" : chainId !== 1 ? "Switch to Ethereum" : "Read Ethereum (~$0.30)"}
+                {busy === "relay" ? "…" : chainId !== 1 ? "Switch to Ethereum" : "Read & split (~$0.30)"}
               </button>
             </>
           )}

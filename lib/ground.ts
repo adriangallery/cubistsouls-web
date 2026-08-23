@@ -30,17 +30,24 @@ export const GROUND_EXPLORER = "https://explorer.mainnet.chain.robinhood.com";
 /// the router refuses to split on a reading older than 30 minutes. Both phases
 /// are paid by whoever wants the split. V1 (0xFEF46435…) stays deployed as the
 /// record of the first test; nothing points at it any more.
+/// V3 (23-ago noche): ONE BUTTON. V2 was correct and unusable — read, wait for
+/// the bridge, come back inside a thirty-minute window. Adrian paid for three
+/// readings and the window expired every time before he could press the second
+/// button. In V3 the split happens ON LANDING, in the same transaction the
+/// roster arrives in: press "Read & split" on Ethereum, done. distribute()
+/// remains for money that arrives after a landing.
 export const GROUND_ROUTER = (process.env.NEXT_PUBLIC_GROUND_ROUTER ||
-  "0x849b014EAf197cF6765dE8977f9952264B675bf1") as `0x${string}`;
+  "0x24100b298aC885CB09C49A7c88785E594a2709CF") as `0x${string}`;
 
 /// Phase one lives on Ethereum: it reads the diamond and buys the bridge ticket.
-export const GROUND_RELAY = "0x271a21B33782F614d1C199651e82ffDd3928242b" as const;
+export const GROUND_RELAY = "0x64Bc3945341D91B78258Ed6806439d3860c0892e" as const;
 
 /// Gas for receiveRoster on the far side. ⚠️ 300k was the first, failed guess —
 /// sixteen roster entries are cold storage writes and need ~1M; the ticket
 /// auto-redeem ran out of gas and the roster never applied. 1.5M is measured
 /// headroom, and unspent gas is refunded to the caller.
-export const RELAY_GAS_LIMIT = 1_500_000n;
+/// receiveRoster (16 cold slots ≈ 1M) PLUS the auto-split it now performs.
+export const RELAY_GAS_LIMIT = 2_000_000n;
 export const RELAY_MAX_FEE_PER_GAS = 50_000_000n; // 0.05 gwei
 
 export const RELAY_ABI = parseAbi([
