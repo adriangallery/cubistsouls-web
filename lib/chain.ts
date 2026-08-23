@@ -620,3 +620,27 @@ export async function getFireOpen(): Promise<boolean> {
 export function fmtDate(sec: number): string {
   return new Date(sec * 1000).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
+
+// ── The propose gate (POST /api/govern/propose) ──────────────────────────────
+// Fresh reads on purpose, no memo: opening a proposal is rare and the answer
+// decides WHO may speak for the Order — a stale "yes" after a sale would let
+// the previous holder keep proposing. Throws on RPC failure so the route can
+// answer 502 instead of guessing.
+const SEL_IS_REAPER = "0xfeacc37e"; // isReaper(uint256)
+
+export async function getLatestBlock(): Promise<number> {
+  return parseInt(await rpc("eth_blockNumber", []), 16);
+}
+
+export async function getProposerGate(
+  reaperId: number,
+): Promise<{ holder: string; isReaper: boolean }> {
+  const pad = reaperId.toString(16).padStart(64, "0");
+  const [ownerRaw, reaperRaw] = await Promise.all([
+    rpc("eth_call", [{ to: SOULS, data: SEL_OWNER_OF + pad }, "latest"], 8000),
+    rpc("eth_call", [{ to: SOULS, data: SEL_IS_REAPER + pad }, "latest"], 8000),
+  ]);
+  const holder = "0x" + String(ownerRaw).slice(-40).toLowerCase();
+  const isReaper = String(reaperRaw).length >= 3 && parseInt(String(reaperRaw).slice(-1), 16) === 1;
+  return { holder, isReaper };
+}

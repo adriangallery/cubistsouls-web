@@ -61,14 +61,19 @@ export default function ProposalLive({
   params,
   power,
   burned,
+  reloadToken = 0,
 }: {
   params: GovernParams;
   power: WalletPower | null;
   burned: number;
+  /** Bump to refetch — the propose form does after a proposal goes live. */
+  reloadToken?: number;
 }) {
   const [proposals, setProposals] = useState<LiveProposal[]>([]);
   useEffect(() => {
-    fetch("/govern/proposals.json", { cache: "no-store" })
+    // The MERGED feed: museum proposals (proposals.json) + reaper proposals
+    // created live via /api/govern/propose. Server sorts open-first, newest-first.
+    fetch("/api/govern/proposals", { cache: "no-store" })
       .then((r) => (r.ok ? r.json() : []))
       .then((j) => {
         if (!Array.isArray(j)) return;
@@ -79,7 +84,7 @@ export default function ProposalLive({
         );
       })
       .catch(() => {});
-  }, []);
+  }, [reloadToken]);
 
   if (!proposals.length) return null;
   return (

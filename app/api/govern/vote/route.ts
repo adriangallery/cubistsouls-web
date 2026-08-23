@@ -16,34 +16,12 @@
 //
 // Credentials are injected by the host (Vercel env); never inline them.
 
+import { loadAllProposals, redis, redisConfigured } from "@/lib/govern-server";
+
 export const runtime = "nodejs";
 
-const ENV = process.env;
 const RL_MAX = 20;
 const RL_WINDOW = 3600;
-
-async function redis(cmd: any[]) {
-  const r = await fetch(ENV.UPSTASH_REDIS_REST_URL as string, {
-    method: "POST",
-    headers: { Authorization: "Bearer " + ENV.UPSTASH_REDIS_REST_TOKEN, "content-type": "application/json" },
-    body: JSON.stringify(cmd),
-    // Next's patched fetch can freeze a POST response in its Data Cache
-    // (bit the giveaways feed, 10-ago) - Redis commands are never cacheable.
-    cache: "no-store",
-  });
-  if (!r.ok) throw new Error("redis " + r.status);
-  const j = await r.json();
-  if (j.error) throw new Error("redis: " + j.error);
-  return j.result;
-}
-
-async function loadProposals(req: Request) {
-  const host = req.headers.get("x-forwarded-host") || req.headers.get("host");
-  const proto = (req.headers.get("x-forwarded-proto") || "https").split(",")[0];
-  const r = await fetch(`${proto}://${host}/govern/proposals.json`, { signal: AbortSignal.timeout(8000) });
-  if (!r.ok) throw new Error("proposals " + r.status);
-  return r.json();
-}
 
 // Pure validator. Returns {ok:true,...} or {ok:false,code,error}.
 function validateVote(body: any, proposals: any[], nowMs: number) {
@@ -73,7 +51,7 @@ function validateVote(body: any, proposals: any[], nowMs: number) {
 }
 
 export async function POST(req: Request) {
-  if (!ENV.UPSTASH_REDIS_REST_URL || !ENV.UPSTASH_REDIS_REST_TOKEN)
+  if (!redisConfigured())
     return Response.json({ error: "storage not configured" }, { status: 500 });
 
   let body: any = null;
@@ -83,9 +61,11 @@ export async function POST(req: Request) {
     body = null;
   }
 
+  // Museum proposals (proposals.json) + reaper proposals (Redis) — a ballot on
+  // either goes through this same mailbox.
   let proposals;
   try {
-    proposals = await loadProposals(req);
+    proposals = await loadAllProposals(req);
   } catch {
     return Response.json({ error: "proposals unavailable" }, { status: 502 });
   }

@@ -997,3 +997,155 @@
 .subBlock:first-child {
   margin-top: 0.2rem;
 }
+
+/* ── THE ROSTRUM — the reaper propose desk (ProposeDesk.tsx) ─────────────── */
+.deskForm {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+.deskLive {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--order);
+  border: 1px solid rgba(167, 101, 209, 0.35);
+  border-radius: 10px;
+  padding: 0.6rem 0.8rem;
+  margin: 0;
+}
+.deskAs {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  color: var(--mute);
+  margin: 0;
+}
+.deskAs b {
+  color: var(--order);
+}
+.deskField {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+.deskLabel {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--gild);
+}
+.deskHint {
+  font-style: normal;
+  font-weight: 400;
+  color: var(--mute);
+  text-transform: none;
+  letter-spacing: 0;
+}
+.deskInput,
+.deskArea,
+.deskSelect {
+  width: 100%;
+  font-family: var(--serif);
+  font-size: 0.92rem;
+  color: var(--bone);
+  background: rgba(26, 6, 8, 0.55);
+  border: 1px solid rgba(224, 165, 32, 0.25);
+  border-radius: 10px;
+  padding: 0.55rem 0.7rem;
+  outline: none;
+}
+.deskInput:focus,
+.deskArea:focus,
+.deskSelect:focus {
+  border-color: var(--order);
+}
+.deskArea {
+  resize: vertical;
+  min-height: 4.5rem;
+}
+.deskOptRow {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.deskOptRow .deskInput {
+  flex: 1 1 45%;
+}
+.deskSub {
+  flex: 1 1 55%;
+  font-size: 0.82rem;
+}
+.deskDrop {
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 8px;
+  border: 1px solid rgba(224, 165, 32, 0.25);
+  background: none;
+  color: var(--mute);
+  font-size: 1rem;
+  cursor: pointer;
+}
+.deskDrop:hover {
+  color: #ff9a7a;
+  border-color: rgba(255, 154, 122, 0.5);
+}
+.deskAdd {
+  align-self: flex-start;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  color: var(--gild);
+  background: none;
+  border: 1px dashed rgba(224, 165, 32, 0.35);
+  border-radius: 8px;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+}
+.deskWindows {
+  display: flex;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.deskWin {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  color: var(--mute);
+  background: rgba(26, 6, 8, 0.55);
+  border: 1px solid rgba(224, 165, 32, 0.25);
+  border-radius: 999px;
+  padding: 0.45rem 1rem;
+  cursor: pointer;
+}
+.deskWinOn {
+  color: var(--bone);
+  border-color: var(--order);
+  box-shadow: 0 0 18px -10px var(--order);
+}
+.deskSubmit {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--bone);
+  background: linear-gradient(180deg, rgba(167, 101, 209, 0.35), rgba(76, 36, 103, 0.45));
+  border: 1px solid var(--order);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+}
+.deskSubmit:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+.deskFine {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  color: var(--mute);
+  margin: 0;
+}
+.deskLink {
+  color: var(--gild);
+  text-decoration: underline;
+}

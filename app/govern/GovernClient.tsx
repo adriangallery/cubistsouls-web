@@ -12,6 +12,7 @@ import {
 } from "@/lib/govern";
 import type { PyramidCounts } from "./page";
 import ProposalLive from "./Proposal";
+import ProposeDesk from "./ProposeDesk";
 import styles from "./govern.module.css";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -46,14 +47,19 @@ export default function GovernClient({ counts }: { counts: PyramidCounts }) {
   // Wallet power is lifted here so the live proposal can seed the voter's weight.
   const [power, setPower] = useState<WalletPower | null>(null);
 
+  // Bumped when a reaper opens a proposal via the desk — the live list refetches
+  // so the new proposal appears on the wall without a reload.
+  const [propReload, setPropReload] = useState(0);
+
   // ONE thing above the fold: the live proposal. Everything that explains the
   // system (pyramid, cycle, fine print, the standing-vote previews) folds shut —
   // Adrian's 1-aug feedback: too many elements, the page must read in seconds.
   return (
     <main className={styles.wrap}>
       <Hero />
-      <ProposalLive params={params} power={power} burned={counts.burned} />
+      <ProposalLive params={params} power={power} burned={counts.burned} reloadToken={propReload} />
       <PowerPanel params={params} onPower={setPower} />
+      <ProposeDesk power={power} onCreated={() => setPropReload((n) => n + 1)} />
       <Fold title="How the pyramid works">
         <Pyramid counts={counts} params={params} />
         <Cycle />
