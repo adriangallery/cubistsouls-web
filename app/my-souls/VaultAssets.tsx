@@ -50,7 +50,7 @@ export default function VaultAssets({
   holder: `0x${string}`;
   onDone?: () => void;
 }) {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const { data: walletClient } = useWalletClient();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();
@@ -285,10 +285,10 @@ export default function VaultAssets({
       )}
       {groundEth !== null && groundEth > 0n && (
         <p className={styles.fine}>
-          This is the ground dividend. It is <b>in the vault</b>, at the very same address — so it travels with
-          the reaper if it sells, exactly like the souls behind it. Taking it out is not wired up yet: the vault
-          is driven from Ethereum, so a withdrawal has to be sent across as a message from the mainnet side.
-          Nothing is stranded and nobody else can touch it.
+          From the first ground dividend, paid to this vault before we knew better. It is <b>in the vault</b>, at
+          the very same address on Robinhood Chain — but spending from there needs a message sent across from
+          Ethereum, which is not wired up. Nothing is stranded and nobody else can touch it. Later dividends go
+          straight to your own address instead.
         </p>
       )}
 

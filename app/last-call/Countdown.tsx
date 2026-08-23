@@ -26,7 +26,7 @@ const ABI = [
 const two = (n: number) => String(n).padStart(2, "0");
 
 export default function Countdown() {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const [deadline, setDeadline] = useState<number>(FALLBACK_DEADLINE);
   const [now, setNow] = useState<number>(() => Math.floor(Date.now() / 1000));
 

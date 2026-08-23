@@ -102,7 +102,7 @@ function ProposalCard({
   power: WalletPower | null;
   burned: number;
 }) {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
   const [mounted, setMounted] = useState(false);

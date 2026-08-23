@@ -36,7 +36,7 @@ const IMG = (id: number, kept = 0, consumed = ASCEND_AT) =>
 const short = (w: string) => (w && w.length >= 10 ? `${w.slice(0, 6)}…${w.slice(-4)}` : w || "—");
 
 export default function TheDraw() {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const [order, setOrder] = useState<OrderState | null>(null);
   const [draws, setDraws] = useState<DrawRecord[] | null>(null);
   const [failed, setFailed] = useState(false);

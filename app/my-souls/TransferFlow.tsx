@@ -81,7 +81,7 @@ function useDevForce(): boolean {
 
 /** True once the Diamond routes batchTransfer — i.e. the cut is live on mainnet. */
 export function useBatchTransferLive(): boolean {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const [live, setLive] = useState(false);
   const forced = useDevForce();
   useEffect(() => {
@@ -115,7 +115,7 @@ export function TransferModal({
   onClose: () => void;
   onDone: (sent: number[]) => void;
 }) {
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 1 });
   const { data: walletClient } = useWalletClient();
   const chainId = useChainId();
   const { switchChainAsync } = useSwitchChain();

@@ -18,7 +18,7 @@ export type VesselCard = { id: number; name: string; members: number[]; vault: `
 
 /// Split the owned list on-chain: vessels out of the souls grid, cards for the wing.
 export function useOwnedSplit(owned: number[]): { souls: number[]; vessels: VesselCard[]; readyV: boolean } {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const [souls, setSouls] = useState<number[]>(owned);
   const [vessels, setVessels] = useState<VesselCard[]>([]);
   const [readyV, setReady] = useState(false);

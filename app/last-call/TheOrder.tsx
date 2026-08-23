@@ -60,7 +60,7 @@ export default function TheOrder({
 
   // The vaults of the Order — one ERC-6551 account per ascended reaper, read
   // straight from the diamond (the facet reverts for anything not ascended).
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const [vaults, setVaults] = useState<Map<number, ReaperVault>>(new Map());
   const vaultKey = ascended.map((r) => r.id).join(",");
   useEffect(() => {

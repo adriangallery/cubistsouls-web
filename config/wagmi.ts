@@ -11,6 +11,15 @@ import { defineChain } from "viem";
 /// aliased once, not twice.
 ///
 /// Cubist Souls itself stays mainnet-only. This chain is here for one page.
+/// ⚠️ THE RULE THIS CHAIN CREATED. Until now there was only one chain, so a bare
+/// `usePublicClient()` could only ever mean Ethereum. With a second chain it
+/// follows the WALLET — so the moment a holder switches to Robinhood Chain to
+/// press Distribute or move a dividend, every mainnet read would be aimed at the
+/// wrong chain and the site would tell them they own nothing.
+///
+/// So every read of the diamond is pinned: `usePublicClient({ chainId: 1 })`,
+/// with no exceptions. Only the /ground write is allowed to care what the wallet
+/// is connected to.
 export const robinhood = defineChain({
   id: 4663,
   name: "Robinhood Chain",

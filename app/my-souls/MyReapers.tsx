@@ -132,7 +132,7 @@ export default function MyReapers({
 
   // Vaults exist ONLY for the ascended (the diamond reverts for anyone else);
   // fetched lazily so souls still rising cost zero extra RPC.
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const [vaults, setVaults] = useState<Map<number, ReaperVault>>(new Map());
   const ascendedKey = mine.filter((e) => e.isReaper).map((e) => e.id).join(",");
   useEffect(() => {

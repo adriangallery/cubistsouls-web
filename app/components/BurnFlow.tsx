@@ -44,7 +44,7 @@ export default function BurnFlow({ priceWei }: { priceWei: string }) {
   const { openConnectModal } = useConnectModal();
   const { address, isConnected } = useAccount();
   const chainId = useChainId();
-  const publicClient = usePublicClient();
+  const publicClient = usePublicClient({ chainId: 1 });
   const { data: walletClient } = useWalletClient();
   const { switchChainAsync } = useSwitchChain();
 

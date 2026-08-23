@@ -52,7 +52,7 @@ export type HolderData = {
  * resolved address). When disabled the hook resets to idle.
  */
 export function useHolderData(account: string | undefined, enabled = true): HolderData {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
 
   const [phase, setPhase] = useState<HolderPhase>("idle");
   const [data, setData] = useState<SoulsData | null>(null);

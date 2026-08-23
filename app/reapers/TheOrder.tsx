@@ -85,7 +85,7 @@ export default function TheOrder({
 
   // The vaults of the Order — one ERC-6551 account per ascended reaper, read
   // straight from the diamond (the facet reverts for anything not ascended).
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const [vaults, setVaults] = useState<Map<number, ReaperVault>>(new Map());
   const vaultKey = ascended.map((r) => r.id).join(",");
   useEffect(() => {
@@ -234,19 +234,21 @@ function OrderGrid({
                   href={vaultEtherscanUrl(vaults.get(r.id)!.account)}
                   target="_blank"
                   rel="noreferrer"
-                  title={`${ensNameOf(r.id)} is this reaper's vault — a real ENS name for an on-chain account bound to the token itself. Anyone can send to it, and it travels with the reaper wherever it hangs.`}
+                  title={
+                    (vaults.get(r.id)?.ground ?? 0n) > 0n
+                      ? `${fmtVaultEth(vaults.get(r.id)!.eth)} on Ethereum + ${fmtVaultEth(vaults.get(r.id)!.ground)} on Robinhood Chain — the same vault, one address on both. It travels with the reaper wherever it hangs.`
+                      : `${ensNameOf(r.id)} is this reaper's vault — a real ENS name for an on-chain account bound to the token itself. Anyone can send to it, and it travels with the reaper wherever it hangs.`
+                  }
                 >
                   <span className={styles.orderVaultMark}>⚱</span> {ensNameOf(r.id)} ·{" "}
-                  {fmtVaultEth(vaults.get(r.id)!.eth)}
                   {/* The vault has the SAME address on Robinhood Chain, where the
-                      ground dividend is paid. Showing only mainnet would under-
-                      report what actually stands behind this reaper. */}
-                  {vaults.get(r.id)!.ground > 0n ? (
-                    <span className={styles.orderVaultGround}>
-                      {" + "}
-                      {fmtVaultEth(vaults.get(r.id)!.ground)} on RH
-                    </span>
-                  ) : null}{" "}
+                      ground dividend is paid, so what stands behind a reaper is
+                      the SUM. Printing "A + B on RH" overflowed the chip and told
+                      a buyer less than one number does; the split lives in the
+                      tooltip, where it costs no room. */}
+                  <span className={vaults.get(r.id)!.ground > 0n ? styles.orderVaultGround : undefined}>
+                    {fmtVaultEth(vaults.get(r.id)!.eth + vaults.get(r.id)!.ground)}
+                  </span>{" "}
                   ↗
                 </a>
               ) : null}

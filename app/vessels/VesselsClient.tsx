@@ -52,7 +52,7 @@ function Masked({ id, className = "" }: { id: number; className?: string }) {
 }
 
 export default function VesselsClient() {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const { address, isConnected } = useAccount();
   const { data: walletClient } = useWalletClient();
   const chainId = useChainId();

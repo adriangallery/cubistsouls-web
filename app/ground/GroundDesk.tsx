@@ -210,7 +210,7 @@ export default function GroundDesk() {
               <th>Reaper</th>
               <th>Posted</th>
               <th>On Ethereum</th>
-              <th>Pays to</th>
+              <th>Paid to holder</th>
               <th></th>
             </tr>
           </thead>
@@ -239,8 +239,10 @@ export default function GroundDesk() {
       {roster === null && <p className={styles.dim}>Reading the roster…</p>}
 
       <p className={styles.foot}>
-        A reaper is paid into its own vault&apos;s address on this chain — the same address the vault has on
-        Ethereum, because a 6551 account is keyed on its token&apos;s chain, not its own. Router:{" "}
+        Paid to whoever holds the reaper, at the same address they use on Ethereum. We tried paying the
+        reaper&apos;s vault instead — it has the very same address on this chain, and the dividend would have
+        travelled with a sale — but the only way to spend from there is a message sent across from Ethereum,
+        and we are not shipping revenue on a path we have not watched work. It stays a parameter. Router:{" "}
         <a href={`${GROUND_EXPLORER}/address/${GROUND_ROUTER}`} target="_blank" rel="noreferrer">
           {short(GROUND_ROUTER)} ↗
         </a>

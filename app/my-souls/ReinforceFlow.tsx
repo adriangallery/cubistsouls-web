@@ -48,7 +48,7 @@ export default function ReinforceFlow({
   onDone: () => void;
   onClose: () => void;
 }) {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const { address } = useAccount();
   const { data: walletClient } = useWalletClient();
   const chainId = useChainId();

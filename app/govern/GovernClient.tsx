@@ -165,7 +165,7 @@ function PowerPanel({
   params: GovernParams;
   onPower: (p: WalletPower | null) => void;
 }) {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const { address, isConnected } = useAccount();
   const devAs = useDevAs();
   const account = devAs ?? address;

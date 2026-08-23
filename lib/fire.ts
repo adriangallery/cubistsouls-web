@@ -25,7 +25,7 @@ let memo: { open: boolean; ts: number } | null = null;
 /// the last known answer, and failing that stays closed: showing a ritual that
 /// only produces failed transactions is worse than showing nothing.
 export function useFireOpen(): boolean | null {
-  const client = usePublicClient();
+  const client = usePublicClient({ chainId: 1 });
   const [open, setOpen] = useState<boolean | null>(
     memo && Date.now() - memo.ts < TTL_MS ? memo.open : null,
   );
