@@ -153,6 +153,54 @@ export async function readRoster(router: string): Promise<RosterEntry[] | null> 
   }
 }
 
+/// A reading that has left Ethereum but not yet landed here. The page needs
+/// this because the bridge takes minutes and a holder who just paid for a
+/// reading was left staring at "stale" with no sign anything was coming —
+/// which reads as a broken button, not a crossing ticket.
+///
+/// Detected from the relay's own RosterRelayed events on mainnet: one newer
+/// than the router's current readAt means a ticket is in flight (or, after
+/// ~20 minutes, that its redeem needs help).
+export async function readingInFlight(currentReadAt: number): Promise<{ sentAt: number } | null> {
+  try {
+    const topic = "0x" + "1c0801223e4f0e835e46dbce9c9c89a8106413ee882fdebad86d4a372fbc17ef";
+    for (const rpc of [
+      "https://gateway.tenderly.co/public/mainnet",
+      "https://ethereum-rpc.publicnode.com",
+    ]) {
+      try {
+        const r = await fetch(rpc, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            method: "eth_getLogs",
+            params: [{ address: GROUND_RELAY, topics: [topic], fromBlock: "0x" + (25819300).toString(16) }],
+          }),
+          signal: AbortSignal.timeout(8000),
+        });
+        const j = await r.json();
+        if (!Array.isArray(j?.result)) continue;
+        let newest = 0;
+        for (const log of j.result) {
+          // RosterRelayed(ticketId, members, eligible, readAt) — all unindexed
+          const readAt = parseInt(log.data.slice(2 + 64 * 3, 2 + 64 * 4), 16);
+          if (readAt > newest) newest = readAt;
+        }
+        // Older than ~20 minutes and still not landed = the ticket's redeem
+        // failed (it happened: a 300k-gas ticket died silently). Stop saying
+        // "crossing" and give the button back, or a dead ticket wedges the page.
+        const recent = newest > Date.now() / 1000 - 20 * 60;
+        return newest > currentReadAt && recent ? { sentAt: newest } : null;
+      } catch {
+        continue;
+      }
+    }
+  } catch {}
+  return null;
+}
+
 /// The router's state, readable without a wallet.
 export type GroundState = {
   fresh: boolean;

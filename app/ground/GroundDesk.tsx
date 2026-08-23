@@ -27,6 +27,7 @@ import {
   readPot,
   readRoster,
   readState,
+  readingInFlight,
   fmtAsset,
   type PotAsset,
   type RosterEntry,
@@ -46,6 +47,7 @@ export default function GroundDesk() {
 
   const [pot, setPot] = useState<PotAsset[] | null>(null);
   const [gstate, setGstate] = useState<GroundState | null>(null);
+  const [inFlight, setInFlight] = useState<{ sentAt: number } | null>(null);
   const [roster, setRoster] = useState<RosterEntry[] | null>(null);
   const [onChainSouls, setOnChainSouls] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -63,6 +65,8 @@ export default function GroundDesk() {
     setPot(p);
     setRoster(r);
     setGstate(st);
+    // a reading newer than the router's, still crossing the bridge
+    if (st) readingInFlight(Math.floor(st.expiresAt - 30 * 60)).then(setInFlight).catch(() => {});
   }, [live]);
 
   useEffect(() => {
@@ -204,6 +208,12 @@ export default function GroundDesk() {
               Reading is <b>{Math.round(gstate.age / 60)} min</b> old — splits allowed for another{" "}
               <b>{Math.max(0, Math.round((gstate.expiresAt - Date.now() / 1000) / 60))} min</b> ·{" "}
               {gstate.eligible} earthed
+            </>
+          ) : inFlight ? (
+            <>
+              A reading left Ethereum <b>{Math.max(0, Math.round((Date.now() / 1000 - inFlight.sentAt) / 60))} min
+              ago</b> and is crossing the bridge — it lands in five to ten minutes and this page refreshes
+              itself. No need to send another.
             </>
           ) : (
             <>
