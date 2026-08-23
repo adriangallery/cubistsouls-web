@@ -67,8 +67,13 @@ export default function GroundDesk() {
       roster.map((r) => r.reaperId),
     )
       .then((v) => {
+        // Only record counts we actually READ. A failed read used to land here
+        // as a zero and get compared against the posted roster, which reported
+        // drift on a roster that was exactly right.
         const out: Record<number, number> = {};
-        v.forEach((vault, id) => (out[id] = vault.kept ?? 0));
+        v.forEach((vault, id) => {
+          if (vault.keptKnown) out[id] = vault.kept;
+        });
         setOnChainSouls(out);
       })
       .catch(() => {});

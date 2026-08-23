@@ -547,6 +547,12 @@ export type ReaperVault = {
   /// only added up mainnet would under-report what stands behind it.
   ground: bigint;
   kept: number; // souls standing behind the reaper — its weight in the draw
+  /// ⚠️ Whether `kept` was actually READ, or is a fail-open zero. A failed
+  /// multicall entry reporting 0 is indistinguishable from a vault that really
+  /// is empty — which made /ground cry "drifted from Ethereum" at a roster that
+  /// was perfectly correct. Anything that compares `kept` to another source has
+  /// to check this first.
+  keptKnown: boolean;
 };
 
 export async function getReaperVaults(
@@ -599,13 +605,15 @@ export async function getReaperVaults(
     const r = res[i];
     if (r.status !== "success") return;
     const [account, deployed] = r.result as readonly [`0x${string}`, boolean];
-    const kept = keptRes[i]?.status === "success" ? Number(keptRes[i].result as bigint) : 0;
+    const keptKnown = keptRes[i]?.status === "success";
+    const kept = keptKnown ? Number(keptRes[i].result as bigint) : 0;
     out.set(id, {
       account,
       deployed,
       eth: balances[i],
       ground: groundBal[account.toLowerCase()] ?? 0n,
       kept,
+      keptKnown,
     });
   });
   return out;
