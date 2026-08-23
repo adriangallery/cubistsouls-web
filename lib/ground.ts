@@ -24,8 +24,30 @@ export const GROUND_EXPLORER = "https://explorer.mainnet.chain.robinhood.com";
 /// plain `docker build` that passes no build args — so relying on the env alone
 /// would have shipped a green deploy with an empty address and a page insisting
 /// the router was not live. A deployed contract address is public anyway.
+///
+/// V2 (23-ago): the two-phase system. No stored roster and no owner posting one —
+/// GroundRelay on Ethereum reads the vaults itself and sends them across, and
+/// the router refuses to split on a reading older than 30 minutes. Both phases
+/// are paid by whoever wants the split. V1 (0xFEF46435…) stays deployed as the
+/// record of the first test; nothing points at it any more.
 export const GROUND_ROUTER = (process.env.NEXT_PUBLIC_GROUND_ROUTER ||
-  "0xFEF46435Dea467bb05DC0c51Bad6C720Ee66D6f0") as `0x${string}`;
+  "0x849b014EAf197cF6765dE8977f9952264B675bf1") as `0x${string}`;
+
+/// Phase one lives on Ethereum: it reads the diamond and buys the bridge ticket.
+export const GROUND_RELAY = "0x271a21B33782F614d1C199651e82ffDd3928242b" as const;
+
+/// Gas for receiveRoster on the far side. ⚠️ 300k was the first, failed guess —
+/// sixteen roster entries are cold storage writes and need ~1M; the ticket
+/// auto-redeem ran out of gas and the roster never applied. 1.5M is measured
+/// headroom, and unspent gas is refunded to the caller.
+export const RELAY_GAS_LIMIT = 1_500_000n;
+export const RELAY_MAX_FEE_PER_GAS = 50_000_000n; // 0.05 gwei
+
+export const RELAY_ABI = parseAbi([
+  "function quote(uint256 gasLimit, uint256 maxFeePerGas) view returns (uint256 total, uint256 maxSubmissionCost)",
+  "function relay(uint256 gasLimit, uint256 maxFeePerGas) payable returns (uint256)",
+  "function read() view returns (uint256[] ids, address[] payouts, uint16[] souls)",
+]);
 
 /// Souls that make a reaper fully earthed. Mirrors the contract; the contract wins.
 export const GROUND_THRESHOLD = 60;
@@ -41,17 +63,18 @@ export const GROUND_ASSETS: { symbol: string; address: `0x${string}` | null; dec
 
 export const GROUND_ABI = parseAbi([
   "function roster() view returns ((uint256 reaperId,address payout,uint16 souls)[])",
-  "function threshold() view returns (uint16)",
+  "function state() view returns (bool isFresh, uint64 age, uint256 eligible, uint256 ethBalance, uint64 expiresAt)",
   "function eligibleCount() view returns (uint256)",
-  "function minAmount() view returns (uint256)",
-  "function minInterval() view returns (uint64)",
-  "function lastDistribution() view returns (uint64)",
-  "function readyAt() view returns (uint64)",
-  "function rosterPostedAt() view returns (uint64)",
-  "function preview(uint256 amount) view returns (uint256[] ids, address[] payouts, uint256 share, uint256 dust)",
+  "function rosterAge() view returns (uint64)",
+  "function fresh() view returns (bool)",
+  "function readAt() view returns (uint64)",
   "function distribute()",
   "function distributeToken(address token)",
 ]);
+
+/// The V2 selectors, for the no-wallet reads. Verified against the compiled ABI.
+export const SEL_STATE = "0xc19d93fb";
+export const SEL_ROSTER = "0x0cbf77ab";
 
 export type RosterEntry = { reaperId: number; payout: `0x${string}`; souls: number };
 export type PotAsset = { symbol: string; address: `0x${string}` | null; decimals: number; balance: bigint };
@@ -130,6 +153,28 @@ export async function readRoster(router: string): Promise<RosterEntry[] | null> 
   }
 }
 
+/// The router's state, readable without a wallet.
+export type GroundState = {
+  fresh: boolean;
+  age: number;
+  eligible: number;
+  ethBalance: bigint;
+  expiresAt: number;
+};
+
+export async function readState(router: string): Promise<GroundState | null> {
+  const raw = await rhCall(router, SEL_STATE);
+  if (!raw || raw.length < 2 + 64 * 5) return null;
+  const w = (i: number) => raw.slice(2 + i * 64, 2 + (i + 1) * 64);
+  return {
+    fresh: parseInt(w(0), 16) === 1,
+    age: parseInt(w(1), 16),
+    eligible: parseInt(w(2), 16),
+    ethBalance: BigInt("0x" + w(3)),
+    expiresAt: parseInt(w(4), 16),
+  };
+}
+
 /// Balances the reaper VAULTS hold on Robinhood Chain. The museum's cards have
 /// always shown a vault's mainnet ETH; once a dividend is paid, part of what
 /// stands behind a reaper lives here instead, and a card that ignored it would
@@ -150,3 +195,42 @@ export const fmtAsset = (v: bigint, decimals: number, symbol: string) => {
   if (n < 0.000001) return `<0.000001 ${symbol}`;
   return `${n.toLocaleString("en-US", { maximumFractionDigits: decimals === 6 ? 2 : 6 })} ${symbol}`;
 };
+
+// ---------------------------------------------------------------------------
+// BRINGING A DIVIDEND HOME
+//
+// A reaper's vault has the same address on both chains, but AccountV3 returns
+// the ZERO address for owner() anywhere except its token's chain — it refuses to
+// guess an owner it cannot read. So nobody can drive the Robinhood Chain twin
+// directly. There is exactly one door: AccountV3 also accepts a caller whose
+// address, un-aliased, is the account itself. That is the MAINNET twin sending
+// an L1→L2 message, which Arbitrum delivers with the sender aliased by
+// +0x1111…1111 — and Robinhood Chain settles straight to Ethereum, so it is one
+// hop and the alias survives intact.
+//
+// Both halves are verified against the live chains, not assumed: the L1 call
+// simulates to a ticket id, the twin accepts `execute` from the aliased address,
+// and refuses the identical call from anyone else with NotAuthorized().
+//
+// The holder pays the ticket from their own wallet (execute is payable), so a
+// vault holding no mainnet ether can still send its dividend home.
+
+export const L1_INBOX = "0x1A07cc4BD17E0118BdB54D70990D2158AbAD7a2D" as const;
+
+export const INBOX_ABI = parseAbi([
+  "function calculateRetryableSubmissionFee(uint256 dataLength, uint256 baseFee) view returns (uint256)",
+  "function createRetryableTicket(address to, uint256 l2CallValue, uint256 maxSubmissionCost, address excessFeeRefundAddress, address callValueRefundAddress, uint256 gasLimit, uint256 maxFeePerGas, bytes data) payable returns (uint256)",
+]);
+
+export const ACCOUNT_ABI = parseAbi([
+  "function execute(address to, uint256 value, bytes data, uint8 operation) payable returns (bytes)",
+]);
+
+/// Generous on purpose. Robinhood Chain sits around 0.02 gwei, so 0.05 buys a
+/// wide margin for a few thousandths of a cent, and unspent gas is refunded to
+/// the address named below anyway. Under-paying is the expensive mistake: the
+/// ticket lands unredeemed and someone has to go and redeem it by hand.
+export const RH_GAS_LIMIT = 300_000n;
+export const RH_MAX_FEE_PER_GAS = 50_000_000n; // 0.05 gwei
+
+export const NOT_AUTHORIZED_SELECTOR = "0xea8e4eb5";

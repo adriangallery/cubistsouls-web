@@ -19,7 +19,14 @@ import { useChainId, usePublicClient, useSwitchChain, useWalletClient } from "wa
 import { mainnet } from "wagmi/chains";
 import { encodeFunctionData, formatEther, parseEther, isAddress, getAddress, parseAbi } from "viem";
 import { ensNameOf } from "@/lib/reaper";
-import { rhBalance } from "@/lib/ground";
+import {
+  rhBalance,
+  L1_INBOX,
+  INBOX_ABI,
+  RH_GAS_LIMIT,
+  RH_MAX_FEE_PER_GAS,
+  NOT_AUTHORIZED_SELECTOR,
+} from "@/lib/ground";
 import styles from "./reinforce.module.css";
 
 const ACCOUNT_ABI = parseAbi([
@@ -68,6 +75,72 @@ export default function VaultAssets({
   const [err, setErr] = useState<string | null>(null);
   const [hash, setHash] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  /// Send the Robinhood Chain dividend back to the holder, by having the MAINNET
+  /// twin post an L1→L2 message that tells the other twin to pay out. See
+  /// lib/ground.ts for why this is the only door.
+  async function bringItHome() {
+    if (!walletClient || !client || groundEth === null || groundEth === 0n) return;
+    setErr(null);
+    setPhase("wallet");
+    try {
+      if (chainId !== 1) await switchChainAsync({ chainId: 1 });
+
+      // what the twin is told to do once the message lands
+      const inner = encodeFunctionData({
+        abi: ACCOUNT_ABI,
+        functionName: "execute",
+        args: [holder, groundEth, "0x", 0],
+      });
+
+      const block = await client.getBlock();
+      const submissionFee = await client.readContract({
+        address: L1_INBOX,
+        abi: INBOX_ABI,
+        functionName: "calculateRetryableSubmissionFee",
+        args: [BigInt((inner.length - 2) / 2), block.baseFeePerGas ?? 0n],
+      });
+      // a little headroom: the base fee can move between reading and landing
+      const maxSubmissionCost = (submissionFee * 3n) / 2n;
+      const ticketValue = maxSubmissionCost + RH_GAS_LIMIT * RH_MAX_FEE_PER_GAS;
+
+      const outer = encodeFunctionData({
+        abi: INBOX_ABI,
+        functionName: "createRetryableTicket",
+        args: [
+          vault, // the twin, same address on the other chain
+          0n,
+          maxSubmissionCost,
+          holder, // anything unspent comes back to the holder
+          holder,
+          RH_GAS_LIMIT,
+          RH_MAX_FEE_PER_GAS,
+          inner,
+        ],
+      });
+
+      const h = await walletClient.writeContract({
+        address: vault,
+        abi: ACCOUNT_ABI,
+        functionName: "execute",
+        args: [L1_INBOX, ticketValue, outer, 0],
+        value: ticketValue, // paid by the holder, so an empty vault still works
+        chain: null,
+      });
+      setHash(h);
+      setPhase("pending");
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String(e);
+      setErr(
+        /User rejected|denied/i.test(m)
+          ? "Cancelled."
+          : new RegExp(NOT_AUTHORIZED_SELECTOR, "i").test(m)
+            ? "This vault refused the call — is the reaper still yours?"
+            : m.split("\n")[0].slice(0, 180),
+      );
+      setPhase("idle");
+    }
+  }
 
   useEffect(() => {
     let stale = false;
@@ -280,15 +353,18 @@ export default function VaultAssets({
             >
               view ↗
             </a>
+            <button className={styles.btnSmall} disabled={busy} onClick={bringItHome}>
+              Bring it home
+            </button>
           </div>
         </div>
       )}
       {groundEth !== null && groundEth > 0n && (
         <p className={styles.fine}>
-          From the first ground dividend, paid to this vault before we knew better. It is <b>in the vault</b>, at
-          the very same address on Robinhood Chain — but spending from there needs a message sent across from
-          Ethereum, which is not wired up. Nothing is stranded and nobody else can touch it. Later dividends go
-          straight to your own address instead.
+          The ground dividend. It sits in <b>this same vault</b>, at the very same address on Robinhood Chain —
+          which is why it travels with the reaper if it sells. <b>Bring it home</b> sends a message from Ethereum
+          telling that side to pay out to you; it costs a fraction of a cent and lands in a few minutes. Only the
+          reaper&apos;s holder can do it, and only while the reaper is yours.
         </p>
       )}
 

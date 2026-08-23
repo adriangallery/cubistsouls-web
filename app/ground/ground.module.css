@@ -53,3 +53,19 @@
 .earthed { color: #c8a05a; font-size: .58rem; letter-spacing: .1em; text-transform: uppercase; }
 .foot { font-family: var(--mono); font-size: .6rem; color: var(--mute); line-height: 1.7; margin: .6rem 0 0; }
 .foot a { color: var(--mute); }
+
+/* the clock every button obeys */
+.freshness {
+  font-family: var(--mono); font-size: .72rem; padding: .6rem .8rem; border-radius: 9px;
+  border: 1px solid rgba(111,174,142,.4); color: var(--bone); background: rgba(111,174,142,.08);
+  display: flex; align-items: center; gap: .5rem; flex-wrap: wrap;
+}
+.freshness[data-fresh="false"] { border-color: rgba(224,160,94,.45); background: rgba(224,160,94,.08); }
+.freshness b { color: #fff; }
+.relayBtn {
+  font-family: var(--mono); font-size: .66rem; letter-spacing: .05em; text-transform: uppercase;
+  padding: .38rem .6rem; border-radius: 7px; cursor: pointer; font-weight: 700;
+  background: #e0a05e; color: #1a0d02; border: 1px solid #e0a05e;
+}
+.relayBtn:hover:not(:disabled) { background: #edb578; }
+.relayBtn:disabled { opacity: .4; cursor: not-allowed; }

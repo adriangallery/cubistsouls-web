@@ -16,15 +16,21 @@ import { useAccount, useChainId, useSwitchChain, useWriteContract, usePublicClie
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import {
   GROUND_ROUTER,
+  GROUND_RELAY,
   GROUND_CHAIN_ID,
   GROUND_EXPLORER,
   GROUND_ABI,
+  RELAY_ABI,
+  RELAY_GAS_LIMIT,
+  RELAY_MAX_FEE_PER_GAS,
   GROUND_THRESHOLD,
   readPot,
   readRoster,
+  readState,
   fmtAsset,
   type PotAsset,
   type RosterEntry,
+  type GroundState,
 } from "@/lib/ground";
 import { getReaperVaults } from "@/lib/reaper";
 import styles from "./ground.module.css";
@@ -39,6 +45,7 @@ export default function GroundDesk() {
   const mainnetClient = usePublicClient({ chainId: 1 });
 
   const [pot, setPot] = useState<PotAsset[] | null>(null);
+  const [gstate, setGstate] = useState<GroundState | null>(null);
   const [roster, setRoster] = useState<RosterEntry[] | null>(null);
   const [onChainSouls, setOnChainSouls] = useState<Record<number, number>>({});
   const [busy, setBusy] = useState<string | null>(null);
@@ -48,9 +55,14 @@ export default function GroundDesk() {
 
   const refresh = useCallback(async () => {
     if (!live) return;
-    const [p, r] = await Promise.all([readPot(GROUND_ROUTER), readRoster(GROUND_ROUTER)]);
+    const [p, r, st] = await Promise.all([
+      readPot(GROUND_ROUTER),
+      readRoster(GROUND_ROUTER),
+      readState(GROUND_ROUTER),
+    ]);
     setPot(p);
     setRoster(r);
+    setGstate(st);
   }, [live]);
 
   useEffect(() => {
@@ -84,6 +96,41 @@ export default function GroundDesk() {
     (r) => onChainSouls[r.reaperId] !== undefined && onChainSouls[r.reaperId] !== r.souls,
   );
 
+  /// PHASE ONE — read Ethereum and send it across. Runs on MAINNET: the relay
+  /// lives where the truth lives. Whoever wants the split pays for it.
+  async function refreshRoster() {
+    if (chainId !== 1) {
+      switchChain?.({ chainId: 1 });
+      return;
+    }
+    setNote(null);
+    setBusy("relay");
+    try {
+      const quoted = await mainnetClient!.readContract({
+        address: GROUND_RELAY,
+        abi: RELAY_ABI,
+        functionName: "quote",
+        args: [RELAY_GAS_LIMIT, RELAY_MAX_FEE_PER_GAS],
+      });
+      const hash = await writeContractAsync({
+        address: GROUND_RELAY,
+        abi: RELAY_ABI,
+        functionName: "relay",
+        args: [RELAY_GAS_LIMIT, RELAY_MAX_FEE_PER_GAS],
+        value: (quoted[0] * 11n) / 10n, // headroom; the relay refunds the excess
+        chainId: 1,
+      });
+      setNote(
+        `Reading sent. ${hash.slice(0, 10)}… — the numbers cross in five to ten minutes; this page refreshes itself.`,
+      );
+    } catch (e) {
+      const m = e instanceof Error ? e.message : String(e);
+      setNote(/User rejected|denied/i.test(m) ? "Cancelled." : m.split("\n")[0].slice(0, 160));
+    } finally {
+      setBusy(null);
+    }
+  }
+
   async function press(asset: PotAsset) {
     if (chainId !== GROUND_CHAIN_ID) {
       switchChain?.({ chainId: GROUND_CHAIN_ID });
@@ -115,10 +162,10 @@ export default function GroundDesk() {
       setNote(
         /NoneEligible/.test(m)
           ? "Nobody is earthed on the posted roster, so there is nothing to split."
-          : /BelowMinimum/.test(m)
-            ? "The pot is below the minimum a call is allowed to split."
-            : /TooSoon/.test(m)
-              ? "Too soon since the last distribution."
+          : /RosterStale/.test(m)
+            ? "The reading went stale while you looked — read Ethereum again (step 1)."
+            : /NothingToSplit/.test(m)
+              ? "Nothing in the pot to split."
               : /User rejected|denied/i.test(m)
                 ? "Cancelled."
                 : m.split("\n")[0].slice(0, 160),
@@ -142,9 +189,34 @@ export default function GroundDesk() {
     <div className={styles.wrap}>
       <div className={styles.rule}>
         <span className={styles.mark}>🜃</span>
-        Everything here is split <b>equally between reapers holding {GROUND_THRESHOLD} souls or more</b>. The
-        button is not ours — <b>anyone can press it</b>, and it can only do this one thing.
+        Everything here is split <b>equally between reapers holding {GROUND_THRESHOLD} souls or more</b> —
+        checked against Ethereum <b>at the moment of the split</b>, in two steps anyone can take:{" "}
+        <b>1&#41; read Ethereum</b> (a message carries the counts across, five to ten minutes), then{" "}
+        <b>2&#41; split</b> while the reading is under 30 minutes old. Nobody posts anything and nobody is
+        trusted: the numbers are read on chain, by a contract, from the vaults themselves.
       </div>
+
+      {/* THE CLOCK — everything below obeys it */}
+      {gstate && (
+        <div className={styles.freshness} data-fresh={gstate.fresh}>
+          {gstate.fresh ? (
+            <>
+              Reading is <b>{Math.round(gstate.age / 60)} min</b> old — splits allowed for another{" "}
+              <b>{Math.max(0, Math.round((gstate.expiresAt - Date.now() / 1000) / 60))} min</b> ·{" "}
+              {gstate.eligible} earthed
+            </>
+          ) : (
+            <>
+              The reading is <b>stale</b>
+              {gstate.age < 86400 * 300 ? ` (${Math.round(gstate.age / 60)} min old)` : ""} — splits are
+              refused until someone reads Ethereum again.{" "}
+              <button className={styles.relayBtn} disabled={busy !== null} onClick={refreshRoster}>
+                {busy === "relay" ? "…" : chainId !== 1 ? "Switch to Ethereum" : "Read Ethereum (~$0.30)"}
+              </button>
+            </>
+          )}
+        </div>
+      )}
 
       {/* THE POT — one row per asset, because a marketplace settles in whatever it likes */}
       <div className={styles.pot}>
@@ -166,8 +238,9 @@ export default function GroundDesk() {
               </div>
               <button
                 className={styles.go}
-                disabled={empty || eligible.length === 0 || isPending || busy !== null}
+                disabled={empty || eligible.length === 0 || isPending || busy !== null || !gstate?.fresh}
                 onClick={() => press(a)}
+                title={!gstate?.fresh ? "The reading is stale — read Ethereum first (step 1 above)." : undefined}
               >
                 {busy === a.symbol
                   ? "…"
@@ -192,14 +265,14 @@ export default function GroundDesk() {
       <div className={styles.rosterHead}>
         <span className={styles.rosterTitle}>The roster</span>
         <span className={styles.rosterSub}>
-          posted on Robinhood Chain · checked against Ethereum live
+          read from Ethereum by the relay · shown next to Ethereum live
         </span>
       </div>
 
       {stale.length > 0 && (
         <p className={styles.stale}>
-          ⚠ {stale.length} {stale.length === 1 ? "entry has" : "entries have"} drifted from what Ethereum says.
-          The posted roster is what pays until it is reposted.
+          ⚠ {stale.length} {stale.length === 1 ? "entry has" : "entries have"} moved on Ethereum since the
+          last reading. Step 1 picks that up.
         </p>
       )}
 
@@ -208,7 +281,7 @@ export default function GroundDesk() {
           <thead>
             <tr>
               <th>Reaper</th>
-              <th>Posted</th>
+              <th>Last reading</th>
               <th>On Ethereum</th>
               <th>Paid to holder</th>
               <th></th>
