@@ -236,6 +236,12 @@ function PowerPanel({
                   · <b>{power.reaperCount}</b> crowned 🜃
                 </>
               ) : null}
+              {power.vaultSouls > 0 ? (
+                <>
+                  {" "}
+                  · <b>{power.vaultSouls}</b> in vaults ⚱
+                </>
+              ) : null}
             </div>
           </div>
 
@@ -265,6 +271,11 @@ function PowerPanel({
                         {s.cohortName}
                       </span>
                       {s.isReaper && <span className={styles.crownTag}>🜃 reaper</span>}
+                      {s.viaVault !== undefined && (
+                        <span className={styles.vaultTag} title={`inside reaper #${s.viaVault}'s vault`}>
+                          ⚱ #{s.viaVault}
+                        </span>
+                      )}
                     </div>
                     <div className={styles.soulStars} title={`${fmt(Math.round(s.soulMH))} MH`}>
                       {stars(s.stars)}

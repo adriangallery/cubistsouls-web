@@ -37,7 +37,13 @@ export default function ProposeDesk({
   const { address, isConnected } = useAccount();
   const { signMessageAsync } = useSignMessage();
 
-  const reapers = useMemo(() => (power?.souls ?? []).filter((s) => s.isReaper), [power]);
+  // Only reapers held DIRECTLY can author: the server checks ownerOf(reaperId)
+  // against the signer, and a reaper sitting inside a vault is owned by the
+  // vault contract. Its power still counts — it just doesn't hold the pen.
+  const reapers = useMemo(
+    () => (power?.souls ?? []).filter((s) => s.isReaper && s.viaVault === undefined),
+    [power],
+  );
 
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");

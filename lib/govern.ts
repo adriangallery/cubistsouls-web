@@ -15,7 +15,7 @@
 
 import type { PublicClient } from "viem";
 import { loadSouls } from "./souls";
-import { loadCohorts, getReaperState, loadRarity } from "./reaper";
+import { loadCohorts, getReaperState, loadRarity, SOULS, VAULT_ABI } from "./reaper";
 import {
   MH_BASE,
   MH_COHORT_MULT,
@@ -228,23 +228,63 @@ export type SoulPower = {
   soulMH: number;
   stars: number;
   power: number;
+  /** Set when the soul sits inside a reaper's 6551 vault this wallet commands
+   *  (the value is that reaper's id). Control follows ownerOf(reaperId). */
+  viaVault?: number;
 };
 
 export type WalletPower = {
   total: number;
-  heldCount: number;
+  heldCount: number; // every soul the wallet commands: direct + inside its reapers' vaults
   souls: SoulPower[]; // sorted by power desc
   // layer totals — the pyramid's own share of this wallet's power
   cohortBase: number; // Σ cohortPts (before crown)
   crownBonus: number; // extra power the reaper crown adds
   starTotal: number; // Σ stars
   reaperCount: number;
+  vaultSouls: number; // how many of heldCount live inside 6551 reaper vaults
   byCohort: { og: number; eraI: number; eraII: number }; // soul counts per band
 };
+
+// The 6551 vault addresses behind a set of ASCENDED reapers. The gate lives
+// on-chain (reaperAccount reverts for regular souls — allowFailure skips them);
+// only DEPLOYED vaults come back, because an undeployed one can't hold souls.
+async function getVaultAccounts(
+  client: PublicClient,
+  reaperIds: number[],
+): Promise<Map<number, string>> {
+  const out = new Map<number, string>();
+  if (!reaperIds.length) return out;
+  const res = await client.multicall({
+    allowFailure: true,
+    contracts: reaperIds.map((id) => ({
+      address: SOULS,
+      abi: VAULT_ABI,
+      functionName: "reaperAccount" as const,
+      args: [BigInt(id)] as const,
+    })),
+  });
+  res.forEach((r, i) => {
+    if (r.status !== "success") return;
+    const [account, deployed] = r.result as readonly [`0x${string}`, boolean];
+    if (deployed && account !== "0x0000000000000000000000000000000000000000")
+      out.set(reaperIds[i], account.toLowerCase());
+  });
+  return out;
+}
 
 // Load one wallet's full soul-bound power breakdown, client-side (same RPC path as
 // /my-souls: loadSouls → loadCohorts + getReaperState + rarity + acquisition block
 // timestamps). Returns per-soul rows plus the layer aggregates the page bars use.
+//
+// SOULS INSIDE THE VAULTS COUNT (Adrian, 23-ago): a wallet's power is every
+// soul it COMMANDS — the ones it holds directly plus the ones sitting inside
+// the 6551 vaults of its own reapers (control follows ownerOf(reaperId), and
+// AccountV3 blocks ownership cycles, so one level of vaults is the whole
+// tree). Each vault soul's MH clock runs from when the VAULT acquired it —
+// same held-by-current-owner rule as everywhere else. The vault address
+// itself can never sign a ballot (it's a contract), so counting its souls
+// under the commanding wallet is what makes those souls exist to the tally.
 export async function loadWalletPower(
   client: PublicClient,
   account: string,
@@ -258,37 +298,74 @@ export async function loadWalletPower(
     crownBonus: 0,
     starTotal: 0,
     reaperCount: 0,
+    vaultSouls: 0,
     byCohort: { og: 0, eraI: 0, eraII: 0 },
   };
 
   const d = await loadSouls(client, account);
   const owned = d.owned;
+  // No direct souls → no reapers either (a reaper IS a soul), so no vaults.
   if (!owned.length) return empty;
 
-  const [cohorts, reaperMap, rarity] = await Promise.all([
+  const [cohortsDirect, reaperDirect, rarity] = await Promise.all([
     loadCohorts(client, owned),
     getReaperState(client, owned),
     loadRarity(),
   ]);
+
+  // The vaults of the crowned souls this wallet holds, and what stands inside.
+  const crowned = owned.filter((id) => reaperDirect.get(id)?.isReaper);
+  const vaults = await getVaultAccounts(client, crowned);
+  const viaVault = new Map<number, number>(); // soulId → commanding reaperId
+  const acq: Record<number, number> = { ...d.acq };
+  const vaultLoads = await Promise.all(
+    [...vaults.entries()].map(([rid, addr]) =>
+      loadSouls(client, addr)
+        .then((sd) => ({ rid, sd }))
+        // A failed vault read drops that vault for this render rather than the
+        // whole panel; the next poll retries.
+        .catch(() => null),
+    ),
+  );
+  const directSet = new Set(owned);
+  const vaultIds: number[] = [];
+  for (const v of vaultLoads) {
+    if (!v) continue;
+    for (const id of v.sd.owned) {
+      if (directSet.has(id) || viaVault.has(id)) continue;
+      viaVault.set(id, v.rid);
+      vaultIds.push(id);
+      acq[id] = v.sd.acq[id];
+    }
+  }
+
+  const [cohortsVault, reaperVault] = vaultIds.length
+    ? await Promise.all([loadCohorts(client, vaultIds), getReaperState(client, vaultIds)])
+    : [new Map<number, number>(), new Map<number, { isReaper: boolean; consumed: number }>()];
+
+  const allIds = [...owned, ...vaultIds];
+  const cohortOf = (id: number) => cohortsDirect.get(id) ?? cohortsVault.get(id) ?? 3;
+  const reaperOf = (id: number) => reaperDirect.get(id) ?? reaperVault.get(id);
+
   const blockTs = await getBlockTimestamps(
     client,
-    owned.map((id) => d.acq[id]).filter((b) => b != null),
+    allIds.map((id) => acq[id]).filter((b) => b != null),
   );
 
   const now = Math.floor(Date.now() / 1000);
   const tierOf = (id: number) => (rarity ? Number(rarity.tiers[id - 1]) || 0 : 0);
   const rarityMult = (id: number) => rarity?.tierMultipliers?.[tierOf(id)] ?? 1.0;
 
-  const souls: SoulPower[] = owned.map((id) => {
-    const cohort = cohorts.get(id) ?? 3;
-    const rs = reaperMap.get(id);
+  const souls: SoulPower[] = allIds.map((id) => {
+    const cohort = cohortOf(id);
+    const rs = reaperOf(id);
     const isReaper = rs?.isReaper ?? false;
     const consumed = rs?.consumed ?? 0;
     // ratified per-soul MH rate (cohort × rarity × provenance + inherited)
     const rate =
       MH_BASE * (MH_COHORT_MULT[cohort] ?? 1.0) * rarityMult(id) * provenanceBonusOf(tierOf(id)) +
       inheritedMHOf(consumed);
-    const acqTs = blockTs.get(d.acq[id]) ?? now;
+    const acqTs = blockTs.get(acq[id]) ?? now;
     const soulMH = rate * Math.max(0, (now - acqTs) / 3600);
     const cp = cohortPtsOf(cohort, p);
     const stars = starsOf(soulMH, p);
@@ -304,17 +381,19 @@ export async function loadWalletPower(
       soulMH,
       stars,
       power,
+      viaVault: viaVault.get(id),
     };
   });
   souls.sort((a, b) => b.power - a.power || b.soulMH - a.soulMH || a.id - b.id);
 
-  const out: WalletPower = { ...empty, heldCount: owned.length, souls };
+  const out: WalletPower = { ...empty, heldCount: allIds.length, souls };
   for (const s of souls) {
     out.total += s.power;
     out.cohortBase += s.cohortPts;
     out.crownBonus += s.isReaper ? s.cohortPts * (p.reaperCrown - 1) : 0;
     out.starTotal += s.stars;
     if (s.isReaper) out.reaperCount++;
+    if (s.viaVault !== undefined) out.vaultSouls++;
     out.byCohort[s.cohortKey]++;
   }
   return out;
