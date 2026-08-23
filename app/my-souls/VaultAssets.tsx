@@ -19,6 +19,7 @@ import { useChainId, usePublicClient, useSwitchChain, useWalletClient } from "wa
 import { mainnet } from "wagmi/chains";
 import { encodeFunctionData, formatEther, parseEther, isAddress, getAddress, parseAbi } from "viem";
 import { ensNameOf } from "@/lib/reaper";
+import { rhBalance } from "@/lib/ground";
 import styles from "./reinforce.module.css";
 
 const ACCOUNT_ABI = parseAbi([
@@ -55,6 +56,8 @@ export default function VaultAssets({
   const { switchChainAsync } = useSwitchChain();
 
   const [eth, setEth] = useState<bigint | null>(null);
+  /// The same vault, on Robinhood Chain — where the ground dividend is paid.
+  const [groundEth, setGroundEth] = useState<bigint | null>(null);
   const [amount, setAmount] = useState("");
   const [kind, setKind] = useState<Kind>("erc721");
   const [contract, setContract] = useState("");
@@ -65,6 +68,16 @@ export default function VaultAssets({
   const [err, setErr] = useState<string | null>(null);
   const [hash, setHash] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    let stale = false;
+    rhBalance(vault)
+      .then((b) => !stale && setGroundEth(b))
+      .catch(() => {});
+    return () => {
+      stale = true;
+    };
+  }, [vault]);
 
   useEffect(() => {
     if (!client) return;
@@ -246,6 +259,38 @@ export default function VaultAssets({
           </button>
         </div>
       </div>
+
+      {/* THE SAME VAULT, ON THE OTHER CHAIN. A 6551 account is keyed on its
+          token's chain, not its own, so this vault has one address on Ethereum
+          AND on Robinhood Chain — and the ground dividend is paid there. Showing
+          only the Ethereum side made a holder who had just been paid conclude
+          the money never arrived. */}
+      {groundEth !== null && groundEth > 0n && (
+        <div className={styles.assetRow}>
+          <div>
+            <span className={styles.assetLabel}>Held on Robinhood Chain</span>
+            <b className={styles.assetValue} style={{ color: "#c8a05a" }}>Ξ{formatEther(groundEth)}</b>
+          </div>
+          <div className={styles.assetActions}>
+            <a
+              className={styles.mini}
+              href={`https://explorer.mainnet.chain.robinhood.com/address/${vault}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              view ↗
+            </a>
+          </div>
+        </div>
+      )}
+      {groundEth !== null && groundEth > 0n && (
+        <p className={styles.fine}>
+          This is the ground dividend. It is <b>in the vault</b>, at the very same address — so it travels with
+          the reaper if it sells, exactly like the souls behind it. Taking it out is not wired up yet: the vault
+          is driven from Ethereum, so a withdrawal has to be sent across as a message from the mainnet side.
+          Nothing is stranded and nobody else can touch it.
+        </p>
+      )}
 
       {/* anything else — we do not index other collections, so we hand over the key */}
       <div className={styles.rescue}>
