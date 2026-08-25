@@ -92,13 +92,30 @@ export async function ownersOf(
   return out;
 }
 
+// The full mint history is wallet-independent, and weighing a ballot calls
+// loadSouls once per VOTER — without this memo every voter re-downloads every
+// mint the museum ever made. Memoize the PROMISE (concurrent callers share one
+// in-flight request) with a short TTL, and drop it on rejection so a failed
+// fetch never sticks.
+const MINT_LOGS_TTL_MS = 5 * 60_000;
+let mintLogsMemo: { p: Promise<TransferLog[]>; ts: number } | null = null;
+function getMintLogs(client: PublicClient): Promise<TransferLog[]> {
+  if (mintLogsMemo && Date.now() - mintLogsMemo.ts < MINT_LOGS_TTL_MS) return mintLogsMemo.p;
+  const p = getLogsRange(client, { fromAddr: zeroAddress });
+  mintLogsMemo = { p, ts: Date.now() };
+  p.catch(() => {
+    if (mintLogsMemo?.p === p) mintLogsMemo = null;
+  });
+  return p;
+}
+
 export async function loadSouls(client: PublicClient, account: string): Promise<SoulsData> {
   const acct = account.toLowerCase();
   const to = getAddress(account);
 
   const [inLogs, mintLogs] = await Promise.all([
     getLogsRange(client, { toAddr: to }),
-    getLogsRange(client, { fromAddr: zeroAddress }),
+    getMintLogs(client),
   ]);
 
   // freed by this wallet + rank among liberators (tally of mints per recipient)

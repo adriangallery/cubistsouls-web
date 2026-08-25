@@ -1,9 +1,16 @@
-// Cubist Souls Govern — vote intake (dumb mailbox).
+// Cubist Souls Govern — vote intake.
 //
-// Ported from pikkazo-burn/api/govern/vote.js. The server does NOT verify
-// signatures; it only stores signed ballots. The tally is done client-side.
+// Ported from pikkazo-burn/api/govern/vote.js. Two duties since the tally-scale
+// work (was a dumb mailbox before):
+//   1. VERIFY the EIP-191 signature before storing — a ballot that can't recover
+//      to its own address is rejected at the door, so nothing downstream (the
+//      weigher, the freeze) ever spends chain reads on junk.
+//   2. WEIGH the voter's soul-bound power ONCE, here, and cache it in Redis
+//      (lib/govern-weigh) so no visitor's browser has to re-read the chain per
+//      voter. Weighing races a soft deadline: a slow RPC never blocks the vote —
+//      the weigh finishes in the background and the votes reader picks it up.
 //
-// CANONICAL MESSAGE the voter signs (EIP-191 personal_sign) — EXACT format:
+// CANONICAL MESSAGE (built by lib/govern-ballot, shared with the client):
 //   Cubist Souls Govern
 //   Proposal: <id>
 //   Choice: <optionIndex>
@@ -12,11 +19,13 @@
 //
 // Storage (Upstash Redis REST, keys under cs:gov:):
 //   HSET cs:gov:votes:<proposalId> <address_lc> {"choice":n,"sig":"0x..","ts":unix}
+//   HSET cs:gov:weights <address_lc> {"power":n,"souls":n,"at":unix}
 //   INCR cs:gov:rl:<ip>  (TTL 3600s)  — light anti-spam, 20 votes/hour/IP
 //
 // Credentials are injected by the host (Vercel env); never inline them.
 
 import { loadAllProposals, redis, redisConfigured } from "@/lib/govern-server";
+import { verifyBallotSig, weighSoft } from "@/lib/govern-weigh";
 
 export const runtime = "nodejs";
 
@@ -47,7 +56,13 @@ function validateVote(body: any, proposals: any[], nowMs: number) {
   if (nowMs >= Date.parse(prop.closesAt))
     return { ok: false as const, code: 409, error: "voting closed" };
 
-  return { ok: true as const, proposalId, address: address.toLowerCase(), choice: c };
+  return {
+    ok: true as const,
+    proposalId,
+    address: address.toLowerCase(),
+    choice: c,
+    snapshotBlock: typeof prop.snapshotBlock === "number" ? prop.snapshotBlock : undefined,
+  };
 }
 
 export async function POST(req: Request) {
@@ -73,6 +88,11 @@ export async function POST(req: Request) {
   const v = validateVote(body, proposals, Date.now());
   if (!v.ok) return Response.json({ error: v.error }, { status: v.code });
 
+  // The ballot must recover to its own address — checked BEFORE the rate limit
+  // so a forged ballot can't even burn the IP's budget.
+  const sigOk = await verifyBallotSig(v.proposalId, v.choice, v.snapshotBlock, v.address, body.sig);
+  if (!sigOk) return Response.json({ error: "invalid signature" }, { status: 401 });
+
   // light per-IP rate limit (best-effort; never blocks a legit single vote)
   try {
     const ip = (req.headers.get("x-forwarded-for") || "").split(",")[0].trim() || "unknown";
@@ -91,7 +111,14 @@ export async function POST(req: Request) {
     return Response.json({ error: "store failed" }, { status: 502 });
   }
 
-  return Response.json({ ok: true }, { status: 200, headers: { "Cache-Control": "no-store" } });
+  // Weigh the voter now, so the ballot usually lands already counted. Soft
+  // deadline: a slow RPC returns the vote anyway and the weigh lands later.
+  const weight = await weighSoft(v.address, 12_000);
+
+  return Response.json(
+    { ok: true, weight },
+    { status: 200, headers: { "Cache-Control": "no-store" } },
+  );
 }
 
 export async function GET() {
